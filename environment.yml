@@ -1,0 +1,22 @@
+name: ai-models
+channels:
+  - pytorch
+  - nvidia
+  - pyg
+dependencies:
+  - eccodes
+  - earthkit-data 
+  - matplotlib
+  - pip
+  - pyg
+  - pyproj
+  - pytorch
+  - pytorch-cuda=11.8
+  - torchaudio
+  - torchvision
+  - zarr
+  - pip:
+    - ai-models
+    - ai-models-panguweather
+    - ai-models-graphcast  # Install details at https://github.com/ecmwf-lab/ai-models-graphcast
+    - ai-models-fourcastnetv2
