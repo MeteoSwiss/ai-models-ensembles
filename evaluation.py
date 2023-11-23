@@ -4,48 +4,36 @@ import matplotlib.pyplot as plt
 import numpy as np
 import xarray as xr
 
-parser = argparse.ArgumentParser(description='Evaluate the NeurWP Ensemble.')
-parser.add_argument(
-    'MODEL_NAME',
-    metavar='MODEL_NAME',
-    type=str,
-    help='the model grib output')
-parser.add_argument(
-    'DATE_TIME',
-    type=bool,
-    help='print pressure levels')
+parser = argparse.ArgumentParser(description="Evaluate the NeurWP Ensemble.")
+parser.add_argument("path_out", type=str, help="The path to the output directory")
+
 args = parser.parse_args()
 
-forecast = xr.open_dataset("forecast.zarr")
+forecast = xr.open_zarr(args.path_out + "/forecast.zarr", consolidated=True)
+ground_truth = xr.open_zarr("ground_truth.zarr", consolidated=True)
 
-# Concatenate all datasets into one
-ground_truth = xr.open_dataset("era5.grib")
+ground_truth['step'] = ('time', np.arange(len(ground_truth['time'])))
+ground_truth = ground_truth.swap_dims({'time': 'step'})
+ground_truth["step"] = forecast["step"]
 
-# Calculate the ensemble spread
-ensemble_spread = forecast.std(dim='member')
+# Calculate the ensemble spread for each forecast step and variable
+ensemble_spread = forecast.std(dim=["member", "latitude", "longitude", "isobaricInhPa"])
 
-# Calculate the ensemble skill
-ensemble_skill = np.mean(
-    np.abs(
-        forecast.mean(
-            dim='member') -
-        ground_truth),
-    dim=[
-        'latitude',
-        'longitude'])
-
-# Group the spread and skill by forecast step
-grouped_spread = ensemble_spread.groupby('step')
-grouped_skill = ensemble_skill.groupby('step')
+# Calculate the ensemble skill for each forecast step and variable
+ensemble_skill = abs(forecast.mean(dim="member") - ground_truth).mean(
+    ["latitude", "longitude", "isobaricInhPa"])
 
 # Calculate the spread and skill at each forecast step
-spread_skill_ratio = grouped_spread.mean() / grouped_skill.mean()
+spread_skill_ratio = ensemble_spread / ensemble_skill
 
-# Create a line plot of the spread-skill ratio
-plt.figure(figsize=(10, 6))
-spread_skill_ratio.plot.line('o-')
-plt.title('Spread-Skill Ratio Over Forecast Step')
-plt.xlabel('Forecast Step')
-plt.ylabel('Spread-Skill Ratio')
-plt.grid(True)
-plt.savefig('spread_skill_ratio.png')
+# Plot the spread and skill at each forecast step and variable
+for variable in spread_skill_ratio.data_vars:
+    data_array = spread_skill_ratio[variable]
+    fig, ax = plt.subplots()
+    data_array.plot(ax=ax)
+    ax.set_title(f"Spread-skill ratio for {variable}")
+    ax.set_xlabel("Step")
+    ax.set_ylabel("Spread-skill ratio")
+    ax.set_ylim(bottom=0)
+    plt.savefig(f"{args.path_out}/spread_skill_ratio_{variable}.png")
+    plt.close(fig)

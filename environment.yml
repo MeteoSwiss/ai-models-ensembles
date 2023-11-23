@@ -12,6 +12,7 @@ dependencies:
   - pyproj
   - pytorch
   - pytorch-cuda=11.8
+  - seaborn
   - torchaudio
   - torchvision
   - zarr

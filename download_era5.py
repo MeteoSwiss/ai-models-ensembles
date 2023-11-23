@@ -5,15 +5,17 @@ from datetime import datetime, timedelta
 import earthkit.data
 
 # Parse command line arguments
-parser = argparse.ArgumentParser(description='Download ERA5 data.')
+parser = argparse.ArgumentParser(description="Download ERA5 data.")
+parser.add_argument("model_name", type=str, help="The ai-model name")
 parser.add_argument(
-    'DATE_TIME',
+    "date_time",
     type=str,
-    help='Date and time in the format YYYYMMDDHHMM')
+    help="Date and time in the format YYYYMMDDHHMM")
+
 args = parser.parse_args()
 
 # Read parameters from fields.txt
-with open("fields.txt", "r") as f:
+with open(args.model_name + "/fields.txt", "r") as f:
     lines = f.readlines()
 
 grid = ast.literal_eval(lines[0].split(": ")[1].strip())
@@ -23,7 +25,7 @@ pressure_level_params = ast.literal_eval(lines[4].split(": ")[1].strip())
 single_level_params = ast.literal_eval(lines[6].split(": ")[1].strip())
 
 # Convert the initial date and time to a datetime object
-datetime_obj = datetime.strptime(args.DATE_TIME, '%Y%m%d%H%M')
+datetime_obj = datetime.strptime(args.date_time, "%Y%m%d%H%M")
 
 # Initialize an empty list to store the datasets
 datasets = []
@@ -31,8 +33,8 @@ datasets = []
 # Repeat the retrieval for the next 240 hours (6 hourly intervals)
 for i in range(41):
     # Convert the date and time to the YYYYMMDD and HHMM formats
-    date = datetime_obj.strftime('%Y%m%d')
-    time = datetime_obj.strftime('%H%M')
+    date = datetime_obj.strftime("%Y%m%d")
+    time = datetime_obj.strftime("%H%M")
 
     # Retrieve data for the current date and time
     ds_single = earthkit.data.from_source(
@@ -70,6 +72,9 @@ for i in range(41):
     # Add 6 hours to the datetime
     datetime_obj += timedelta(hours=6)
 
-# Save to GRIB
-print("Saving to GRIB...")
-ds_combined.save("era5.grib")
+# Save era5 ground_truth as zarr_archive
+print("Saving ground truth to zarr...")
+chunks = {"latitude": -1, "longitude": -1, "time": 1}
+ds_combined.to_xarray()
+ds_combined = ds_combined.chunk(chunks=chunks)
+ds_combined.to_zarr("ground_truth.zarr", consolidated=True)

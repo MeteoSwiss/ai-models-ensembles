@@ -3,8 +3,12 @@ import argparse
 import ai_models_fourcastnetv2.fourcastnetv2 as nvs
 import torch
 
-parser = argparse.ArgumentParser()
-parser.add_argument("--seed", type=int, default=0)
+# Create an argument parser
+parser = argparse.ArgumentParser(
+    description="Perturb the weights in the FourierNeuralOperatorBlock.")
+parser.add_argument(
+    "member", type=int,
+    help="The ensemble member number and seed for the perturbation.")
 args = parser.parse_args()
 
 
@@ -33,7 +37,7 @@ def perturb_weights(model, perturbation_strength):
 
 def save_model_weights(model, path):
     """Save the model weights."""
-    torch.save({'model_state': model.state_dict()}, path)
+    torch.save({"model_state": model.state_dict()}, path)
 
 
 def main():
