@@ -14,14 +14,18 @@ ground_truth = xr.open_zarr("ground_truth.zarr", consolidated=True)
 
 ground_truth['step'] = ('time', np.arange(len(ground_truth['time'])))
 ground_truth = ground_truth.swap_dims({'time': 'step'})
+forecast["step"] = forecast.time + forecast.step
 ground_truth["step"] = forecast["step"]
 
-# Calculate the ensemble spread for each forecast step and variable
-ensemble_spread = forecast.std(dim=["member", "latitude", "longitude", "isobaricInhPa"])
+# Calculate the spatial mean
+fc_mean = forecast.mean(dim=["latitude", "longitude", "isobaricInhPa"])
+gt_mean = ground_truth.mean(dim=["latitude", "longitude", "isobaricInhPa"])
+
+# Calculate the std across all members for each forecast step and variable
+ensemble_spread = fc_mean.std(dim=["member"])
 
 # Calculate the ensemble skill for each forecast step and variable
-ensemble_skill = abs(forecast.mean(dim="member") - ground_truth).mean(
-    ["latitude", "longitude", "isobaricInhPa"])
+ensemble_skill = abs(fc_mean.mean(dim="member") - gt_mean)
 
 # Calculate the spread and skill at each forecast step
 spread_skill_ratio = ensemble_spread / ensemble_skill
@@ -29,11 +33,47 @@ spread_skill_ratio = ensemble_spread / ensemble_skill
 # Plot the spread and skill at each forecast step and variable
 for variable in spread_skill_ratio.data_vars:
     data_array = spread_skill_ratio[variable]
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots(figsize=(8, 6))
+    # Assuming 'step' is a DataArray or Dataset of numpy.datetime64 objects
     data_array.plot(ax=ax)
-    ax.set_title(f"Spread-skill ratio for {variable}")
-    ax.set_xlabel("Step")
+
+    # Create a secondary axis
+    ax2 = ax.twinx()
+    # Plot the ensemble skill on the secondary axis
+    ensemble_spread[variable].plot(ax=ax2, color='red')
+
+    ax.set_xlabel("")
     ax.set_ylabel("Spread-skill ratio")
     ax.set_ylim(bottom=0)
+    ax.set_title(f"Spread-Skill Ratio and Ensemble Spread for {variable}")
+    ax2.set_ylabel("Ensemble Spread", color='red')
+    ax2.tick_params(axis='y', colors='red')  # Make the right axis and its labels red
+    ax2.set_title("")
     plt.savefig(f"{args.path_out}/spread_skill_ratio_{variable}.png")
+    plt.close(fig)
+
+# Plot the gt_mean and each member of fc_mean for each variable
+for variable in fc_mean.data_vars:
+    fig, ax = plt.subplots(figsize=(8, 6))
+
+    # Plot gt_mean in black
+    gt_mean[variable].plot(ax=ax, color='black', label='ERA5')
+
+    # Plot each member of fc_mean in green
+    for i, member in enumerate(fc_mean.member):
+        if i == 0:  # Add label only for the first member
+            fc_mean[variable].sel(
+                member=member).plot(
+                ax=ax,
+                color='green',
+                alpha=0.5,
+                label='AI-Model')
+        else:
+            fc_mean[variable].sel(member=member).plot(ax=ax, color='green', alpha=0.5)
+
+    ax.set_ylabel(f"{variable}")
+    ax.set_title(f"Forecast vs Ground-Truth Comparison: {variable}")
+    ax.legend()
+
+    plt.savefig(f"{args.path_out}/{variable}_fc_gt.png")
     plt.close(fig)
