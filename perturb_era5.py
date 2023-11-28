@@ -18,10 +18,10 @@ parser.add_argument(
     "date_time",
     type=str,
     help="Date and time in the format YYYYMMDDHHMM")
+parser.add_argument("perturbation", type=float, help="The perturbation size")
 parser.add_argument(
     "member", type=int,
     help="The ensemble member number and seed for the perturbation.")
-parser.add_argument("perturbation", type=float, help="The perturbation size")
 args = parser.parse_args()
 
 # Open the GRIB file
@@ -31,10 +31,10 @@ f = open("era5_init.grib", "rb")
 path_out = os.path.join(
     args.model_name,
     str(args.date_time),
-    str(int(args.perturbation)),
+    str(args.perturbation),
     str(args.member),
     "era5_init.grib")
-print(path_out)
+print("Starting from: ", path_out)
 
 g = open(path_out, "wb")
 
@@ -51,7 +51,8 @@ while True:
     short_name = codes_get(gid, "shortName")
 
     # Alter the "2t" field if it's present
-    if short_name == "2t":
+    # BUG: make this more general
+    if short_name == "t":
         values = codes_get_array(gid, "values")
         values += np.random.normal(0, 1, size=len(values)) * args.perturbation
         codes_set_array(gid, "values", values)
