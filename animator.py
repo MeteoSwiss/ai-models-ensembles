@@ -65,7 +65,7 @@ def create_and_save_animation(path, ground_truth, var, level, fig, updatefig):
 
 def process_member(member, forecast, ground_truth):
     print("Creating animations for member: ", member)
-    path_gif = f"{args.path_out}/{member+1}/animations"
+    path_gif = f"{args.path_out}/{member}/animations"
     variables = forecast.data_vars
     pressure_levels = forecast.isobaricInhPa.values if "isobaricInhPa" in forecast.dims else []
     for var in variables:
@@ -94,7 +94,6 @@ def main():
         pool.starmap(process_member,
                      [(member, forecast, ground_truth)
                       for member in forecast.member.values])
-
 
 if __name__ == "__main__":
     main()
