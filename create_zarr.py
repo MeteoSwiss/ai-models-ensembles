@@ -42,10 +42,18 @@ ds_list = []
 datasets = []
 chunks = {"latitude": -1, "longitude": -1, "step": 1, "member": 1}
 
+# If the zarr store already exists, open it
+if os.path.exists(path_store):
+    zarr_store = xr.open_zarr(path_store, consolidated=True)
+    grib_files = [grib_files[i]
+                  for i in range(len(grib_files)) if i not in zarr_store.member.values]
+    print(f"Found existing zarr store with {zarr_store.member.values} members")
+
 for i, grib_file in enumerate(grib_files):
     with open(os.devnull, "w") as devnull:
         with contextlib.redirect_stderr(devnull):
-            for j, (shortName, filter_key) in enumerate(zip(shortNames, filter_keys)):
+            for j, (shortName, filter_key) in enumerate(
+                    zip(shortNames, filter_keys)):
                 # Open the dataset with the appropriate filter key and chunk sizes
                 if filter_key is not None:
                     ds_list.append(xr.open_dataset(
@@ -53,15 +61,19 @@ for i, grib_file in enumerate(grib_files):
                             "filter_by_keys": filter_key}))
                 else:
                     ds_list.append(xr.open_dataset(grib_file))
-                # Add member=i dimension to the dataset
-                ds = xr.merge(ds_list)
-                ds = ds.assign_coords(member=i)
-                ds = ds.expand_dims({"member": 1})
-                ds = ds.chunk(chunks=chunks)
-                datasets.append(ds)
-                ds_list = []
+            # Add member=i dimension to the dataset
+            ds = xr.merge(ds_list, compat="override")
+            ds = ds.assign_coords(member=i)
+            ds = ds.expand_dims({"member": 1})
+            ds = ds.chunk(chunks=chunks)
+            datasets.append(ds)
+            ds_list = []
     if os.path.exists(path_store):
-        ds.to_zarr(store=path_store, mode="a", append_dim="member", consolidated=True)
+        ds.to_zarr(
+            store=path_store,
+            mode="a",
+            append_dim="member",
+            consolidated=True)
     else:
         ds.to_zarr(store=path_store, mode="w", consolidated=True,
                    encoding={var: {"compressor": numcodecs.Zlib(level=1)}
