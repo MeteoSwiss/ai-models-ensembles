@@ -39,23 +39,20 @@ def perturb_weights(model, perturbation_strength):
     perturbed_blocks = [int(len(model.blocks) / 2)]
     perturbed_layers = [int(len(model.blocks[0].filter_layer.filter.w) / 2)]
 
+    # # Use all model blocks and layers
+    # perturbed_blocks = list(range(len(model.blocks)))
+    # perturbed_layers = list(range(len(model.blocks[0].filter_layer.filter.w)))
+
     for block in [model.blocks[i] for i in perturbed_blocks]:
         spectral_attention_layer = block.filter_layer.filter
         for param in [spectral_attention_layer.w[i] for i in perturbed_layers]:
             noise = torch.randn_like(param.data) * perturbation_strength * 0.1
             param.data += noise
-            print("Perturbing this block:")
-            print(block)
-            print(
-                "Perturbing SpectralAttentionS2 layer",
-                perturbed_layers,
-                "with shape",
-                param.data.shape)
-            print(
-                "Tensor now ranges from", torch.min(
-                    param.data), "to", torch.max(
-                    param.data), "with a mean of", torch.mean(
-                    param.data))
+        print(
+            "Tensor now ranges from", torch.min(
+                param.data), "to", torch.max(
+                param.data), "with a mean of", torch.mean(
+                param.data))
     return model
 
 
