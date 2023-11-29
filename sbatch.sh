@@ -8,8 +8,8 @@
 
 export MODEL_NAME=fourcastnetv2-small
 export DATE_TIME=199912250000 # Lothar
-export PERTURBATION=1.0
-export NUM_MEMBERS=5
+export PERTURBATION=0.1
+export NUM_MEMBERS=100
 
 # if conda env ai-models does not exist then create it
 if ! conda env list | grep -q ai-models; then
