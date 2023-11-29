@@ -1,5 +1,6 @@
 import argparse
 import contextlib
+import gc
 import os
 
 import numcodecs
@@ -9,18 +10,27 @@ import xarray as xr
 parser = argparse.ArgumentParser(description="Evaluate the NeurWP Ensemble.")
 
 parser.add_argument("path_out", type=str, help="The path to the output directory")
-# Parse the arguments
+parser.add_argument("--subdir_search", type=bool, default=False,
+                    help="Should subdirectories be searched")
+
 args = parser.parse_args()
 
 grib_files = []
 
 # Walk through root_dir
-for dir_name, subdir_list, file_list in os.walk(args.path_out):
-    # Check if any file in file_list ends with .grib and does not contain era5_init
-    for file_name in file_list:
+if args.subdir_search:
+    for dir_name, subdir_list, file_list in os.walk(args.path_out):
+        # Check if any file in file_list ends with .grib and does not contain era5_init
+        for file_name in file_list:
+            if file_name.endswith(".grib") and "era5_init" not in file_name:
+                # Construct full file path
+                full_path = os.path.join(dir_name, file_name)
+                grib_files.append(full_path)
+else:
+    for file_name in os.listdir(args.path_out):
         if file_name.endswith(".grib") and "era5_init" not in file_name:
             # Construct full file path
-            full_path = os.path.join(dir_name, file_name)
+            full_path = os.path.join(args.path_out, file_name)
             grib_files.append(full_path)
 
 grib_files.sort()
@@ -47,7 +57,10 @@ if os.path.exists(path_store):
     zarr_store = xr.open_zarr(path_store, consolidated=True)
     grib_files = [grib_files[i]
                   for i in range(len(grib_files)) if i not in zarr_store.member.values]
+    num_existing_members = len(zarr_store.member.values)
     print(f"Found existing zarr store with {zarr_store.member.values} members")
+else:
+    num_existing_members = 0
 
 for i, grib_file in enumerate(grib_files):
     with open(os.devnull, "w") as devnull:
@@ -63,7 +76,7 @@ for i, grib_file in enumerate(grib_files):
                     ds_list.append(xr.open_dataset(grib_file))
             # Add member=i dimension to the dataset
             ds = xr.merge(ds_list, compat="override")
-            ds = ds.assign_coords(member=i)
+            ds = ds.assign_coords(member=i + num_existing_members)
             ds = ds.expand_dims({"member": 1})
             ds = ds.chunk(chunks=chunks)
             datasets.append(ds)
@@ -79,3 +92,5 @@ for i, grib_file in enumerate(grib_files):
                    encoding={var: {"compressor": numcodecs.Zlib(level=1)}
                              for var in ds.data_vars})
     print(f"Stored {i+1}/{len(grib_files)} datasets")
+    del ds
+    gc.collect()
