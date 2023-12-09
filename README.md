@@ -20,15 +20,9 @@ The Fourier Neural Operator operates in the Fourier space and utilizes complex n
 
 In the world of sine and cosine functions, complex numbers can be represented using Euler's formula, which states:
 
-$$e^{ix} = \cos(x) + i\sin(x)$$
+$$r*e^{i\theta} = r*(\cos(\theta) + i\sin(\theta))$$
 
-Here, 'x' is a real number, 'i' is the imaginary unit, and 'e' is the base of the natural logarithm. The real part of the complex number is cos(x), and the imaginary part is sin(x).
-
-This formula shows the deep relationship between exponential functions, complex numbers, and trigonometric functions. It's the basis for expressing any complex number in polar form as:
-
-$$r(\cos(\theta) + i\sin(\theta))$$
-
-where 'r' is the magnitude (or modulus) of the complex number, and 'θ'
+where 'r' is the magnitude (or modulus) of the complex number, and 'θ' is the phase angle.
 
 ### SpectralAttentionS2 Layer
 
@@ -55,9 +49,55 @@ In the `SpectralAttentionS2` layer, the weights are stored in the `w` attribute 
 
 ### Fourier Space and Weights
 
-In the context of the `SpectralAttentionS2` layer in the `FourierNeuralOperatorBlock`, it's not straightforward to map the weights directly to specific frequencies. This is because the weights in this layer are used to learn global convolutions in the Fourier space, and they don't directly represent the amplitude or phase of specific frequencies.
+In the SpectralFilterLayer of the FourierNeuralOperatorBlock, the complex weights in the SpectralAttentionS2 layer represent the parameters that the model learns during training to perform convolutions in the Fourier (frequency) domain.
 
-In the context of Fourier space, each layer of weights can be thought of as learning to capture different frequency components of the input data. The combination of these layers allows the model to capture a wide range of frequencies and to model complex spectral patterns.
+The real part of the complex weight can be interpreted as the magnitude of the corresponding frequency component. In other words, it determines the "strength" or "intensity" of a particular frequency in the Fourier space.
+The imaginary part of the complex weight can be interpreted as the phase shift of the corresponding frequency component. This means it determines the "shift" or "offset" of a particular frequency in the Fourier space.
 
-It's important to note that the exact number of layers and their sizes are hyperparameters of the model and can be adjusted based on the specific task and data. The choice of three layers in this case is likely based on empirical performance on the training data.
+The weights are complex because they operate in the Fourier space, where signals are represented as a combination of complex exponential functions (which can be thought of as rotating vectors). The real and imaginary parts of these weights can be interpreted as the magnitude and phase shift of the corresponding frequency component, respectively.
 
+Each Parameter object in the ParameterList contains a tensor of weights with shape [256x512x2], [512x512x2], and [512x512x2] respectively. The last dimension of size 2 represents the real and imaginary parts of the complex weights.
+
+The exact interpretation of these weights depends on the specific operations performed by the SpectralAttentionS2 layer. However, in general, these weights are used to learn global convolutions in the Fourier space, and they don't directly represent the amplitude or phase of specific frequencies. Instead, they learn to capture different frequency components of the input data, allowing the model to model complex spectral patterns.
+
+When a wave represented by r*e^(iΘ) is multiplied by a complex weight, the effect is a change in the amplitude and phase of the wave.
+Let's denote the complex weight as a + bi, where a and b are the real and imaginary parts of the weight, respectively. The multiplication of the wave by the weight in the complex plane is as follows:
+
+(r*e^(iΘ)) * (a + bi) = r*a*e^(iΘ) + r*b*i*e^(iΘ)
+
+This can be rewritten using Euler's formula as:
+
+= r*a*(cos(Θ) + i*sin(Θ)) + r*b*i*(cos(Θ) + i*sin(Θ))
+= (r*a*cos(Θ) - r*b*sin(Θ)) + i*(r*a*sin(Θ) + r*b*cos(Θ))
+
+The result is a new complex number, where (r*a*cos(Θ) - r*b*sin(Θ)) is the real part and (r*a*sin(Θ) + r*b*cos(Θ)) is the imaginary part.
+The real part can be interpreted as the new amplitude (or magnitude) of the wave, and the imaginary part can be interpreted as the new phase of the wave.
+In other words, the multiplication by the complex weight results in a wave with a modified amplitude and phase. This is the fundamental operation that allows the Fourier Neural Operator to learn and model complex spectral patterns in the data.
+
+Let's consider a wave represented in Euler's form as A * e^(iωt), where A is the amplitude, ω is the angular frequency, and t is time. 
+Now, let's multiply this wave by a complex number in polar form, B * e^(iφ), where B is the magnitude and φ is the phase angle.
+The result is (A * B) * e^(i(ωt + φ)).
+Here's what happens to the wave:
+
+1. **Amplitude**: The amplitude of the wave is multiplied by the magnitude of the complex number. If A was the original amplitude, the new amplitude is now A * B.
+2. **Frequency**: The frequency of the wave remains unchanged. This is because the multiplication does not affect the ωt term, which determines the frequency of the wave.
+3. **Phase**: The phase of the wave is shifted by the argument of the complex number. If the original phase was ωt, the new phase is now ωt + φ. This represents a phase shift of φ.
+
+So, multiplying a wave in Euler form by a complex number in polar form changes the amplitude and phase of the wave, but leaves the frequency unchanged.
+
+Let's consider a wave represented in the standard form as A(cos(ωt) + i*sin(ωt)), where A is the amplitude, ω is the angular frequency, and t is time. This is equivalent to the Euler's form A * e^(iωt) due to Euler's formula.
+Now, let's multiply this wave by a complex number in standard form, which is B(cos(φ) + i*sin(φ)). This is equivalent to the polar form B * e^(iφ).
+
+The multiplication of the two complex numbers in standard form is:
+
+(A * cos(ωt) + i * A * sin(ωt)) * (B * cos(φ) + i * B * sin(φ))
+
+When we multiply these out, we use the distributive property and the fact that i^2 = -1:
+
+= A * B * (cos(ωt) * cos(φ) - sin(ωt) * sin(φ)) + i * A * B * (cos(ωt) * sin(φ) + sin(ωt) * cos(φ))
+
+Using the angle addition formulas for sine and cosine, we can simplify this to:
+
+= A * B * cos(ωt + φ) + i * A * B * sin(ωt + φ)
+
+This is the standard form of the resulting complex wave, which has an amplitude of A * B and a phase shift of φ. The frequency ω remains unchanged.
