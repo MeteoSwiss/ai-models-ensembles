@@ -49,6 +49,7 @@ spread_skill_ratio = ensemble_spread / ensemble_skill
 
 # Plot the spread and skill at each forecast step and variable
 for variable in spread_skill_ratio.data_vars:
+    print("Creating plots for variable: ", variable)
     data_array = spread_skill_ratio[variable]
     fig, ax = plt.subplots(figsize=(8, 6))
     # Assuming 'step' is a DataArray or Dataset of numpy.datetime64 objects
