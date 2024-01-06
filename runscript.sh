@@ -69,6 +69,7 @@ fi
 if [ -z "$(find ${PERTURBATION_DIR}/$((NUM_MEMBERS - 1))/animations/ -name '*gif' -print -quit)" ]; then
     echo "Generating Animations"
     python -u animator.py $MODEL_NAME/$DATE_TIME/$PERTURBATION
+    python -u animator_3d.py $MODEL_NAME $DATE_TIME $PERTURBATION
 fi
 
 echo "*****DONE*****"
