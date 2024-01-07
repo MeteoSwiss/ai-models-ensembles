@@ -10,12 +10,16 @@ import xarray as xr
 from matplotlib.colors import TwoSlopeNorm
 
 parser = argparse.ArgumentParser(description="Generate 3D gif-animations.")
-parser.add_argument("model_name", type=str, help="The ai-model name")
 parser.add_argument(
     "date_time",
     type=str,
     help="Date and time in the format YYYYMMDDHHMM")
-parser.add_argument("perturbation", type=float, help="The perturbation size")
+parser.add_argument("model_name", type=str, help="The ai-model name")
+parser.add_argument("perturbation_init", type=float, help="The init perturbation size")
+parser.add_argument(
+    "perturbation_latent",
+    type=float,
+    help="The latent perturbation size")
 args = parser.parse_args()
 
 
@@ -25,7 +29,7 @@ def plot_variable_3d(difference, var, member, step, fig, ax, mappable, vmin, vma
     ax.set_title(
         "Differences Perturbed - Unperturbed Forecast \n"
         # BUG: seperate the two
-        f"Initial Perturbation of T: {args.perturbation} - Latent Perturbation: {args.perturbation}\n"
+        f"Initial Perturbation of T: {args.perturbation_init} - Latent Perturbation: {args.perturbation_latent}\n"
         f"Variable: {var.upper()} - Member: {member:02} - Step: {step:02}")
     ax.title.set_position([0.6, 1.03])
     norm = TwoSlopeNorm(vmin=vmin, vcenter=0, vmax=vmax)
@@ -56,7 +60,6 @@ def plot_variable_3d(difference, var, member, step, fig, ax, mappable, vmin, vma
         rgb = plt.get_cmap('RdBu_r')(norm(data))
         ax.plot_surface(X, Y, Z, facecolors=rgb, shade=False)
         ax.set_zticks([0])  # Only show the 0 label on the z-axis
-        ax.plot_surface(X, Y, Z, facecolors=rgba, shade=False)
 
     ax.set_xlabel('Longitude')
     ax.set_ylabel('Latitude')
@@ -73,7 +76,6 @@ def plot_variable_3d(difference, var, member, step, fig, ax, mappable, vmin, vma
 def update_plot(num, difference, var, fig, ax, member, mappable, vmin, vmax):
     fig, ax = plot_variable_3d(difference, var, member, num,
                                fig, ax, mappable, vmin, vmax)
-    print(f"Created frame {num}")
     return fig, ax
 
 
@@ -111,10 +113,9 @@ def process_member(member, perturbed, unperturbed, path_perturbed):
     init_perturbed = init_perturbed.expand_dims({"step": [np.timedelta64(0, 'ns')]})
     perturbed = xr.concat([init_perturbed, perturbed], dim="step")
     path_gif = os.path.join(
-        args.model_name,
         args.date_time,
-        "T",  # BUG: This is a bug, should be treated automatically
-        str(args.perturbation),
+        args.model_name,
+        f"init_{args.perturbation_init}_latent_{args.perturbation_latent}",
         str(member),
         "animations")
     os.makedirs(path_gif, exist_ok=True)
@@ -122,6 +123,7 @@ def process_member(member, perturbed, unperturbed, path_perturbed):
     difference = perturbed.sel(member=member) - unperturbed.sel(member=0)
 
     for var in variables:
+        print("Creating difference animation for variable: ", var)
         unit = variables[var].units
         vmin = difference[var].min().values
         vmax = difference[var].max().values
@@ -129,10 +131,11 @@ def process_member(member, perturbed, unperturbed, path_perturbed):
 
 
 def main():
-    path_unperturbed = os.path.join(args.model_name, args.date_time)
-    path_perturbed = os.path.join(args.model_name, args.date_time,
-                                  "T",  # BUG: This is a bug, should be treated automatically
-                                  str(args.perturbation))
+    path_unperturbed = os.path.join(args.date_time, args.model_name)
+    path_perturbed = os.path.join(
+        str(args.date_time),
+        args.model_name,
+        f"init_{args.perturbation_init}_latent_{args.perturbation_latent}")
     forecast_unperturbed = xr.open_zarr(
         path_unperturbed + "/forecast.zarr",
         consolidated=True)

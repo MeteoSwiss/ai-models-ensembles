@@ -13,25 +13,29 @@ from eccodes import (
 
 # Create an argument parser
 parser = argparse.ArgumentParser(description="Perturb the t2m field in a grib file.")
-parser.add_argument("model_name", type=str, help="The ai-model name")
 parser.add_argument(
     "date_time",
     type=str,
     help="Date and time in the format YYYYMMDDHHMM")
-parser.add_argument("perturbation", type=float, help="The perturbation size")
+parser.add_argument("model_name", type=str, help="The ai-model name")
+parser.add_argument("perturbation_init", type=float, help="The init perturbation size")
+parser.add_argument(
+    "perturbation_latent",
+    type=float,
+    help="The latent perturbation size")
 parser.add_argument(
     "member", type=int,
     help="The ensemble member number and seed for the perturbation.")
 args = parser.parse_args()
 
 # Open the GRIB file
-f = open("era5_init.grib", "rb")
+f = open(args.date_time + "/era5_init.grib", "rb")
 
 # Open a new GRIB file for writing
 path_out = os.path.join(
-    args.model_name,
     str(args.date_time),
-    str(args.perturbation),
+    args.model_name,
+    f"init_{args.perturbation_init}_latent_{args.perturbation_latent}",
     str(args.member),
     "era5_init.grib")
 print("Starting from: ", path_out)
@@ -54,7 +58,7 @@ while True:
     # BUG: make this more general
     if short_name == "t":
         values = codes_get_array(gid, "values")
-        values += np.random.normal(0, 1, size=len(values)) * args.perturbation
+        values += np.random.normal(0, 1, size=len(values)) * args.perturbation_init
         codes_set_array(gid, "values", values)
 
     # Write the message to the new GRIB file

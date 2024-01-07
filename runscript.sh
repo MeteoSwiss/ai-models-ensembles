@@ -4,9 +4,9 @@ set -u
 
 # Some paths to avoid using popd and pushd + relative paths
 BASE_DIR=$PWD
-MODEL_DIR="${BASE_DIR}/${MODEL_NAME}"
-DATE_DIR="${MODEL_DIR}/${DATE_TIME}"
-PERTURBATION_DIR="${DATE_DIR}/${PERTURBATION}"
+DATE_DIR="${BASE_DIR}/${DATE_TIME}"
+MODEL_DIR="${DATE_DIR}/${MODEL_NAME}"
+PERTURBATION_DIR="${MODEL_DIR}/init_${PERTURBATION_INIT}_latent_${PERTURBATION_LATENT}"
 
 create_dir_if_not_exists() {
     if [[ ! -d $1 ]]; then
@@ -22,33 +22,41 @@ proceed_if_not_exists() {
     fi
 }
 
-echo "Running $MODEL_NAME for $DATE_TIME with $NUM_MEMBERS members and perturbation $PERTURBATION"
+echo "Running $MODEL_NAME for $DATE_TIME with $NUM_MEMBERS members and initial \
+perturbation $PERTURBATION_INIT, latent perturbation $PERTURBATION_LATENT"
 echo "This wil generate roughly $((NUM_MEMBERS * 6 * 2))GB of data"
+
+create_dir_if_not_exists $DATE_DIR
+create_dir_if_not_exists $MODEL_DIR
 
 proceed_if_not_exists "${MODEL_DIR}/fields.txt" "ai-models --fields \
     $MODEL_NAME >${MODEL_DIR}/fields.txt"
 
-proceed_if_not_exists "${BASE_DIR}/era5.grib" "python download_era5.py $MODEL_NAME $DATE_TIME"
+proceed_if_not_exists "${DATE_DIR}/era5_init.grib" "python download_era5.py $DATE_TIME $MODEL_NAME"
 
-create_dir_if_not_exists $MODEL_DIR
-
-ln -sf ${BASE_DIR}/era5_init.grib ${MODEL_DIR}
+ln -sf ${DATE_DIR}/era5_init.grib ${MODEL_DIR}
 proceed_if_not_exists "${MODEL_DIR}/weights.tar" "pushd ${MODEL_DIR} && \
     ai-models --input file --file era5_init.grib --download-assets $MODEL_NAME && popd"
 python -u create_zarr.py $MODEL_DIR
-
-create_dir_if_not_exists $DATE_DIR
 
 create_dir_if_not_exists $PERTURBATION_DIR
 
 for MEMBER in $(seq 0 $((NUM_MEMBERS - 1))); do
     MEMBER_DIR="${PERTURBATION_DIR}/${MEMBER}"
     create_dir_if_not_exists $MEMBER_DIR
-    # Perturb the initial data
-    proceed_if_not_exists "${MEMBER_DIR}/era5_init.grib" \
-        "python -u ${BASE_DIR}/perturb_era5.py $MODEL_NAME $DATE_TIME $PERTURBATION $MEMBER"
-    proceed_if_not_exists "${MEMBER_DIR}/weights.tar" \
-        "python -u ${BASE_DIR}/perturb_fourcastnet.py $MODEL_NAME $DATE_TIME $PERTURBATION $MEMBER"
+    if [[ $PERTURBATION_INIT > "0.0"   ]]; then
+        proceed_if_not_exists "${MEMBER_DIR}/era5_init.grib" \
+            "python -u ${BASE_DIR}/perturb_era5.py $DATE_TIME $MODEL_NAME $PERTURBATION_INIT $PERTURBATION_LATENT $MEMBER"
+    else
+        ln -sf ${DATE_DIR}/era5_init.grib ${MEMBER_DIR}/era5_init.grib
+    fi
+
+    if [[ $PERTURBATION_LATENT > "0.0"   ]]; then
+        proceed_if_not_exists "${MEMBER_DIR}/weights.tar" \
+            "python -u ${BASE_DIR}/perturb_fourcastnet.py $DATE_TIME $MODEL_NAME $PERTURBATION_INIT $PERTURBATION_LATENT $MEMBER"
+    else
+        ln -sf ${MODEL_DIR}/weights.tar ${MEMBER_DIR}/weights.tar
+    fi
     ln -sf ${MODEL_DIR}/global_means.npy ${MEMBER_DIR}/global_means.npy
     ln -sf ${MODEL_DIR}/global_stds.npy ${MEMBER_DIR}/global_stds.npy
     # Run the model from a local GRIB-file
@@ -58,18 +66,18 @@ for MEMBER in $(seq 0 $((NUM_MEMBERS - 1))); do
     create_dir_if_not_exists "${MEMBER_DIR}/animations"
 done
 
-python -u create_zarr.py $MODEL_NAME/$DATE_TIME/$PERTURBATION --subdir_search True
+python -u create_zarr.py $PERTURBATION_DIR --subdir_search True
 
-if [ -z "$(find ${PERTURBATION_DIR} -name 'spread_skill_ratio*' -print -quit)" ]; then
+if [ -z "$(find ${PERTURBATION_DIR} -name 'spread_skill_ratio_z.png' -print -quit)" ]; then
     echo "Evaluating model and generating figures"
-    python -u evaluation.py $MODEL_NAME $DATE_TIME $PERTURBATION
+    python -u evaluation.py $DATE_TIME $MODEL_NAME $PERTURBATION_INIT $PERTURBATION_LATENT
 fi
 
 #BUG: should work for all members
 if [ -z "$(find ${PERTURBATION_DIR}/$((NUM_MEMBERS - 1))/animations/ -name '*gif' -print -quit)" ]; then
     echo "Generating Animations"
-    python -u animator.py $MODEL_NAME/$DATE_TIME/$PERTURBATION
-    python -u animator_3d.py $MODEL_NAME $DATE_TIME $PERTURBATION
+    python -u animator.py $DATE_TIME $MODEL_NAME $PERTURBATION_INIT $PERTURBATION_LATENT
+    python -u animator_3d.py $DATE_TIME $MODEL_NAME $PERTURBATION_INIT $PERTURBATION_LATENT
 fi
 
 echo "*****DONE*****"

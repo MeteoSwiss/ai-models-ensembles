@@ -1,13 +1,22 @@
 import argparse
 import multiprocessing
+import os
 
 import matplotlib.animation as animation
 import matplotlib.pyplot as plt
 import xarray as xr
 
-parser = argparse.ArgumentParser(description="Generate gif-animations.")
-# Add the arguments
-parser.add_argument("path_out", type=str, help="The path to the output directory")
+parser = argparse.ArgumentParser(description="Generate 3D gif-animations.")
+parser.add_argument(
+    "date_time",
+    type=str,
+    help="Date and time in the format YYYYMMDDHHMM")
+parser.add_argument("model_name", type=str, help="The ai-model name")
+parser.add_argument("perturbation_init", type=float, help="The init perturbation size")
+parser.add_argument(
+    "perturbation_latent",
+    type=float,
+    help="The latent perturbation size")
 parser.add_argument(
     "print_pressure_levels",
     action='store_false',
@@ -63,9 +72,9 @@ def create_and_save_animation(path, ground_truth, var, level, fig, updatefig):
     plt.close()
 
 
-def process_member(member, forecast, ground_truth):
+def process_member(member, forecast, ground_truth, path_forecast):
     print("Creating animations for member: ", member)
-    path_gif = f"{args.path_out}/{member}/animations"
+    path_gif = f"{path_forecast}/{member}/animations"
     variables = forecast.data_vars
     pressure_levels = forecast.isobaricInhPa.values if "isobaricInhPa" in forecast.dims else []
     for var in variables:
@@ -86,14 +95,21 @@ def process_member(member, forecast, ground_truth):
 
 
 def main():
-    ground_truth = xr.open_zarr("ground_truth.zarr", consolidated=True)
-    forecast = xr.open_zarr(
-        f"{args.path_out}/forecast.zarr", consolidated=True)
+    path_forecast = os.path.join(
+        str(args.date_time),
+        args.model_name,
+        f"init_{args.perturbation_init}_latent_{args.perturbation_latent}")
+    ground_truth = xr.open_zarr(
+        args.date_time +
+        "/ground_truth.zarr",
+        consolidated=True)
+    forecast = xr.open_zarr(path_forecast + "/forecast.zarr", consolidated=True)
 
     with multiprocessing.Pool() as pool:
         pool.starmap(process_member,
-                     [(member, forecast, ground_truth)
+                     [(member, forecast, ground_truth, path_forecast)
                       for member in forecast.member.values])
+
 
 if __name__ == "__main__":
     main()

@@ -7,12 +7,16 @@ import torch
 # Create an argument parser
 parser = argparse.ArgumentParser(
     description="Perturb the weights in the FourierNeuralOperatorBlock.")
-parser.add_argument("model_name", type=str, help="The ai-model name")
 parser.add_argument(
     "date_time",
     type=str,
     help="Date and time in the format YYYYMMDDHHMM")
-parser.add_argument("perturbation", type=float, help="The perturbation size")
+parser.add_argument("model_name", type=str, help="The ai-model name")
+parser.add_argument("perturbation_init", type=float, help="The init perturbation size")
+parser.add_argument(
+    "perturbation_latent",
+    type=float,
+    help="The latent perturbation size")
 parser.add_argument(
     "member", type=int,
     help="The ensemble member number and seed for the perturbation.")
@@ -46,7 +50,7 @@ def perturb_weights(model, perturbation_strength):
     for block in [model.blocks[i] for i in perturbed_blocks]:
         spectral_attention_layer = block.filter_layer.filter
         for param in [spectral_attention_layer.w[i] for i in perturbed_layers]:
-            noise = torch.randn_like(param.data) * perturbation_strength * 0.1
+            noise = torch.randn_like(param.data) * perturbation_strength
             param.data += noise
         print(
             "Tensor now ranges from", torch.min(
@@ -63,18 +67,18 @@ def save_model_weights(model, path):
 
 def main():
     path_out = os.path.join(
-        args.model_name,
         str(args.date_time),
-        str(args.perturbation),
+        args.model_name,
+        f"init_{args.perturbation_init}_latent_{args.perturbation_latent}",
         str(args.member),
         "weights.tar")
 
     print(
         "Perturbing the weights in the FourierNeuralOperatorBlock by",
-        args.perturbation * 0.1)
+        args.perturbation_latent)
 
     torch.manual_seed(args.member)
-    checkpoint_path = args.model_name + "/weights.tar"
+    checkpoint_path = os.path.join(str(args.date_time), args.model_name, "weights.tar")
     model = nvs.FourierNeuralOperatorNet()
     model.zero_grad()
     model.eval()
@@ -82,7 +86,7 @@ def main():
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
     model = load_model_weights(model, checkpoint_path, device)
-    model = perturb_weights(model, args.perturbation)
+    model = perturb_weights(model, args.perturbation_latent)
 
     save_model_weights(model, path_out)
 
