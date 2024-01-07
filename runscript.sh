@@ -44,14 +44,15 @@ create_dir_if_not_exists $PERTURBATION_DIR
 for MEMBER in $(seq 0 $((NUM_MEMBERS - 1))); do
     MEMBER_DIR="${PERTURBATION_DIR}/${MEMBER}"
     create_dir_if_not_exists $MEMBER_DIR
-    if [[ $PERTURBATION_INIT > "0.0"   ]]; then
+    if [[ $(echo "$PERTURBATION_INIT > 0.0" | bc -l) -eq 1 ]]; then
         proceed_if_not_exists "${MEMBER_DIR}/era5_init.grib" \
+            proceed_if_not_exists "${MEMBER_DIR}/era5_init.grib" \
             "python -u ${BASE_DIR}/perturb_era5.py $DATE_TIME $MODEL_NAME $PERTURBATION_INIT $PERTURBATION_LATENT $MEMBER"
     else
         ln -sf ${DATE_DIR}/era5_init.grib ${MEMBER_DIR}/era5_init.grib
     fi
 
-    if [[ $PERTURBATION_LATENT > "0.0"   ]]; then
+    if [[ $(echo "$PERTURBATION_LATENT > 0.0" | bc -l) -eq 1 ]]; then
         proceed_if_not_exists "${MEMBER_DIR}/weights.tar" \
             "python -u ${BASE_DIR}/perturb_fourcastnet.py $DATE_TIME $MODEL_NAME $PERTURBATION_INIT $PERTURBATION_LATENT $MEMBER"
     else
