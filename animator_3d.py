@@ -23,6 +23,27 @@ parser.add_argument(
 args = parser.parse_args()
 
 
+def logarithmic_alpha_scale(data, epsilon=1e-6):
+    max_abs_value = np.max(np.abs(data))
+    if max_abs_value == 0:
+        return np.zeros_like(data)
+    else:
+        # Add a small epsilon to avoid log(0) which is undefined
+        normalized_data = np.abs(data) / max_abs_value + epsilon
+        # Apply the logarithm to the normalized data
+        alpha = np.log(normalized_data)
+        # Normalize alpha values to the range [0, 1]
+        alpha = alpha / np.log(1 + epsilon)
+        return alpha
+
+
+def calculate_rgba(data, norm, cmap_name='RdBu_r'):
+    rgb = plt.get_cmap(cmap_name)(norm(data))
+    alpha = alpha = logarithmic_alpha_scale(data)
+    rgba = np.concatenate((rgb[:, :, :3], alpha[:, :, np.newaxis]), axis=-1)
+    return rgba
+
+
 def plot_variable_3d(difference, var, member, step, fig, ax, mappable, vmin, vmax):
     ax.cla()
 
@@ -43,22 +64,14 @@ def plot_variable_3d(difference, var, member, step, fig, ax, mappable, vmin, vma
         for level in data.isobaricInhPa:
             data_level = data.sel(isobaricInhPa=level)
             Z = np.ones_like(X) * level.values  # Convert level to numpy array
-            rgb = plt.get_cmap('RdBu_r')(norm(data_level))
-            max_abs_value = np.max(np.abs(data_level))
-            if max_abs_value == 0:
-                # Avoid division by zero by setting alpha to zero
-                alpha = np.zeros_like(data_level)
-            else:
-                alpha = np.abs(data_level) / max_abs_value
-                alpha = alpha.values
-            rgba = np.concatenate((rgb[:, :, :3], alpha[:, :, np.newaxis]), axis=-1)
+            rgba = calculate_rgba(data_level, norm)
             ax.plot_surface(X, Y, Z, facecolors=rgba, shade=False)
         ax.invert_zaxis()
     else:
         # If data doesn't have a vertical dimension, plot it at a constant level of 0
         Z = np.zeros_like(X)
-        rgb = plt.get_cmap('RdBu_r')(norm(data))
-        ax.plot_surface(X, Y, Z, facecolors=rgb, shade=False)
+        rgba = calculate_rgba(data, norm)
+        ax.plot_surface(X, Y, Z, facecolors=rgba, shade=False)
         ax.set_zticks([0])  # Only show the 0 label on the z-axis
 
     ax.set_xlabel('Longitude')
