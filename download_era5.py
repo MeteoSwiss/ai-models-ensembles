@@ -1,21 +1,23 @@
 import argparse
 import ast
+import os
 from datetime import datetime, timedelta
 
 import earthkit.data
 
 # Parse command line arguments
 parser = argparse.ArgumentParser(description="Download ERA5 data.")
-parser.add_argument("model_name", type=str, help="The ai-model name")
 parser.add_argument(
     "date_time",
     type=str,
     help="Date and time in the format YYYYMMDDHHMM")
+parser.add_argument("model_name", type=str, help="The ai-model name")
 
 args = parser.parse_args()
 
 # Read parameters from fields.txt
-with open(args.model_name + "/fields.txt", "r") as f:
+path = os.path.join(args.date_time, args.model_name)
+with open(path + "/fields.txt", "r") as f:
     lines = f.readlines()
 
 grid = ast.literal_eval(lines[0].split(": ")[1].strip())
@@ -63,7 +65,7 @@ for i in range(41):
         ds_combined = ds_single + ds_pressure
         # Save to GRIB
         print("Saving initial conditions to GRIB...")
-        ds_combined.save("era5_init.grib")
+        ds_combined.save(args.date_time + "/era5_init.grib")
     elif i == 1:
         ds_combined = ds_single + ds_pressure
     else:
@@ -75,6 +77,6 @@ for i in range(41):
 # Save era5 ground_truth as zarr_archive
 print("Saving ground truth to zarr...")
 chunks = {"latitude": -1, "longitude": -1, "time": 1}
-ds_combined.to_xarray()
-ds_combined = ds_combined.chunk(chunks=chunks)
-ds_combined.to_zarr("ground_truth.zarr", consolidated=True)
+ds_combined = ds_combined.to_xarray().isel(
+    step=0, number=0, surface=0).chunk(chunks=chunks)
+ds_combined.to_zarr(args.date_time + "/ground_truth.zarr", consolidated=True)
