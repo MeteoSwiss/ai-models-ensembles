@@ -1,4 +1,5 @@
 import argparse
+import multiprocessing
 import os
 
 import matplotlib.pyplot as plt
@@ -18,49 +19,10 @@ parser.add_argument(
     help="The latent perturbation size")
 args = parser.parse_args()
 
-path_out = os.path.join(
-    str(args.date_time),
-    args.model_name,
-    f"init_{args.perturbation_init}_latent_{args.perturbation_latent}")
 
-forecast = xr.open_zarr(path_out + "/forecast.zarr", consolidated=True)
-forecast_unperturbed = xr.open_zarr(
-    f"{args.date_time}/{args.model_name}/forecast.zarr", consolidated=True)
-ground_truth = xr.open_zarr(args.date_time + "/ground_truth.zarr", consolidated=True)
-
-ground_truth['step'] = ('time', np.arange(len(ground_truth['time'])))
-ground_truth = ground_truth.swap_dims({'time': 'step'})
-forecast["step"] = forecast.time + forecast.step
-forecast_unperturbed["step"] = forecast["step"]
-ground_truth["step"] = forecast["step"]
-
-# Calculate the spatial mean
-fc_mean = forecast.mean(dim=["latitude", "longitude", "isobaricInhPa"])
-fc_mean_unperturbed = forecast_unperturbed.mean(
-    dim=["latitude", "longitude", "isobaricInhPa"])
-gt_mean = ground_truth.mean(dim=["latitude", "longitude", "isobaricInhPa"])
-
-# Calculate the squared differences at each spatial point
-squared_diff = (forecast - ground_truth) ** 2
-squared_diff_unperturbed = (forecast_unperturbed - ground_truth) ** 2
-
-# Calculate the spatial mean of the squared differences
-mean_squared_diff = squared_diff.mean(dim=["latitude", "longitude", "isobaricInhPa"])
-mean_squared_diff_unperturbed = squared_diff_unperturbed.mean(
-    dim=["latitude", "longitude", "isobaricInhPa"])
-
-# Calculate the RMSE
-rmse = np.sqrt(mean_squared_diff)
-rmse_unperturbed = np.sqrt(mean_squared_diff_unperturbed)
-
-ensemble_spread = rmse.std(dim=["member"])
-ensemble_skill = abs(rmse.mean(dim="member"))
-spread_skill_ratio = ensemble_spread / ensemble_skill
-
-alpha_value = 1 / rmse.member.size**(2 / 3)
-
-# Plot the spread and skill at each forecast step and variable
-for variable in spread_skill_ratio.data_vars:
+def plot_for_variable(
+        variable, rmse, rmse_unperturbed, spread_skill_ratio, ensemble_spread, gt_mean,
+        fc_mean, fc_mean_unperturbed, alpha_value, path_out):
     print("Creating plots for variable: ", variable)
 
     fig, ax = plt.subplots(figsize=(8, 6))
@@ -135,3 +97,65 @@ for variable in spread_skill_ratio.data_vars:
     ax.legend()
     plt.savefig(f"{path_out}/timeseries_fc_gt_{variable}.png")
     plt.close(fig)
+
+
+if __name__ == "__main__":
+    path_out = os.path.join(
+        str(args.date_time),
+        args.model_name,
+        f"init_{args.perturbation_init}_latent_{args.perturbation_latent}")
+
+    forecast = xr.open_zarr(path_out + "/forecast.zarr", consolidated=True)
+    forecast_unperturbed = xr.open_zarr(
+        f"{args.date_time}/{args.model_name}/forecast.zarr", consolidated=True)
+    ground_truth = xr.open_zarr(
+        args.date_time +
+        "/ground_truth.zarr",
+        consolidated=True)
+
+    ground_truth['step'] = ('time', np.arange(len(ground_truth['time'])))
+    ground_truth = ground_truth.swap_dims({'time': 'step'})
+    forecast["step"] = forecast.time + forecast.step
+    forecast_unperturbed["step"] = forecast["step"]
+    ground_truth["step"] = forecast["step"]
+
+    # Calculate the spatial mean
+    fc_mean = forecast.mean(dim=["latitude", "longitude", "isobaricInhPa"])
+    fc_mean_unperturbed = forecast_unperturbed.mean(
+        dim=["latitude", "longitude", "isobaricInhPa"])
+    gt_mean = ground_truth.mean(dim=["latitude", "longitude", "isobaricInhPa"])
+
+    # Calculate the squared differences at each spatial point
+    squared_diff = (forecast - ground_truth) ** 2
+    squared_diff_unperturbed = (forecast_unperturbed - ground_truth) ** 2
+
+    # Calculate the spatial mean of the squared differences
+    mean_squared_diff = squared_diff.mean(
+        dim=["latitude", "longitude", "isobaricInhPa"])
+    mean_squared_diff_unperturbed = squared_diff_unperturbed.mean(
+        dim=["latitude", "longitude", "isobaricInhPa"])
+
+    # Calculate the RMSE
+    rmse = np.sqrt(mean_squared_diff)
+    rmse_unperturbed = np.sqrt(mean_squared_diff_unperturbed)
+
+    ensemble_spread = rmse.std(dim=["member"])
+    ensemble_skill = abs(rmse.mean(dim="member"))
+    spread_skill_ratio = ensemble_spread / ensemble_skill
+
+    alpha_value = 1 / rmse.member.size**(2 / 3)
+    variables = list(spread_skill_ratio.data_vars)
+    plot_args = (
+        rmse,
+        rmse_unperturbed,
+        spread_skill_ratio,
+        ensemble_spread,
+        gt_mean,
+        fc_mean,
+        fc_mean_unperturbed,
+        alpha_value,
+        path_out)
+    with multiprocessing.Pool() as pool:
+        pool.starmap(
+            plot_for_variable, [
+                (variable,) + plot_args for variable in variables])
