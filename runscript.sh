@@ -81,4 +81,7 @@ if [ -z "$(find ${PERTURBATION_DIR}/$((NUM_MEMBERS - 1))/animations/ -name '*gif
     python -u animator_3d.py $DATE_TIME $MODEL_NAME $PERTURBATION_INIT $PERTURBATION_LATENT
 fi
 
+echo "Cleaning up GRIB files"
+fd -IH --type f ".grib" "${PERTURBATION_DIR}" -x rm {}
+
 echo "*****DONE*****"
