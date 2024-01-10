@@ -23,24 +23,25 @@ parser.add_argument(
 args = parser.parse_args()
 
 
-def logarithmic_alpha_scale(data, epsilon=1e-6):
+def power_alpha_scale(data, epsilon=1e-6, power=0.5):
     max_abs_value = np.max(np.abs(data))
     if max_abs_value == 0:
         return np.zeros_like(data)
     else:
-        # Add a small epsilon to avoid log(0) which is undefined
         normalized_data = np.abs(data) / max_abs_value + epsilon
-        # Apply the logarithm to the normalized data
-        alpha = np.log(normalized_data)
-        # Normalize alpha values to the range [0, 1]
-        alpha = alpha / np.log(1 + epsilon)
+        # Apply a power scaling to make values close to zero more transparent
+        alpha = normalized_data ** power
+        alpha = np.clip(alpha, 0, 1)
+        if not isinstance(alpha, np.ndarray):
+            alpha = alpha.values
         return alpha
 
 
 def calculate_rgba(data, norm, cmap_name='RdBu_r'):
     rgb = plt.get_cmap(cmap_name)(norm(data))
-    alpha = alpha = logarithmic_alpha_scale(data)
-    rgba = np.concatenate((rgb[:, :, :3], alpha[:, :, np.newaxis]), axis=-1)
+    alpha = power_alpha_scale(data)
+    alpha = alpha[:, :, np.newaxis]  # Add a new axis to make alpha three-dimensional
+    rgba = np.concatenate((rgb[:, :, :3], alpha), axis=-1)
     return rgba
 
 
@@ -114,12 +115,11 @@ def create_and_save_animation(path, difference, var, member, unit, vmin, vmax):
     ani = animation.FuncAnimation(
         fig, update_plot, frames=difference.step.size,
         fargs=(difference, var, fig, ax, member, mappable, vmin, vmax))
-    ani.save(f"{path}/{var}_difference_{member}.gif", writer='imagemagick')
+    ani.save(f"{path}/{var}_difference.gif", writer='imagemagick')
     plt.close()
 
 
 def process_member(member, perturbed, unperturbed, path_perturbed):
-    print("Creating animations for member: ", member)
     init_perturbed = xr.open_dataset(
         os.path.join(path_perturbed, str(member), "era5_init.grib"),
         engine="cfgrib")
@@ -163,10 +163,12 @@ def main():
     init_unperturbed = init_unperturbed.expand_dims({"step": [np.timedelta64(0, 'ns')]})
     unperturbed = xr.concat([init_unperturbed, forecast_unperturbed], dim="step")
 
+    members_to_plot = forecast_perturbed.member.values[:5]
+
     with multiprocessing.Pool() as pool:
         pool.starmap(process_member,
                      [(member, forecast_perturbed, unperturbed, path_perturbed)
-                      for member in forecast_perturbed.member.values])
+                      for member in members_to_plot])
 
 
 if __name__ == "__main__":
