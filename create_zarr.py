@@ -34,7 +34,6 @@ else:
             grib_files.append(full_path)
 
 grib_files.sort()
-datasets = []
 
 # BUG: There is an annoying GRIB issue, where the three variables below are present
 # on mulitple heightAboveGround levels. Should be fixed in model-output rather than
@@ -49,8 +48,7 @@ path_store = os.path.join(
 )
 
 ds_list = []
-datasets = []
-chunks = {"latitude": -1, "longitude": -1, "step": 1, "member": 1}
+chunks = {"latitude": -1, "longitude": -1, "step": 1, "member": 1, "isobaricInhPa": 1}
 
 # If the zarr store already exists, open it
 if os.path.exists(path_store):
@@ -79,7 +77,6 @@ for i, grib_file in enumerate(grib_files):
             ds = ds.assign_coords(member=i + num_existing_members)
             ds = ds.expand_dims({"member": 1})
             ds = ds.chunk(chunks=chunks)
-            datasets.append(ds)
             ds_list = []
     if os.path.exists(path_store):
         ds.to_zarr(
