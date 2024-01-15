@@ -27,7 +27,8 @@ parser.add_argument(
 args = parser.parse_args()
 
 
-def plot_rank_histogram(variable, forecast, ground_truth, path_out, level=None):
+def plot_rank_histogram(variable, forecast, ground_truth,
+                        path_out, color_palette, level=None):
     print(f"Creating rank histogram for variable: {variable}, level: {level}")
 
     # Select the level if provided
@@ -49,7 +50,11 @@ def plot_rank_histogram(variable, forecast, ground_truth, path_out, level=None):
 
     # Plot the rank histogram
     fig, ax = plt.subplots(figsize=(8, 6))
-    ax.bar(rank_counts.index, rank_counts.values, color='blue', edgecolor='black')
+    ax.bar(
+        rank_counts.index,
+        rank_counts.values,
+        color=color_palette[4],
+        edgecolor=color_palette[5])
     ax.set_title(
         f"Rank Histogram for {variable}{' at level ' + str(level) if level else ''}")
     ax.set_xlabel("Rank")
@@ -62,7 +67,8 @@ def plot_rank_histogram(variable, forecast, ground_truth, path_out, level=None):
 
 
 def calculate_and_plot_energy_spectra(
-        variable, forecast, forecast_unperturbed, ground_truth, path_out, level=None):
+        variable, forecast, forecast_unperturbed, ground_truth, alpha_value, path_out,
+        color_palette, level=None):
     print(
         f"Calculating and plotting energy spectra for variable: {variable}, level: {level}")
 
@@ -74,45 +80,59 @@ def calculate_and_plot_energy_spectra(
         return psd
 
     # Select the level if provided
-    mean_field = forecast[variable].median(dim=['member']).mean(dim='step')
-    mean_field_unperturbed = forecast_unperturbed[variable].mean(dim=['member', 'step'])
-    mean_field_ground_truth = ground_truth[variable].mean(dim='step')
     if level is not None:
-        mean_field = mean_field.sel(isobaricInhPa=level)
-        mean_field_unperturbed = mean_field_unperturbed.sel(isobaricInhPa=level)
-        mean_field_ground_truth = mean_field_ground_truth.sel(isobaricInhPa=level)
-
-    # Calculate the PSD for each field
-    psd_ensemble = calculate_psd(mean_field)
-    psd_unperturbed = calculate_psd(mean_field_unperturbed)
-    psd_ground_truth = calculate_psd(mean_field_ground_truth)
+        forecast = forecast.sel(isobaricInhPa=level)
+        forecast_unperturbed = forecast_unperturbed.sel(isobaricInhPa=level)
+        ground_truth = ground_truth.sel(isobaricInhPa=level)
 
     # Calculate the frequency bins for plotting
     freq_x = np.fft.fftfreq(
-        mean_field.sizes['longitude'],
+        forecast.sizes['longitude'],
         d=1.0)  # Assuming unit grid spacing
-    freq_y = np.fft.fftfreq(mean_field.sizes['latitude'], d=1.0)
+    freq_y = np.fft.fftfreq(forecast.sizes['latitude'], d=1.0)
     freq_x = np.fft.fftshift(freq_x)
     freq_y = np.fft.fftshift(freq_y)
 
     # Calculate radial frequency bins
     freq_r = np.sqrt(freq_x[None, :]**2 + freq_y[:, None]**2)
 
-    # Bin the PSD into radial frequency bins
-    radial_psd_ensemble, radial_bins = np.histogram(
-        freq_r, bins=30, weights=psd_ensemble)
-    radial_psd_unperturbed, _ = np.histogram(freq_r, bins=30, weights=psd_unperturbed)
-    radial_psd_ground_truth, _ = np.histogram(freq_r, bins=30, weights=psd_ground_truth)
-
     # Plot the energy spectra
     fig, ax = plt.subplots(figsize=(8, 6))
-    ax.loglog(radial_bins[:-1], radial_psd_ensemble,
-              label=f'Ensemble Median for {variable}')
-    ax.loglog(radial_bins[:-1], radial_psd_unperturbed,
-              label=f'Unperturbed Forecast for {variable}', linestyle='--')
-    ax.loglog(radial_bins[:-1], radial_psd_ground_truth,
-              label=f'Ground Truth for {variable}', linestyle=':')
 
+    # Plot for each ensemble member
+    for i, member in enumerate(forecast.member.values):
+        member_field = forecast[variable].sel(member=member).mean(dim='step')
+        psd_member = calculate_psd(member_field)
+        radial_psd_member, radial_bins = np.histogram(
+            freq_r, bins=30, weights=psd_member)
+        if i == 0:  # Only label the first member
+            ax.loglog(radial_bins[:-1], radial_psd_member, color=color_palette[1],
+                      label='AI-Model Members', alpha=alpha_value)
+        else:
+            ax.loglog(radial_bins[:-1], radial_psd_member,
+                      alpha=alpha_value, color=color_palette[1])
+
+    # Plot unperturbed and ground truth
+    mean_field_perturbed = forecast[variable].median(dim=['member']).mean(dim=['step'])
+    mean_field_unperturbed = forecast_unperturbed[variable].mean(dim=['member', 'step'])
+    mean_field_ground_truth = ground_truth[variable].mean(dim='step')
+    psd_perturbed = calculate_psd(mean_field_perturbed)
+    psd_unperturbed = calculate_psd(mean_field_unperturbed)
+    psd_ground_truth = calculate_psd(mean_field_ground_truth)
+    radial_psd_perturbed, _ = np.histogram(freq_r, bins=30, weights=psd_perturbed)
+    radial_psd_unperturbed, _ = np.histogram(freq_r, bins=30, weights=psd_unperturbed)
+    radial_psd_ground_truth, _ = np.histogram(freq_r, bins=30, weights=psd_ground_truth)
+    ax.loglog(radial_bins[:-1], radial_psd_perturbed, color=color_palette[2],
+              label='AI-Model Median')
+    ax.loglog(radial_bins[:-1],
+              radial_psd_unperturbed,
+              label='AI-Model Unperturbed',
+              linestyle='--',
+              color=color_palette[3])
+    ax.loglog(radial_bins[:-1], radial_psd_ground_truth, color=color_palette[0],
+              label='Ground Truth: ERA5', linestyle=':')
+
+    # Rest of the plotting code remains the same...
     # Retrieve the current x-axis major and minor tick locations
     major_xticks = ax.get_xticks(minor=False)
     minor_xticks = ax.get_xticks(minor=True)
@@ -137,7 +157,8 @@ def calculate_and_plot_energy_spectra(
     plt.close(fig)
 
 
-def plot_rmse(variable, rmse, rmse_unperturbed, alpha_value, path_out, level=None):
+def plot_rmse(variable, rmse, rmse_unperturbed, alpha_value,
+              path_out, color_palette, level=None):
     print(f"Creating RMSE plots for variable: {variable}, level: {level}")
     fig, ax = plt.subplots(figsize=(8, 6))
 
@@ -151,13 +172,21 @@ def plot_rmse(variable, rmse, rmse_unperturbed, alpha_value, path_out, level=Non
         if i == 0:  # Add label only for the first member
             rmse_member_mean.plot(
                 ax=ax,
-                color='green',
+                color=color_palette[1],
                 alpha=alpha_value,
                 label='AI-Model Members')
         else:
-            rmse_member_mean.plot(ax=ax, color='green', alpha=alpha_value)
+            rmse_member_mean.plot(ax=ax, color=color_palette[1], alpha=alpha_value)
 
-    rmse_unperturbed[variable].plot(ax=ax, color='purple', label='AI-Model Unperturbed')
+    rmse[variable].median(dim='member').plot(
+        ax=ax,
+        color=color_palette[2],
+        label='AI-Model Median')
+
+    rmse_unperturbed[variable].plot(
+        ax=ax,
+        color=color_palette[3],
+        label='AI-Model Unperturbed')
 
     ax.set_ylabel(f"RMSE ({variable})")
     ax.set_title(
@@ -171,7 +200,8 @@ def plot_rmse(variable, rmse, rmse_unperturbed, alpha_value, path_out, level=Non
 
 
 def plot_spread_skill_ratio(
-        variable, spread_skill_ratio, ensemble_spread, path_out, level=None):
+        variable, spread_skill_ratio, ensemble_spread, path_out, color_palette,
+        level=None):
     print(f"Creating spread-skill ratio plots for variable: {variable}, level: {level}")
     if level is not None:
         data_array = spread_skill_ratio[variable].sel(isobaricInhPa=level)
@@ -181,18 +211,18 @@ def plot_spread_skill_ratio(
         ensemble_spread_data = ensemble_spread[variable]
 
     fig, ax = plt.subplots(figsize=(8, 6))
-    data_array.plot(ax=ax)
+    data_array.plot(ax=ax, color=color_palette[5])
 
     ax2 = ax.twinx()
-    ensemble_spread_data.plot(ax=ax2, color='red')
+    ensemble_spread_data.plot(ax=ax2, color=color_palette[4])
 
     ax.set_xlabel("")
     ax.set_ylabel("Spread-skill ratio")
     ax.set_ylim(bottom=0)
     ax.set_title(
         f"Spread-Skill Ratio and Ensemble Spread for {variable}{' at level ' + str(level) if level is not None else ''}")
-    ax2.set_ylabel("Ensemble Spread", color='red')
-    ax2.tick_params(axis='y', colors='red')
+    ax2.set_ylabel("Ensemble Spread", color=color_palette[4])
+    ax2.tick_params(axis='y', colors=color_palette[4])
     ax2.set_title("")
     plt.savefig(
         os.path.join(
@@ -203,7 +233,7 @@ def plot_spread_skill_ratio(
 
 def plot_timeseries_fc_gt(
         variable, gt_mean, fc_mean, fc_mean_unperturbed, alpha_value, path_out,
-        level=None):
+        color_palette, level=None):
     print(f"Creating timeseries plots for variable: {variable}, level: {level}")
     fig, ax = plt.subplots(figsize=(8, 6))
 
@@ -215,25 +245,27 @@ def plot_timeseries_fc_gt(
     fc_mean_unperturbed_var = fc_mean_unperturbed[variable].sel(
         isobaricInhPa=level) if level is not None else fc_mean_unperturbed[variable]
 
-    gt_mean_var.plot(ax=ax, color='black', label='ERA5')
+    gt_mean_var.plot(ax=ax, color=color_palette[0], label='Ground Truth: ERA5')
 
     for i, member in enumerate(fc_mean.member):
         fc_mean_member = fc_mean_var.sel(member=member)
         if i == 0:  # Add label only for the first member
             fc_mean_member.plot(
                 ax=ax,
-                color='green',
+                color=color_palette[1],
                 alpha=alpha_value,
                 label='AI-Model Members')
         else:
-            fc_mean_member.plot(ax=ax, color='green', alpha=alpha_value)
+            fc_mean_member.plot(ax=ax, color=color_palette[1], alpha=alpha_value)
 
     fc_mean_var.median(
         dim="member").plot(
         ax=ax,
-        color='orange',
+        color=color_palette[2],
         label='AI-Model Median')
-    fc_mean_unperturbed_var.plot(ax=ax, color='purple', label='AI-Model Unperturbed')
+    fc_mean_unperturbed_var.plot(
+        ax=ax, color=color_palette[3],
+        label='AI-Model Unperturbed')
 
     # Collect all values for the density plot at the latest time step
     fc_values_last_step = fc_mean_var.isel(step=-1).values
@@ -243,7 +275,7 @@ def plot_timeseries_fc_gt(
     ax2 = divider.append_axes("right", size=1.2, pad=0.1)
 
     # Plot the density distribution rotated (horizontal)
-    sns.kdeplot(y=fc_values_last_step, ax=ax2, color='green', bw_adjust=0.5)
+    sns.kdeplot(y=fc_values_last_step, ax=ax2, color=color_palette[1], bw_adjust=0.5)
     ax2.set_ylim(ax.get_ylim())
     ax2.set_xticks([])
     ax2.set_yticks([])
@@ -325,6 +357,16 @@ if __name__ == "__main__":
 
     alpha_value = 1 / forecast.member.size**(5 / 8)
 
+    # Define a custom colorblind-friendly palette
+    color_palette = sns.color_palette([
+        "#f75b78",
+        "#6495ed",
+        "#0e2d75",
+        "#f9c740",
+        "#45b7aa",
+        "#353434",
+    ])
+
     variables = list(forecast.data_vars)
 
     # Prepare arguments for each plot function, considering vertical levels
@@ -342,36 +384,73 @@ if __name__ == "__main__":
             # Variable has vertical levels, loop over each level
             for level in forecast[variable].coords['isobaricInhPa'].values:
                 rank_histogram_args.append(
-                    (variable, forecast, ground_truth, path_out, level))
+                    (variable, forecast, ground_truth, path_out, color_palette, level))
                 energy_spectra_args.append(
-                    (variable, forecast, forecast_unperturbed, ground_truth, path_out, level))
+                    (variable,
+                     forecast,
+                     forecast_unperturbed,
+                     ground_truth,
+                     alpha_value,
+                     path_out,
+                     color_palette,
+                     level))
                 rmse_args.append(
                     (variable,
                      rmse_ensemble,
                      rmse_ensemble_unperturbed,
                      alpha_value,
                      path_out,
+                     color_palette,
                      level))
                 spread_skill_ratio_args.append(
-                    (variable, mean_spread_skill_ratio, mean_ensemble_spread, path_out, level))
+                    (variable,
+                     mean_spread_skill_ratio,
+                     mean_ensemble_spread,
+                     path_out,
+                     color_palette,
+                     level))
                 timeseries_fc_gt_args.append(
-                    (variable, gt_mean, fc_mean, fc_mean_unperturbed, alpha_value, path_out, level))
+                    (variable,
+                     gt_mean,
+                     fc_mean,
+                     fc_mean_unperturbed,
+                     alpha_value,
+                     path_out,
+                     color_palette,
+                     level))
     for variable in vars_2d:
         # Variable does not have vertical levels, no need to loop
-        rank_histogram_args.append((variable, forecast, ground_truth, path_out))
+        rank_histogram_args.append(
+            (variable, forecast, ground_truth, path_out, color_palette))
         energy_spectra_args.append(
-            (variable, forecast, forecast_unperturbed, ground_truth, path_out))
+            (variable,
+             forecast,
+             forecast_unperturbed,
+             ground_truth,
+             alpha_value,
+             path_out,
+             color_palette))
         rmse_args.append(
             (variable,
                 rmse_ensemble,
                 rmse_ensemble_unperturbed,
                 alpha_value,
-                path_out))
+                path_out,
+                color_palette))
         spread_skill_ratio_args.append(
-            (variable, mean_spread_skill_ratio, mean_ensemble_spread, path_out))
+            (variable,
+             mean_spread_skill_ratio,
+             mean_ensemble_spread,
+             path_out,
+             color_palette))
         timeseries_fc_gt_args.append(
-            (variable, gt_mean, fc_mean, fc_mean_unperturbed, alpha_value, path_out))
-
+            (variable,
+             gt_mean,
+             fc_mean,
+             fc_mean_unperturbed,
+             alpha_value,
+             path_out,
+             color_palette))
     # Use multiprocessing to execute all plot functions in parallel
     with multiprocessing.Pool(processes=2) as pool:
         pool.starmap(plot_spread_skill_ratio, spread_skill_ratio_args)
