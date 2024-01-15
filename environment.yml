@@ -4,6 +4,7 @@ channels:
   - nvidia
   - pyg
 dependencies:
+  - bottleneck
   - eccodes
   - earthkit-data 
   - matplotlib
