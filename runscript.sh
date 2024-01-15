@@ -61,7 +61,8 @@ for MEMBER in $(seq 0 $((NUM_MEMBERS - 1))); do
     ln -sf ${MODEL_DIR}/global_means.npy ${MEMBER_DIR}/global_means.npy
     ln -sf ${MODEL_DIR}/global_stds.npy ${MEMBER_DIR}/global_stds.npy
     # Run the model from a local GRIB-file
-    proceed_if_not_exists "${MEMBER_DIR}/${MODEL_NAME}.grib" "pushd ${MEMBER_DIR} && \
+    #BUG: rather check the forecast.zarr here
+    proceed_if_not_exists "${PERTURBATION_DIR}/forecast.zarr/.zattrs" "pushd ${MEMBER_DIR} && \
         ai-models --input file --file ${MEMBER_DIR}/era5_init.grib $MODEL_NAME && popd"
 
     create_dir_if_not_exists "${MEMBER_DIR}/animations"
@@ -75,7 +76,7 @@ if [ -z "$(find ${PERTURBATION_DIR} -name 'spread_skill_ratio_z.png' -print -qui
 fi
 
 #BUG: should work for all members
-if [ -z "$(find ${PERTURBATION_DIR}/$((NUM_MEMBERS - 1))/animations/ -name '*gif' -print -quit)" ]; then
+if [ -z "$(find ${PERTURBATION_DIR}/0/animations/ -name '*gif' -print -quit)" ]; then
     echo "Generating Animations"
     python -u animator.py $DATE_TIME $MODEL_NAME $PERTURBATION_INIT $PERTURBATION_LATENT
     python -u animator_3d.py $DATE_TIME $MODEL_NAME $PERTURBATION_INIT $PERTURBATION_LATENT
