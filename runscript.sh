@@ -69,9 +69,9 @@ done
 
 python -u create_zarr.py $PERTURBATION_DIR --subdir_search True
 
-if [ -z "$(find ${PERTURBATION_DIR} -name 'spread_skill_ratio_z.png' -print -quit)" ]; then
+if [ -z "$(find ${PERTURBATION_DIR} -name 'rmse_v100.png' -print -quit)" ]; then
     echo "Evaluating model and generating figures"
-    python -u evaluation.py $DATE_TIME $MODEL_NAME $PERTURBATION_INIT $PERTURBATION_LATENT
+    python -u evaluation.py $DATE_TIME $MODEL_NAME $PERTURBATION_INIT $PERTURBATION_LATENT $NUM_MEMBERS
 fi
 
 #BUG: should work for all members
