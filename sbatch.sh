@@ -1,7 +1,7 @@
 #!/bin/bash -l
 #SBATCH --job-name=ai-models-ensembles
 #SBATCH --nodes=1
-#SBATCH --partition=normal
+#SBATCH --partition=a100-80gb
 #SBATCH --account=s83
 #SBATCH --output=logs.out
 #SBATCH --error=logs.err

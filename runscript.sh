@@ -61,8 +61,7 @@ for MEMBER in $(seq 0 $((NUM_MEMBERS - 1))); do
     ln -sf ${MODEL_DIR}/global_means.npy ${MEMBER_DIR}/global_means.npy
     ln -sf ${MODEL_DIR}/global_stds.npy ${MEMBER_DIR}/global_stds.npy
     # Run the model from a local GRIB-file
-    #BUG: rather check the forecast.zarr here
-    proceed_if_not_exists "${PERTURBATION_DIR}/forecast.zarr/.zattrs" "pushd ${MEMBER_DIR} && \
+    proceed_if_not_exists "${PERTURBATION_DIR}/forecast.zarr/member/${MEMBER}" "pushd ${MEMBER_DIR} && \
         ai-models --input file --file ${MEMBER_DIR}/era5_init.grib $MODEL_NAME && popd"
 
     create_dir_if_not_exists "${MEMBER_DIR}/animations"
