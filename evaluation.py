@@ -20,6 +20,7 @@ parser.add_argument(
     "perturbation_latent",
     type=float,
     help="The latent perturbation size")
+parser.add_argument("members", type=int, help="The number of ensemble members")
 parser.add_argument(
     "--plot_vertical_levels",
     action="store_true",
@@ -309,6 +310,10 @@ if __name__ == "__main__":
         args.date_time + "/ground_truth.zarr",
         consolidated=True
     )
+
+    indices = np.random.permutation(forecast.member.size)
+    selected_indices = indices[:args.members]
+    forecast = forecast.isel(member=selected_indices)
 
     ground_truth['step'] = ('time', np.arange(len(ground_truth['time'])))
     ground_truth = ground_truth.swap_dims({'time': 'step'})

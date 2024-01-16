@@ -105,10 +105,12 @@ def main():
         consolidated=True)
     forecast = xr.open_zarr(path_forecast + "/forecast.zarr", consolidated=True)
 
+    members_to_plot = forecast.member.values[:5]
+
     with multiprocessing.Pool() as pool:
         pool.starmap(process_member,
                      [(member, forecast, ground_truth, path_forecast)
-                      for member in forecast.member.values])
+                      for member in members_to_plot])
 
 
 if __name__ == "__main__":
