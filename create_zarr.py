@@ -48,7 +48,7 @@ path_store = os.path.join(
 )
 
 ds_list = []
-chunks = {"latitude": -1, "longitude": -1, "step": 1, "member": 1, "isobaricInhPa": 1}
+chunks = {"latitude": -1, "longitude": -1, "step": 1, "member": 1, "isobaricInhPa": -1}
 
 # If the zarr store already exists, open it
 if os.path.exists(path_store):

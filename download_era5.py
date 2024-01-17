@@ -76,7 +76,7 @@ for i in range(41):
 
 # Save era5 ground_truth as zarr_archive
 print("Saving ground truth to zarr...")
-chunks = {"latitude": -1, "longitude": -1, "time": 1}
+chunks = {"latitude": -1, "longitude": -1, "time": 1, "isobaricInhPa": -1}
 ds_combined = ds_combined.to_xarray().isel(
     step=0, number=0, surface=0).chunk(chunks=chunks)
 ds_combined.to_zarr(args.date_time + "/ground_truth.zarr", consolidated=True)
