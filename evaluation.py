@@ -158,7 +158,7 @@ def calculate_and_plot_energy_spectra(
     plt.close(fig)
 
 
-def plot_rmse(variable, rmse, rmse_unperturbed, alpha_value,
+def plot_rmse(variable, rmse, rmse_median, rmse_unperturbed, alpha_value,
               path_out, color_palette, level=None):
     print(f"Creating RMSE plots for variable: {variable}, level: {level}")
     fig, ax = plt.subplots(figsize=(8, 6))
@@ -179,7 +179,7 @@ def plot_rmse(variable, rmse, rmse_unperturbed, alpha_value,
         else:
             rmse_member_mean.plot(ax=ax, color=color_palette[1], alpha=alpha_value)
 
-    rmse[variable].median(dim='member').plot(
+    rmse_median[variable].plot(
         ax=ax,
         color=color_palette[2],
         label='AI-Model Median')
@@ -329,6 +329,7 @@ if __name__ == "__main__":
 
     # Calculate the squared differences at each spatial point
     squared_diff = (forecast - ground_truth) ** 2
+    squared_diff_median = (forecast.median(dim="member") - ground_truth) ** 2
     squared_diff_unperturbed = (forecast_unperturbed - ground_truth) ** 2
 
     # Calculate the RMSE for each grid point across the ensemble members
@@ -336,6 +337,11 @@ if __name__ == "__main__":
     rmse_grid_unperturbed = np.sqrt(squared_diff_unperturbed.mean(dim="member"))
     rmse_ensemble = np.sqrt(
         squared_diff.mean(
+            dim=[
+                "latitude",
+                "longitude"]))
+    rmse_median = np.sqrt(
+        squared_diff_median.mean(
             dim=[
                 "latitude",
                 "longitude"]))
@@ -402,6 +408,7 @@ if __name__ == "__main__":
                 rmse_args.append(
                     (variable,
                      rmse_ensemble,
+                     rmse_median,
                      rmse_ensemble_unperturbed,
                      alpha_value,
                      path_out,
@@ -438,6 +445,7 @@ if __name__ == "__main__":
         rmse_args.append(
             (variable,
                 rmse_ensemble,
+                rmse_median,
                 rmse_ensemble_unperturbed,
                 alpha_value,
                 path_out,
@@ -457,9 +465,10 @@ if __name__ == "__main__":
              path_out,
              color_palette))
     # Use multiprocessing to execute all plot functions in parallel
+    with multiprocessing.Pool(processes=1) as pool:
+        pool.starmap(plot_rank_histogram, rank_histogram_args)
     with multiprocessing.Pool(processes=2) as pool:
         pool.starmap(plot_spread_skill_ratio, spread_skill_ratio_args)
         pool.starmap(calculate_and_plot_energy_spectra, energy_spectra_args)
-        pool.starmap(plot_rank_histogram, rank_histogram_args)
         pool.starmap(plot_timeseries_fc_gt, timeseries_fc_gt_args)
         pool.starmap(plot_rmse, rmse_args)
