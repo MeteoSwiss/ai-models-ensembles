@@ -8,6 +8,7 @@ import seaborn as sns
 import xarray as xr
 from matplotlib.ticker import FixedLocator
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+from scipy.stats import rankdata
 
 parser = argparse.ArgumentParser(description="Evaluate the NeurWP Ensemble.")
 parser.add_argument(
@@ -38,22 +39,31 @@ def plot_rank_histogram(variable, forecast, ground_truth,
     ground_truth_var = ground_truth[variable].sel(
         isobaricInhPa=level) if level else ground_truth[variable]
 
-    # Expand ground_truth to have a 'member' dimension with the new member value
-    max_member_value = forecast_var.coords['member'].max().item()
-    gt_member_value = max_member_value + 1
-    gt_expanded = ground_truth_var.expand_dims({'member': [gt_member_value]})
-    combined = xr.concat([forecast_var, gt_expanded], dim='member')
+    # Convert to numpy arrays
+    forecast_np = forecast_var.values
+    # Add an axis for 'member'
+    ground_truth_np = ground_truth_var.values[np.newaxis, ...]
 
-    ranks = combined.compute().rank(dim='member')
-    gt_rank = ranks.sel(member=gt_member_value)
+    # Stack ground truth as a new member at the end
+    combined_np = np.concatenate([forecast_np, ground_truth_np], axis=0)
+
+    # Compute ranks along the 'member' axis using 'ordinal' method to avoid half ranks
+    ranks_np = np.apply_along_axis(
+        lambda x: rankdata(x, method='ordinal'),
+        axis=0, arr=combined_np)
+
+    # Get the rank of the ground truth
+    gt_rank_np = ranks_np[-1, ...]  # Last member is the ground truth
+
     # Count the occurrence of each rank
-    rank_counts = gt_rank.to_dataframe(name='frequency').groupby('frequency').size()
+    unique, counts = np.unique(gt_rank_np, return_counts=True)
+    rank_counts = dict(zip(unique, counts))
 
     # Plot the rank histogram
     fig, ax = plt.subplots(figsize=(8, 6))
     ax.bar(
-        rank_counts.index,
-        rank_counts.values,
+        list(rank_counts.keys()),
+        list(rank_counts.values()),
         color=color_palette[4],
         edgecolor=color_palette[5])
     ax.set_title(
@@ -467,8 +477,8 @@ if __name__ == "__main__":
     # Use multiprocessing to execute all plot functions in parallel
     with multiprocessing.Pool(processes=1) as pool:
         pool.starmap(plot_rank_histogram, rank_histogram_args)
-    with multiprocessing.Pool(processes=2) as pool:
+    with multiprocessing.Pool(processes=4) as pool:
+        pool.starmap(plot_rmse, rmse_args)
         pool.starmap(plot_spread_skill_ratio, spread_skill_ratio_args)
         pool.starmap(calculate_and_plot_energy_spectra, energy_spectra_args)
         pool.starmap(plot_timeseries_fc_gt, timeseries_fc_gt_args)
-        pool.starmap(plot_rmse, rmse_args)
