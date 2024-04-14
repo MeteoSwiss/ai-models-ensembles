@@ -1,6 +1,7 @@
 era5*
-fourcastnetv2-small
-ground_truth.zarr
+199912250000
+201801010000
+ifs_ens.zarr
 .vscode/
 logs*
 _old
