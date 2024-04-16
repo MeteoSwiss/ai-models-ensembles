@@ -4,19 +4,26 @@ import os
 from datetime import datetime, timedelta
 
 import earthkit.data
+from earthkit.data import settings
 
-# Parse command line arguments
 parser = argparse.ArgumentParser(description="Download ERA5 data.")
 parser.add_argument(
-    "date_time",
-    type=str,
-    help="Date and time in the format YYYYMMDDHHMM")
+    "start_date", type=str, help="Start date in the format YYYYMMDDHHMM"
+)
+parser.add_argument(
+    "end_date", type=str, help="End date in the format YYYYMMDDHHMM"
+)
+parser.add_argument(
+    "interval",
+    type=int,
+    help="The time step in hours between each analysis time")
 parser.add_argument("model_name", type=str, help="The ai-model name")
 
 args = parser.parse_args()
 
-# Read parameters from fields.txt
-path = os.path.join(args.date_time, args.model_name)
+settings.set("user-cache-directory", "/scratch/mch/sadamov/temp/earthkit-cache")
+
+path = os.path.join(args.start_date, args.model_name)
 with open(path + "/fields.txt", "r") as f:
     lines = f.readlines()
 
@@ -26,57 +33,60 @@ pressure_levels = ast.literal_eval(lines[3].split(": ")[1].strip())
 pressure_level_params = ast.literal_eval(lines[4].split(": ")[1].strip())
 single_level_params = ast.literal_eval(lines[6].split(": ")[1].strip())
 
-# Convert the initial date and time to a datetime object
-datetime_obj = datetime.strptime(args.date_time, "%Y%m%d%H%M")
+start_date = datetime.strptime(args.start_date, "%Y%m%d%H%M")
+end_date = datetime.strptime(args.end_date, "%Y%m%d%H%M")
 
-# Initialize an empty list to store the datasets
-datasets = []
+analysis_times = []
+current_date = start_date
+while current_date <= end_date:
+    analysis_times.extend([current_date + timedelta(hours=h)
+                          for h in range(0, 24, args.interval)])
+    current_date += timedelta(days=1)
 
-# Repeat the retrieval for the next 240 hours (6 hourly intervals)
-for i in range(41):
-    # Convert the date and time to the YYYYMMDD and HHMM formats
-    date = datetime_obj.strftime("%Y%m%d")
-    time = datetime_obj.strftime("%H%M")
+years = sorted(list({t.strftime("%Y") for t in analysis_times}))
+months = sorted(list({t.strftime("%m") for t in analysis_times}))
+days = sorted(list({t.strftime("%d") for t in analysis_times}))
+times = sorted(list({t.strftime("%H:%M") for t in set(analysis_times)}))
 
-    # Retrieve data for the current date and time
-    ds_single = earthkit.data.from_source(
-        "cds",
-        "reanalysis-era5-single-levels",
-        variable=single_level_params,
-        product_type="reanalysis",
-        area=area,
-        grid=grid,
-        date=date,
-        time=time)
+ds_single = earthkit.data.from_source(
+    "cds",
+    "reanalysis-era5-single-levels",
+    variable=single_level_params,
+    product_type="reanalysis",
+    area=area,
+    grid=grid,
+    year=years,
+    month=months,
+    day=days,
+    time=times,
+)
+ds_single.save(f"{args.start_date}/{args.model_name}/era5_single.grib")
 
-    ds_pressure = earthkit.data.from_source(
-        "cds",
-        "reanalysis-era5-pressure-levels",
-        variable=pressure_level_params,
-        product_type="reanalysis",
-        area=area,
-        grid=grid,
-        date=date,
-        time=time,
-        levels=pressure_levels)
+ds_pressure = earthkit.data.from_source(
+    "cds",
+    "reanalysis-era5-pressure-levels",
+    variable=pressure_level_params,
+    product_type="reanalysis",
+    area=area,
+    grid=grid,
+    year=years,
+    month=months,
+    day=days,
+    time=times,
+    levels=pressure_levels,
+)
+ds_pressure.save(f"{args.start_date}/{args.model_name}/era5_pressure.grib")
 
-    # Combine the single-level and pressure-level datasets
-    if i == 0:
-        ds_combined = ds_single + ds_pressure
-        # Save to GRIB
-        print("Saving initial conditions to GRIB...")
-        ds_combined.save(args.date_time + "/era5_init.grib")
-    elif i == 1:
-        ds_combined = ds_single + ds_pressure
-    else:
-        ds_combined += ds_single + ds_pressure
+ds_combined = ds_single + ds_pressure
+ds_combined.isel(time=0).save(f"{args.start_date}/{args.model_name}/era5_init.grib")
 
-    # Add 6 hours to the datetime
-    datetime_obj += timedelta(hours=6)
-
-# Save era5 ground_truth as zarr_archive
-print("Saving ground truth to zarr...")
 chunks = {"latitude": -1, "longitude": -1, "time": 1, "isobaricInhPa": -1}
-ds_combined = ds_combined.to_xarray().isel(
-    step=0, number=0, surface=0).chunk(chunks=chunks)
-ds_combined.to_zarr(args.date_time + "/ground_truth.zarr", consolidated=True)
+print("Saving ground truth to zarr...")
+ds_combined = ds_combined.to_xarray().sel(
+    time=slice(
+        start_date,
+        end_date)).chunk(
+            chunks=chunks).to_zarr(
+    f"{args.start_date}/{args.model_name}/era5_analysis.zarr",
+    mode="w",
+    consolidated=True)
