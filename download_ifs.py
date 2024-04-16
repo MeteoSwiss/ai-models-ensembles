@@ -71,7 +71,8 @@ chunks_surface["surface"] = chunks_surface.pop("isobaricInhPa")
 ds_single = earthkit.data.from_source("mars", request, lazily=True)
 ds_single.save(f"{args.date_time}/{args.model_name}/ifs_single.grib")
 
-ds_single = ds_single.to_xarray(chunks=chunks_surface).drop_vars("valid_time")
+ds_single = ds_single.to_xarray(chunks=chunks_surface).drop_vars(
+    "valid_time").chunk(chunks_surface)
 # Split the "number" dimension into chunks
 number_chunks = [f"{i}/to/{i+9}/by/1" for i in range(1, 51, 10)]
 
