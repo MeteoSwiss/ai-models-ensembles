@@ -1,4 +1,4 @@
-#!/usr/bin/zsh
+#!/usr/bin/bash
 set -e
 set -u
 
@@ -34,8 +34,7 @@ echo "This wil generate roughly $((NUM_MEMBERS * 6 * 2))GB of data"
 create_dir_if_not_exists $DATE_DIR
 create_dir_if_not_exists $MODEL_DIR
 
-proceed_if_not_exists "${MODEL_DIR}/fields.txt" "ai-models --fields \
-    $MODEL_NAME >${MODEL_DIR}/fields.txt"
+proceed_if_not_exists "${MODEL_DIR}/fields.txt" "ai-models --fields $MODEL_NAME > ${MODEL_DIR}/fields.txt"
 
 proceed_if_not_exists "${MODEL_DIR}/era5_init.grib" "python download_era5.py \
     $DATE_TIME $END_DATE_TIME $INTERVAL $MODEL_NAME"

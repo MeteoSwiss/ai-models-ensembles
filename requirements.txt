@@ -1,0 +1,2 @@
+jax[cuda11_pip]==0.4.20
+git+https://github.com/deepmind/graphcast.git
