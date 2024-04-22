@@ -1,63 +1,578 @@
 import argparse
-import multiprocessing
 import os
 
+import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
 import xarray as xr
 from matplotlib.ticker import FixedLocator
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-from scipy.stats import rankdata
+
+matplotlib.use("Agg")
+plt.ioff()
 
 parser = argparse.ArgumentParser(description="Evaluate the NeurWP Ensemble.")
 parser.add_argument(
-    "date_time",
-    type=str,
-    help="Date and time in the format YYYYMMDDHHMM")
+    "date_time", type=str, help="Date and time in the format YYYYMMDDHHMM"
+)
 parser.add_argument("model_name", type=str, help="The ai-model name")
 parser.add_argument("perturbation_init", type=float, help="The init perturbation size")
 parser.add_argument(
-    "perturbation_latent",
-    type=float,
-    help="The latent perturbation size")
-parser.add_argument("members", type=int, help="The number of ensemble members")
-parser.add_argument(
-    "--plot_vertical_levels",
-    action="store_true",
-    help="Plot vertical levels")
+    "perturbation_latent", type=float, help="The latent perturbation size"
+)
+parser.add_argument("members", type=int, help="The number of        ensemble members")
+
 args = parser.parse_args()
 
+config = {
+    "color_palette": sns.color_palette(
+        ["#f75b78", "#6495ed", "#0e2d75", "#f9c740", "#45b7aa", "#353434"]
+    ),
+    "sample_size": 1000000,
+    "radial_bins": 30,
+    "coarsen": 10,
+    "plot_vertical_levels": False,
+    "selected_vars": ["msl", "sp", "t2m", "u10", "v10", "tcwv"]
+    # BUG: code will fail if only 2D fields selected but plot_3D true
+    # code might also fail if only one var is selected
+    # "selected_vars": ["msl", "sp"],
+}
 
-def plot_rank_histogram(variable, forecast, ground_truth,
-                        path_out, color_palette, level=None):
+
+def load_and_prepare_data(path_in):
+    ground_truth = xr.open_zarr(f"{path_in}/ground_truth.zarr", consolidated=True).isel(
+        number=0, surface=0
+    )
+    forecast = xr.open_zarr(
+        f"{path_in}/init_{args.perturbation_init}_latent_{args.perturbation_latent}/forecast.zarr",
+        consolidated=True,)
+    forecast_unperturbed = xr.open_zarr(f"{path_in}/forecast.zarr", consolidated=True)
+    forecast_ifs = xr.open_zarr(f"{path_in}/ifs_ens.zarr", consolidated=True)
+
+    forecast_ifs = (
+        forecast_ifs.rename_dims({"number": "member"})
+        .rename({"number": "member"})
+        .set_index(member="member")
+        .reindex()
+        .isel(surface=0)
+    )
+    forecast_ifs["member"] = forecast_ifs["member"] - 1
+    forecast_unperturbed = xr.concat([ground_truth, forecast_unperturbed], "step")
+    forecast_unperturbed = forecast_unperturbed.isel(time=0).sel(
+        member=0,
+    )
+    forecast_unperturbed_ifs = forecast_ifs.isel(time=0).sel(
+        member=0,
+    )
+    forecast_ifs = forecast_ifs.isel(member=slice(1, None))
+    forecast = xr.concat(
+        [ground_truth, forecast],
+        "step",
+    )
+
+    indices = np.random.permutation(forecast.member.size)
+    indices_ifs = np.random.permutation(forecast_ifs.member.size)
+    selected_indices = indices[: args.members]
+    selected_indices_ifs = indices_ifs[: args.members]
+    forecast = forecast.isel(member=selected_indices, time=0)
+    forecast_ifs = forecast_ifs.isel(member=selected_indices_ifs, time=0)
+
+    ground_truth = ground_truth.isel(step=0)
+    ground_truth["step"] = ("time", np.arange(len(ground_truth["time"])))
+    ground_truth = ground_truth.swap_dims({"time": "step"})
+    forecast["step"] = forecast.time + forecast.step
+    forecast_ifs["step"] = forecast["step"]
+    forecast_unperturbed["step"] = forecast["step"]
+    forecast_unperturbed_ifs["step"] = forecast["step"]
+    ground_truth["step"] = forecast["step"]
+
+    forecast = forecast.transpose(..., "member")
+    forecast_ifs = forecast_ifs.transpose(..., "member")
+
+    full_levels = forecast_ifs.isobaricInhPa.where(
+        ~forecast_ifs.r.isnull()
+        .any(dim=["latitude", "longitude", "step", "member"])
+        .compute(),
+        drop=True,
+    ).values
+    forecast = forecast.sel(isobaricInhPa=full_levels)
+    forecast_ifs = forecast_ifs.sel(isobaricInhPa=full_levels)
+    forecast_unperturbed = forecast_unperturbed.sel(isobaricInhPa=full_levels)
+    forecast_unperturbed_ifs = forecast_unperturbed_ifs.sel(isobaricInhPa=full_levels)
+    ground_truth = ground_truth.sel(isobaricInhPa=full_levels)
+
+    ground_truth = ground_truth[config["selected_vars"]]
+    forecast = forecast[config["selected_vars"]]
+    forecast_unperturbed = forecast_unperturbed[config["selected_vars"]]
+    forecast_ifs = forecast_ifs[config["selected_vars"]]
+    forecast_unperturbed_ifs = forecast_unperturbed_ifs[config["selected_vars"]]
+
+    for ds_name in [
+        "ground_truth",
+        "forecast",
+        "forecast_unperturbed",
+        "forecast_ifs",
+        "forecast_unperturbed_ifs",
+    ]:
+        ds = locals()[ds_name]
+        print(f"{ds_name}: {ds.sizes}")
+
+    return {
+        "ground_truth": ground_truth,
+        "forecast": forecast,
+        "forecast_unperturbed": forecast_unperturbed,
+        "forecast_ifs": forecast_ifs,
+        "forecast_unperturbed_ifs": forecast_unperturbed_ifs,
+    }
+
+
+def calculate_stats(ground_truth, forecast, forecast_unperturbed):
+    fc_mean = forecast.mean(dim=["latitude", "longitude"])
+    fc_mean_unperturbed = forecast_unperturbed.mean(dim=["latitude", "longitude"])
+    gt_mean = ground_truth.mean(dim=["latitude", "longitude"])
+
+    squared_diff = (forecast - ground_truth) ** 2
+    squared_diff_median = (forecast.median(dim="member") - ground_truth) ** 2
+    rmse_grid = np.sqrt(squared_diff.mean(dim="member")).drop_isel(step=0)
+    rmse = np.sqrt(squared_diff.mean(dim=["latitude", "longitude"])).drop_isel(step=0)
+    rmse_median = np.sqrt(
+        squared_diff_median.mean(dim=["latitude", "longitude"])
+    ).drop_isel(step=0)
+
+    squared_diff_unperturbed = (forecast_unperturbed - ground_truth) ** 2
+    rmse_unperturbed = np.sqrt(
+        squared_diff_unperturbed.mean(dim=["latitude", "longitude"])
+    ).drop_isel(step=0)
+
+    ensemble_spread_grid = forecast.std(dim="member").drop_isel(step=0)
+    spread_skill_ratio_grid = ensemble_spread_grid / rmse_grid
+    spread_skill_ratio = spread_skill_ratio_grid.mean(dim=["latitude", "longitude"])
+    ensemble_spread = ensemble_spread_grid.mean(dim=["latitude", "longitude"])
+
+    def calculate_psd(field):
+        fft_result = np.fft.fft2(field)
+        fft_shifted = np.fft.fftshift(fft_result)
+        psd = np.abs(fft_shifted) ** 2
+        return psd
+
+    freq_x = np.fft.fftfreq(forecast.sizes["longitude"], d=1.0)
+    freq_y = np.fft.fftfreq(forecast.sizes["latitude"], d=1.0)
+    freq_x = np.fft.fftshift(freq_x)
+    freq_y = np.fft.fftshift(freq_y)
+    coarsened_freq_x = freq_x[:: config["coarsen"]]
+    coarsened_freq_y = freq_y[:: config["coarsen"]]
+    freq_r = np.sqrt(coarsened_freq_x[None, :] ** 2 + coarsened_freq_y[:, None] ** 2)
+
+    def calculate_radial_psd(data, freq_r, bins=config["radial_bins"]):
+        radial_psd = {}
+        if "isobaricInhPa" in data.dims and config["plot_vertical_levels"]:
+            for level in data.isobaricInhPa.values:
+                radial_psd[level] = {}
+                for member in data.member.values:
+                    field = (
+                        data.sel(isobaricInhPa=level, member=member)
+                        .coarsen(
+                            latitude=config["coarsen"],
+                            longitude=config["coarsen"],
+                            boundary="pad",
+                        )
+                        .mean()
+                        .values
+                    )
+                    weights = calculate_psd(field)
+                    radial_psd[level][member] = np.histogram(
+                        freq_r, bins=bins, weights=weights
+                    )[0]
+        else:
+            for member in data.member.values:
+                field = (
+                    data.sel(member=member)
+                    .coarsen(
+                        latitude=config["coarsen"],
+                        longitude=config["coarsen"],
+                        boundary="pad",
+                    )
+                    .mean()
+                    .values
+                )
+                weights = calculate_psd(field)
+                radial_psd[member] = np.histogram(freq_r, bins=bins, weights=weights)[0]
+        return radial_psd
+
+    radial_psd_forecast = {}
+    for var in forecast.data_vars:
+        radial_psd_forecast[var] = calculate_radial_psd(
+            forecast[var].mean(dim=["step"]), freq_r
+        )
+
+    radial_psd_unperturbed = {}
+    for var in forecast_unperturbed.data_vars:
+        radial_psd_unperturbed_var = calculate_radial_psd(
+            forecast_unperturbed[var].mean(dim=["step"]).expand_dims({"member": 1}),
+            freq_r,
+        )
+        radial_psd_unperturbed[var] = radial_psd_unperturbed_var[0]
+
+    radial_psd_ground_truth = {}
+    for var in ground_truth.data_vars:
+        radial_psd_ground_truth_var = calculate_radial_psd(
+            ground_truth[var].mean(dim=["step"]).expand_dims({"member": 1}), freq_r
+        )
+        radial_psd_ground_truth[var] = radial_psd_ground_truth_var[0]
+
+    return {
+        "fc_mean": fc_mean,
+        "fc_mean_unperturbed": fc_mean_unperturbed,
+        "gt_mean": gt_mean,
+        "rmse": rmse,
+        "rmse_median": rmse_median,
+        "rmse_unperturbed": rmse_unperturbed,
+        "spread_skill_ratio": spread_skill_ratio,
+        "ensemble_spread": ensemble_spread,
+        "radial_psd_forecast": radial_psd_forecast,
+        "radial_psd_unperturbed": radial_psd_unperturbed,
+        "radial_psd_ground_truth": radial_psd_ground_truth,
+    }
+
+
+def calculate_y_lims(
+    vars_3d, vars_2d, forecast, forecast_ifs, default_stats, ifs_stats
+):
+    y_lims_rmse = {}
+    y_lims_spread_skill_ratio = {}
+    y_lims_timeseries = {}
+    y_lims_energy_spectra = {}
+
+    for variable in vars_3d:
+        for level in forecast.isobaricInhPa.values:
+            rmse_min = min(
+                default_stats["rmse"][variable].sel(isobaricInhPa=level).min().values,
+                ifs_stats["rmse"][variable].sel(isobaricInhPa=level).min().values,
+            )
+            spread_skill_ratio_min = min(
+                default_stats["spread_skill_ratio"][variable]
+                .sel(isobaricInhPa=level)
+                .min()
+                .values,
+                ifs_stats["spread_skill_ratio"][variable]
+                .sel(isobaricInhPa=level)
+                .min()
+                .values,
+            )
+            ensemble_spread_min = min(
+                default_stats["ensemble_spread"][variable]
+                .sel(isobaricInhPa=level)
+                .min()
+                .values,
+                ifs_stats["ensemble_spread"][variable]
+                .sel(isobaricInhPa=level)
+                .min()
+                .values,
+            )
+            timeseries_min = min(
+                default_stats["fc_mean"][variable]
+                .sel(isobaricInhPa=level)
+                .min()
+                .values,
+                ifs_stats["fc_mean"][variable].sel(isobaricInhPa=level).min().values,
+            )
+            rmse_max = max(
+                default_stats["rmse"][variable].sel(isobaricInhPa=level).max().values,
+                ifs_stats["rmse"][variable].sel(isobaricInhPa=level).max().values,
+            )
+            spread_skill_ratio_max = max(
+                default_stats["spread_skill_ratio"][variable]
+                .sel(isobaricInhPa=level)
+                .max()
+                .values,
+                ifs_stats["spread_skill_ratio"][variable]
+                .sel(isobaricInhPa=level)
+                .max()
+                .values,
+            )
+            ensemble_spread_max = max(
+                default_stats["ensemble_spread"][variable]
+                .sel(isobaricInhPa=level)
+                .max()
+                .values,
+                ifs_stats["ensemble_spread"][variable]
+                .sel(isobaricInhPa=level)
+                .max()
+                .values,
+            )
+            timeseries_max = max(
+                default_stats["fc_mean"][variable]
+                .sel(isobaricInhPa=level)
+                .max()
+                .values,
+                ifs_stats["fc_mean"][variable].sel(isobaricInhPa=level).max().values,
+            )
+            energy_spectra_min = min(
+                min(
+                    min(arr[1:])
+                    for arr in default_stats["radial_psd_forecast"][variable][
+                        level
+                    ].values()
+                ),
+                min(
+                    min(arr[1:])
+                    for arr in ifs_stats["radial_psd_forecast"][variable][
+                        level
+                    ].values()
+                ),
+            )
+            energy_spectra_max = max(
+                max(
+                    max(arr[1:])
+                    for arr in default_stats["radial_psd_forecast"][variable][
+                        level
+                    ].values()
+                ),
+                max(
+                    max(arr[1:])
+                    for arr in ifs_stats["radial_psd_forecast"][variable][
+                        level
+                    ].values()
+                ),
+            )
+            y_lims_rmse[(variable, level)] = (rmse_min, rmse_max)
+            y_lims_spread_skill_ratio[(variable, level)] = ((
+                spread_skill_ratio_min,
+                spread_skill_ratio_max,
+            ), (ensemble_spread_min, ensemble_spread_max))
+            y_lims_timeseries[(variable, level)] = (timeseries_min, timeseries_max)
+            y_lims_energy_spectra[(variable, level)] = (
+                energy_spectra_min,
+                energy_spectra_max,
+            )
+
+    for variable in vars_2d:
+        rmse_min = min(
+            default_stats["rmse"][variable].min().values,
+            ifs_stats["rmse"][variable].min().values,
+        )
+        spread_skill_ratio_min = min(
+            default_stats["spread_skill_ratio"][variable].min().values,
+            ifs_stats["spread_skill_ratio"][variable].min().values,
+        )
+        ensemble_spread_min = min(
+            default_stats["ensemble_spread"][variable].min().values,
+            ifs_stats["ensemble_spread"][variable].min().values,
+        )
+        timeseries_min = min(
+            default_stats["fc_mean"][variable].min().values,
+            ifs_stats["fc_mean"][variable].min().values,
+        )
+        rmse_max = max(
+            default_stats["rmse"][variable].max().values,
+            ifs_stats["rmse"][variable].max().values,
+        )
+        spread_skill_ratio_max = max(
+            default_stats["spread_skill_ratio"][variable].max().values,
+            ifs_stats["spread_skill_ratio"][variable].max().values,
+        )
+        ensemble_spread_max = max(
+            default_stats["ensemble_spread"][variable].max().values,
+            ifs_stats["ensemble_spread"][variable].max().values,
+        )
+        timeseries_max = max(
+            default_stats["fc_mean"][variable].max().values,
+            ifs_stats["fc_mean"][variable].max().values,
+        )
+        energy_spectra_min = min(
+            min(
+                min(arr[1:])
+                for arr in default_stats["radial_psd_forecast"][variable].values()
+            ),
+            min(
+                min(arr[1:])
+                for arr in ifs_stats["radial_psd_forecast"][variable].values()
+            ),
+        )
+        energy_spectra_max = max(
+            max(
+                max(arr[1:])
+                for arr in default_stats["radial_psd_forecast"][variable].values()
+            ),
+            max(
+                max(arr[1:])
+                for arr in ifs_stats["radial_psd_forecast"][variable].values()
+            ),
+        )
+        level = None
+        y_lims_rmse[(variable, level)] = (rmse_min, rmse_max)
+        y_lims_spread_skill_ratio[(variable, level)] = (
+            (spread_skill_ratio_min, spread_skill_ratio_max),
+            (ensemble_spread_min, ensemble_spread_max),
+        )
+        y_lims_timeseries[(variable, level)] = (
+            timeseries_min,
+            timeseries_max,
+        )
+        y_lims_energy_spectra[(variable, level)] = (
+            energy_spectra_min,
+            energy_spectra_max,
+        )
+
+    return {
+        "y_lims_rmse": y_lims_rmse,
+        "y_lims_spread_skill_ratio": y_lims_spread_skill_ratio,
+        "y_lims_timeseries": y_lims_timeseries,
+        "y_lims_energy_spectra": y_lims_energy_spectra,
+    }
+
+
+def prepare_plot_args(
+    data,
+    stats,
+    vars_3d,
+    vars_2d,
+    y_lims_rmse,
+    y_lims_spread_skill_ratio,
+    y_lims_timeseries,
+    y_lims_energy_spectra,
+    use_ifs=False,
+    path_out=".",
+    model_name="",
+):
+    forecast_key = "forecast_ifs" if use_ifs else "forecast"
+    rank_histogram_args = []
+    energy_spectra_args = []
+    rmse_args = []
+    spread_skill_ratio_args = []
+    timeseries_fc_gt_args = []
+
+    if config["plot_vertical_levels"]:
+        variables = [
+            (vars_3d, data[forecast_key][var].coords["isobaricInhPa"].values, True)
+            for var in vars_3d
+        ] + [(vars_2d, [None], False)]
+    else:
+        variables = [(vars_2d, [None], False)]
+
+    for variable, levels, is_3d in variables:
+        for var in variable:
+            for level in levels:
+                rank_histogram_args.append(
+                    (
+                        var,
+                        data[forecast_key],
+                        data["ground_truth"],
+                        path_out,
+                        config["color_palette"],
+                        model_name,
+                        level,
+                    )
+                )
+                energy_spectra_args.append(
+                    (
+                        var,
+                        stats["radial_psd_forecast"][var][level]
+                        if is_3d
+                        else stats["radial_psd_forecast"][var],
+                        stats["radial_psd_unperturbed"][var][level]
+                        if is_3d
+                        else stats["radial_psd_unperturbed"][var],
+                        stats["radial_psd_ground_truth"][var][level]
+                        if is_3d
+                        else stats["radial_psd_ground_truth"][var],
+                        alpha_value,
+                        path_out,
+                        config["color_palette"],
+                        model_name,
+                        level,
+                        y_lims_energy_spectra[(var, level)]
+                        if is_3d
+                        else y_lims_energy_spectra[(var, None)],
+                    )
+                )
+                rmse_args.append(
+                    (
+                        var,
+                        stats["rmse"],
+                        stats["rmse_median"],
+                        stats["rmse_unperturbed"],
+                        alpha_value,
+                        path_out,
+                        config["color_palette"],
+                        model_name,
+                        level,
+                        y_lims_rmse[(var, level)],
+                    )
+                )
+                spread_skill_ratio_args.append(
+                    (
+                        var,
+                        stats["spread_skill_ratio"],
+                        stats["ensemble_spread"],
+                        path_out,
+                        config["color_palette"],
+                        model_name,
+                        level,
+                        y_lims_spread_skill_ratio[(var, level)][0],
+                        y_lims_spread_skill_ratio[(var, level)][1],
+                    )
+                )
+                timeseries_fc_gt_args.append(
+                    (
+                        var,
+                        stats["gt_mean"],
+                        stats["fc_mean"],
+                        stats["fc_mean_unperturbed"],
+                        alpha_value,
+                        path_out,
+                        config["color_palette"],
+                        model_name,
+                        level,
+                        y_lims_timeseries[(var, level)],
+                    )
+                )
+    return {
+        "rank_histogram": rank_histogram_args,
+        "energy_spectra": energy_spectra_args,
+        "rmse": rmse_args,
+        "spread_skill_ratio": spread_skill_ratio_args,
+        "timeseries_fc_gt": timeseries_fc_gt_args,
+    }
+
+
+def plot_rank_histogram(
+    variable, forecast, ground_truth, path_out, color_palette, model_name, level=None
+):
     print(f"Creating rank histogram for variable: {variable}, level: {level}")
 
-    # Select the level if provided
-    forecast_var = forecast[variable].sel(
-        isobaricInhPa=level) if level else forecast[variable]
-    ground_truth_var = ground_truth[variable].sel(
-        isobaricInhPa=level) if level else ground_truth[variable]
+    forecast_var = (
+        forecast[variable].sel(isobaricInhPa=level) if level else forecast[variable]
+    )
+    ground_truth_var = (
+        ground_truth[variable].sel(isobaricInhPa=level)
+        if level
+        else ground_truth[variable]
+    )
 
-    # Convert to numpy arrays
-    forecast_np = forecast_var.values
-    # Add an axis for 'member'
-    ground_truth_np = ground_truth_var.values[np.newaxis, ...]
+    ground_truth_var = (
+        ground_truth_var.expand_dims("member")
+        .drop_vars(["number", "time"])
+        .assign_coords(member=[0])
+    )
 
-    # Stack ground truth as a new member at the end
-    combined_np = np.concatenate([forecast_np, ground_truth_np], axis=0)
+    combined = xr.concat([forecast_var, ground_truth_var], dim="member")
 
-    # Compute ranks along the 'member' axis using 'ordinal' method to avoid half ranks
-    ranks_np = np.apply_along_axis(
-        lambda x: rankdata(x, method='ordinal'),
-        axis=0, arr=combined_np)
+    # Create a random subsample
+    sample_size = config["sample_size"]
+    combined_stacked = combined.stack(z=("step", "latitude", "longitude"))
+    indices = np.sort(
+        np.random.choice(combined_stacked.z.size, size=sample_size, replace=False)
+    )
+    combined_sample = combined_stacked.isel(z=indices)
+
+    ranks = combined_sample.chunk(dict(member=-1)).rank("member")
 
     # Get the rank of the ground truth
-    gt_rank_np = ranks_np[-1, ...]  # Last member is the ground truth
-
-    # Count the occurrence of each rank
-    unique, counts = np.unique(gt_rank_np, return_counts=True)
-    rank_counts = dict(zip(unique, counts))
+    gt_rank = ranks.isel(member=-1)
+    unique_ranks, rank_counts = np.unique(gt_rank.values, return_counts=True)
+    rank_counts = dict(zip(unique_ranks, rank_counts))
 
     # Plot the rank histogram
     fig, ax = plt.subplots(figsize=(8, 6))
@@ -65,111 +580,116 @@ def plot_rank_histogram(variable, forecast, ground_truth,
         list(rank_counts.keys()),
         list(rank_counts.values()),
         color=color_palette[4],
-        edgecolor=color_palette[5])
+        edgecolor=color_palette[5],
+    )
     ax.set_title(
-        f"Rank Histogram for {variable}{' at level ' + str(level) if level else ''}")
+        f"Rank Histogram for {variable}{' at level ' + str(level) if level else ''}"
+    )
     ax.set_xlabel("Rank")
     ax.set_ylabel("Frequency")
     plt.savefig(
         os.path.join(
             path_out,
-            f"rank_histogram_{variable}{'_' + str(level) if level else ''}.png"))
+            f"rank_histogram_{variable}{'_' + str(level) if level else ''}.png",
+        )
+    )
     plt.close(fig)
 
 
-def calculate_and_plot_energy_spectra(
-        variable, forecast, forecast_unperturbed, ground_truth, alpha_value, path_out,
-        color_palette, level=None):
-    print(
-        f"Calculating and plotting energy spectra for variable: {variable}, level: {level}")
-
-    # Helper function to calculate PSD and radial frequency bins
-    def calculate_psd(field):
-        fft_result = np.fft.fft2(field.values)
-        fft_shifted = np.fft.fftshift(fft_result)
-        psd = np.abs(fft_shifted)**2
-        return psd
-
-    # Select the level if provided
-    if level is not None:
-        forecast = forecast.sel(isobaricInhPa=level)
-        forecast_unperturbed = forecast_unperturbed.sel(isobaricInhPa=level)
-        ground_truth = ground_truth.sel(isobaricInhPa=level)
-
-    # Calculate the frequency bins for plotting
-    freq_x = np.fft.fftfreq(
-        forecast.sizes['longitude'],
-        d=1.0)  # Assuming unit grid spacing
-    freq_y = np.fft.fftfreq(forecast.sizes['latitude'], d=1.0)
+def plot_energy_spectra(
+    variable,
+    radial_psd_forecast,
+    radial_psd_unperturbed,
+    radial_psd_ground_truth,
+    alpha_value,
+    path_out,
+    color_palette,
+    model_name,
+    level=None,
+    y_lims=None,
+):
+    print(f"Plotting energy spectra for variable: {variable}, level: {level}")
+    freq_x = np.fft.fftfreq(next(iter(radial_psd_forecast.values())).size, d=1.0)
     freq_x = np.fft.fftshift(freq_x)
-    freq_y = np.fft.fftshift(freq_y)
-
-    # Calculate radial frequency bins
-    freq_r = np.sqrt(freq_x[None, :]**2 + freq_y[:, None]**2)
-
-    # Plot the energy spectra
     fig, ax = plt.subplots(figsize=(8, 6))
 
-    # Plot for each ensemble member
-    for i, member in enumerate(forecast.member.values):
-        member_field = forecast[variable].sel(member=member).mean(dim='step')
-        psd_member = calculate_psd(member_field)
-        radial_psd_member, radial_bins = np.histogram(
-            freq_r, bins=30, weights=psd_member)
-        if i == 0:  # Only label the first member
-            ax.loglog(radial_bins[:-1], radial_psd_member, color=color_palette[1],
-                      label='AI-Model Members', alpha=alpha_value)
-        else:
-            ax.loglog(radial_bins[:-1], radial_psd_member,
-                      alpha=alpha_value, color=color_palette[1])
+    for i, (member, psd) in enumerate(
+        radial_psd_forecast[level].items()
+        if level is not None
+        else radial_psd_forecast.items()
+    ):
+        ax.loglog(
+            freq_x,
+            psd,
+            color=color_palette[1],
+            alpha=alpha_value,
+            label=f"{model_name} Members" if i == 0 else "",
+        )
 
-    # Plot unperturbed and ground truth
-    mean_field_perturbed = forecast[variable].median(dim=['member']).mean(dim=['step'])
-    mean_field_unperturbed = forecast_unperturbed[variable].mean(dim=['member', 'step'])
-    mean_field_ground_truth = ground_truth[variable].mean(dim='step')
-    psd_perturbed = calculate_psd(mean_field_perturbed)
-    psd_unperturbed = calculate_psd(mean_field_unperturbed)
-    psd_ground_truth = calculate_psd(mean_field_ground_truth)
-    radial_psd_perturbed, _ = np.histogram(freq_r, bins=30, weights=psd_perturbed)
-    radial_psd_unperturbed, _ = np.histogram(freq_r, bins=30, weights=psd_unperturbed)
-    radial_psd_ground_truth, _ = np.histogram(freq_r, bins=30, weights=psd_ground_truth)
-    ax.loglog(radial_bins[:-1], radial_psd_perturbed, color=color_palette[2],
-              label='AI-Model Median')
-    ax.loglog(radial_bins[:-1],
-              radial_psd_unperturbed,
-              label='AI-Model Unperturbed',
-              linestyle='--',
-              color=color_palette[3])
-    ax.loglog(radial_bins[:-1], radial_psd_ground_truth, color=color_palette[0],
-              label='Ground Truth: ERA5', linestyle=':')
+    # Calculate and plot the median PSD
+    median_psd = np.median(
+        list(radial_psd_forecast[level].values())
+        if level is not None
+        else list(radial_psd_forecast.values()),
+        axis=0,
+    )
+    ax.loglog(
+        freq_x,
+        median_psd,
+        color=color_palette[2],
+        label=f"{model_name} Median",
+        linestyle="--",
+    )
 
-    # Rest of the plotting code remains the same...
-    # Retrieve the current x-axis major and minor tick locations
+    ax.loglog(
+        freq_x,
+        radial_psd_unperturbed[level] if level is not None else radial_psd_unperturbed,
+        label=f"{model_name} Unperturbed",
+        linestyle="--",
+        color=color_palette[3],
+    )
+    ax.loglog(
+        freq_x,
+        radial_psd_ground_truth[level]
+        if level is not None
+        else radial_psd_ground_truth,
+        color=color_palette[0],
+        label="Ground Truth: ERA5",
+        linestyle=":",
+    )
+
     major_xticks = ax.get_xticks(minor=False)
     minor_xticks = ax.get_xticks(minor=True)
-    # Set the tick positions using FixedLocator
     ax.xaxis.set_major_locator(FixedLocator(major_xticks))
     ax.xaxis.set_minor_locator(FixedLocator(minor_xticks))
-    # Set the labels for the x-axis major and minor ticks
-    ax.set_xticklabels(['{:.0e}'.format(tick) for tick in major_xticks], minor=False)
-    ax.set_xticklabels(['{:.0e}'.format(tick) for tick in minor_xticks], minor=True)
-    for label in ax.get_xticklabels(which='both'):
+    ax.set_xticklabels(["{:.0e}".format(tick) for tick in major_xticks], minor=False)
+    ax.set_xticklabels(["{:.0e}".format(tick) for tick in minor_xticks], minor=True)
+    for label in ax.get_xticklabels(which="both"):
         label.set_rotation(45)
+    if y_lims is not None:
+        (ymin, ymax) = y_lims
+        ax.set_ylim(ymin.item(), ymax.item() * 0.1)
 
-    ax.set_title(
-        f"Energy Spectra for {variable}{' at level ' + str(level) if level is not None else ''}")
+    ax.set_title(f"Energy Spectra for {variable}")
     ax.set_xlabel("Frequency")
     ax.set_ylabel("Power Spectral Density")
     ax.legend()
-    plt.savefig(
-        os.path.join(
-            path_out,
-            f"energy_spectra_comparison_{variable}{'_' + str(level) if level is not None else ''}.png"))
+    plt.savefig(os.path.join(path_out, f"energy_spectra_comparison_{variable}.png"))
     plt.close(fig)
 
 
-def plot_rmse(variable, rmse, rmse_median, rmse_unperturbed, alpha_value,
-              path_out, color_palette, level=None):
+def plot_rmse(
+    variable,
+    rmse,
+    rmse_median,
+    rmse_unperturbed,
+    alpha_value,
+    path_out,
+    color_palette,
+    model_name,
+    level=None,
+    y_lims=None,
+):
     print(f"Creating RMSE plots for variable: {variable}, level: {level}")
     fig, ax = plt.subplots(figsize=(8, 6))
 
@@ -179,40 +699,54 @@ def plot_rmse(variable, rmse, rmse_median, rmse_unperturbed, alpha_value,
         rmse_unperturbed = rmse_unperturbed.sel(isobaricInhPa=level)
 
     for i, member in enumerate(rmse.member):
-        rmse_member_mean = rmse[variable].sel(member=member)
+        rmse_member = rmse[variable].sel(member=member)
         if i == 0:  # Add label only for the first member
-            rmse_member_mean.plot(
+            rmse_member.plot(
                 ax=ax,
                 color=color_palette[1],
                 alpha=alpha_value,
-                label='AI-Model Members')
+                label=f"{model_name} Members",
+            )
         else:
-            rmse_member_mean.plot(ax=ax, color=color_palette[1], alpha=alpha_value)
+            rmse_member.plot(ax=ax, color=color_palette[1], alpha=alpha_value)
 
     rmse_median[variable].plot(
-        ax=ax,
-        color=color_palette[2],
-        label='AI-Model Median')
+        ax=ax, color=color_palette[2], label=f"{model_name} Median"
+    )
 
     rmse_unperturbed[variable].plot(
-        ax=ax,
-        color=color_palette[3],
-        label='AI-Model Unperturbed')
+        ax=ax, color=color_palette[3], label=f"{model_name} Unperturbed"
+    )
+
+    if y_lims is not None:
+        (ymin, ymax) = y_lims
+        ax.set_ylim(ymin.item() * 0.9, ymax.item() * 1.1)
 
     ax.set_ylabel(f"RMSE ({variable})")
     ax.set_title(
-        f"Root Mean Square Error: {variable}{' at level ' + str(level) if level is not None else ''}")
+        f"Root Mean Square Error: {variable}{' at level ' + str(level) if level is not None else ''}"
+    )
     ax.legend()
     plt.savefig(
         os.path.join(
             path_out,
-            f"rmse_{variable}{'_' + str(level) if level is not None else ''}.png"))
+            f"rmse_{variable}{'_' + str(level) if level is not None else ''}.png",
+        )
+    )
     plt.close(fig)
 
 
 def plot_spread_skill_ratio(
-        variable, spread_skill_ratio, ensemble_spread, path_out, color_palette,
-        level=None):
+    variable,
+    spread_skill_ratio,
+    ensemble_spread,
+    path_out,
+    color_palette,
+    model_name,
+    level=None,
+    y_lims1=None,
+    y_lims2=None,
+):
     print(f"Creating spread-skill ratio plots for variable: {variable}, level: {level}")
     if level is not None:
         data_array = spread_skill_ratio[variable].sel(isobaricInhPa=level)
@@ -227,36 +761,64 @@ def plot_spread_skill_ratio(
     ax2 = ax.twinx()
     ensemble_spread_data.plot(ax=ax2, color=color_palette[4])
 
+    if y_lims1 is not None:
+        (ymin, ymax) = y_lims1
+        ax.set_ylim(0, ymax.item() * 1.1)
+
     ax.set_xlabel("")
     ax.set_ylabel("Spread-skill ratio")
-    ax.set_ylim(bottom=0)
     ax.set_title(
-        f"Spread-Skill Ratio and Ensemble Spread for {variable}{' at level ' + str(level) if level is not None else ''}")
+        f"Spread-Skill Ratio and Ensemble Spread of {model_name} for {variable}{' at level ' + str(level) if level is not None else ''}"
+    )
+
+    if y_lims2 is not None:
+        (ymin, ymax) = y_lims2
+        ax2.set_ylim(ymin.item() * 0.9, ymax.item() * 1.1)
+
     ax2.set_ylabel("Ensemble Spread", color=color_palette[4])
-    ax2.tick_params(axis='y', colors=color_palette[4])
+    ax2.tick_params(axis="y", colors=color_palette[4])
     ax2.set_title("")
     plt.savefig(
         os.path.join(
             path_out,
-            f"spread_skill_ratio_{variable}{'_' + str(level) if level is not None else ''}.png"))
+            f"spread_skill_ratio_{variable}{'_' + str(level) if level is not None else ''}.png",
+        ))
     plt.close(fig)
 
 
 def plot_timeseries_fc_gt(
-        variable, gt_mean, fc_mean, fc_mean_unperturbed, alpha_value, path_out,
-        color_palette, level=None):
+    variable,
+    gt_mean,
+    fc_mean,
+    fc_mean_unperturbed,
+    alpha_value,
+    path_out,
+    color_palette,
+    model_name,
+    level=None,
+    y_lims=None,
+):
     print(f"Creating timeseries plots for variable: {variable}, level: {level}")
     fig, ax = plt.subplots(figsize=(8, 6))
 
     # Select the level if provided
-    gt_mean_var = gt_mean[variable].sel(
-        isobaricInhPa=level) if level is not None else gt_mean[variable]
-    fc_mean_var = fc_mean[variable].sel(
-        isobaricInhPa=level) if level is not None else fc_mean[variable]
-    fc_mean_unperturbed_var = fc_mean_unperturbed[variable].sel(
-        isobaricInhPa=level) if level is not None else fc_mean_unperturbed[variable]
+    gt_mean_var = (
+        gt_mean[variable].sel(isobaricInhPa=level)
+        if level is not None
+        else gt_mean[variable]
+    )
+    fc_mean_var = (
+        fc_mean[variable].sel(isobaricInhPa=level)
+        if level is not None
+        else fc_mean[variable]
+    )
+    fc_mean_unperturbed_var = (
+        fc_mean_unperturbed[variable].sel(isobaricInhPa=level)
+        if level is not None
+        else fc_mean_unperturbed[variable]
+    )
 
-    gt_mean_var.plot(ax=ax, color=color_palette[0], label='Ground Truth: ERA5')
+    gt_mean_var.plot(ax=ax, color=color_palette[0], label="Ground Truth: ERA5")
 
     for i, member in enumerate(fc_mean.member):
         fc_mean_member = fc_mean_var.sel(member=member)
@@ -265,21 +827,27 @@ def plot_timeseries_fc_gt(
                 ax=ax,
                 color=color_palette[1],
                 alpha=alpha_value,
-                label='AI-Model Members')
+                label=f"{model_name} Members",
+            )
         else:
             fc_mean_member.plot(ax=ax, color=color_palette[1], alpha=alpha_value)
 
-    fc_mean_var.median(
-        dim="member").plot(
-        ax=ax,
-        color=color_palette[2],
-        label='AI-Model Median')
+    fc_mean_var.median(dim="member").plot(
+        ax=ax, color=color_palette[2], label=f"{model_name} Median"
+    )
     fc_mean_unperturbed_var.plot(
-        ax=ax, color=color_palette[3],
-        label='AI-Model Unperturbed')
+        ax=ax, color=color_palette[3], label=f"{model_name} Unperturbed"
+    )
 
     # Collect all values for the density plot at the latest time step
     fc_values_last_step = fc_mean_var.isel(step=-1).values
+
+    if y_lims is not None:
+        (ymin, ymax) = y_lims
+        extent = ymax - ymin
+        ax.set_ylim(
+            ymin.item() - 0.1 * extent.item(),
+            ymax.item() + 0.1 * extent.item())
 
     # Create an inset axis for the density plot
     divider = make_axes_locatable(ax)
@@ -290,195 +858,93 @@ def plot_timeseries_fc_gt(
     ax2.set_ylim(ax.get_ylim())
     ax2.set_xticks([])
     ax2.set_yticks([])
-    ax2.set_xlabel('Density')
+    ax2.set_xlabel("Density")
 
     ax.set_ylabel(f"{variable}{' at level ' + str(level) if level is not None else ''}")
     ax.set_title(
-        f"Forecast vs Ground-Truth Comparison: {variable}{' at level ' + str(level) if level is not None else ''}")
+        f"Forecast vs Ground-Truth Comparison: {variable}{' at level ' + str(level) if level is not None else ''}"
+    )
     ax.legend()
     plt.savefig(
         os.path.join(
             path_out,
-            f"timeseries_fc_gt_{variable}{'_' + str(level) if level is not None else ''}.png"))
+            f"timeseries_fc_gt_{variable}{'_' + str(level) if level is not None else ''}.png",
+        ))
     plt.close(fig)
 
 
 if __name__ == "__main__":
-    path_out = os.path.join(
-        str(args.date_time),
-        args.model_name,
-        f"init_{args.perturbation_init}_latent_{args.perturbation_latent}")
-    forecast = xr.open_zarr(
-        path_out + "/forecast.zarr",
-        consolidated=True
+    path_in = os.path.join(str(args.date_time), args.model_name)
+    assert (
+        args.members <= 50
+    ), "The number of ensemble members must be less than or equal to 50 to plot IFS ENS"
+    model_name = args.model_name.title()
+    path_out = os.path.join(path_in, f"png_{args.model_name}")
+    path_out_ifs = os.path.join(path_in, "png_ifs")
+    os.makedirs(path_out, exist_ok=True)
+    os.makedirs(path_out_ifs, exist_ok=True)
+
+    data = load_and_prepare_data(path_in)
+
+    print("data loaded", flush=True)
+    default_stats = calculate_stats(
+        data["ground_truth"], data["forecast"], data["forecast_unperturbed"]
     )
-    forecast_unperturbed = xr.open_zarr(
-        f"{args.date_time}/{args.model_name}/forecast.zarr",
-        consolidated=True
+    print("stats calculated", flush=True)
+    ifs_stats = calculate_stats(
+        data["ground_truth"], data["forecast_ifs"], data["forecast_unperturbed_ifs"]
     )
-    ground_truth = xr.open_zarr(
-        args.date_time + "/ground_truth.zarr",
-        consolidated=True
+    print("ifs stats calculated", flush=True)
+
+    alpha_value = 1 / data["forecast"].member.size ** (5 / 8)
+    variables = list(data["forecast"].data_vars)
+    vars_3d = [
+        var for var in variables if "isobaricInhPa" in data["forecast"][var].dims
+    ]
+    vars_2d = [
+        var for var in variables if "isobaricInhPa" not in data["forecast"][var].dims
+    ]
+
+    y_lims = calculate_y_lims(
+        vars_3d,
+        vars_2d,
+        data["forecast"],
+        data["forecast_ifs"],
+        default_stats,
+        ifs_stats,
+    )
+    print("y_lims calculated", flush=True)
+
+    default_plot_args = prepare_plot_args(
+        data,
+        default_stats,
+        vars_3d,
+        vars_2d,
+        **y_lims,
+        use_ifs=False,
+        path_out=path_out,
+        model_name=model_name,
     )
 
-    indices = np.random.permutation(forecast.member.size)
-    selected_indices = indices[:args.members]
-    forecast = forecast.isel(member=selected_indices)
+    ifs_plot_args = prepare_plot_args(
+        data,
+        ifs_stats,
+        vars_3d,
+        vars_2d,
+        **y_lims,
+        use_ifs=True,
+        path_out=path_out_ifs,
+        model_name="IFS ENS",
+    )
 
-    ground_truth['step'] = ('time', np.arange(len(ground_truth['time'])))
-    ground_truth = ground_truth.swap_dims({'time': 'step'})
-    forecast["step"] = forecast.time + forecast.step
-    forecast_unperturbed["step"] = forecast["step"]
-    ground_truth["step"] = forecast["step"]
-
-    # Calculate the spatial mean
-    fc_mean = forecast.mean(dim=["latitude", "longitude"])
-    fc_mean_unperturbed = forecast_unperturbed.mean(
-        dim=["latitude", "longitude"])
-    gt_mean = ground_truth.mean(dim=["latitude", "longitude"])
-
-    # Calculate the squared differences at each spatial point
-    squared_diff = (forecast - ground_truth) ** 2
-    squared_diff_median = (forecast.median(dim="member") - ground_truth) ** 2
-    squared_diff_unperturbed = (forecast_unperturbed - ground_truth) ** 2
-
-    # Calculate the RMSE for each grid point across the ensemble members
-    rmse_grid = np.sqrt(squared_diff.mean(dim="member"))
-    rmse_grid_unperturbed = np.sqrt(squared_diff_unperturbed.mean(dim="member"))
-    rmse_ensemble = np.sqrt(
-        squared_diff.mean(
-            dim=[
-                "latitude",
-                "longitude"]))
-    rmse_median = np.sqrt(
-        squared_diff_median.mean(
-            dim=[
-                "latitude",
-                "longitude"]))
-    rmse_ensemble_unperturbed = np.sqrt(
-        squared_diff_unperturbed.mean(
-            dim=[
-                "latitude",
-                "longitude"]))
-
-    # Calculate the ensemble spread for each grid point across the ensemble members
-    ensemble_spread_grid = forecast.std(dim="member")
-
-    # Calculate the spread/skill ratio for each grid point
-    spread_skill_ratio_grid = (ensemble_spread_grid / rmse_grid)
-
-    # Calculate the mean spread/skill ratio across all grid points
-    mean_spread_skill_ratio = spread_skill_ratio_grid.mean(
-        dim=["latitude", "longitude"])
-
-    # Calculate the mean ensemble spread across all grid points (for use in
-    # plotting functions)
-    mean_ensemble_spread = ensemble_spread_grid.mean(
-        dim=["latitude", "longitude"])
-
-    alpha_value = 1 / forecast.member.size**(5 / 8)
-
-    # Define a custom colorblind-friendly palette
-    color_palette = sns.color_palette([
-        "#f75b78",
-        "#6495ed",
-        "#0e2d75",
-        "#f9c740",
-        "#45b7aa",
-        "#353434",
-    ])
-
-    variables = list(forecast.data_vars)
-
-    # Prepare arguments for each plot function, considering vertical levels
-    rank_histogram_args = []
-    energy_spectra_args = []
-    rmse_args = []
-    spread_skill_ratio_args = []
-    timeseries_fc_gt_args = []
-
-    vars_3d = [var for var in variables if 'isobaricInhPa' in forecast[var].dims]
-    vars_2d = [var for var in variables if 'isobaricInhPa' not in forecast[var].dims]
-
-    for variable in vars_3d:
-        if args.plot_vertical_levels:
-            # Variable has vertical levels, loop over each level
-            for level in forecast[variable].coords['isobaricInhPa'].values:
-                rank_histogram_args.append(
-                    (variable, forecast, ground_truth, path_out, color_palette, level))
-                energy_spectra_args.append(
-                    (variable,
-                     forecast,
-                     forecast_unperturbed,
-                     ground_truth,
-                     alpha_value,
-                     path_out,
-                     color_palette,
-                     level))
-                rmse_args.append(
-                    (variable,
-                     rmse_ensemble,
-                     rmse_median,
-                     rmse_ensemble_unperturbed,
-                     alpha_value,
-                     path_out,
-                     color_palette,
-                     level))
-                spread_skill_ratio_args.append(
-                    (variable,
-                     mean_spread_skill_ratio,
-                     mean_ensemble_spread,
-                     path_out,
-                     color_palette,
-                     level))
-                timeseries_fc_gt_args.append(
-                    (variable,
-                     gt_mean,
-                     fc_mean,
-                     fc_mean_unperturbed,
-                     alpha_value,
-                     path_out,
-                     color_palette,
-                     level))
-    for variable in vars_2d:
-        # Variable does not have vertical levels, no need to loop
-        rank_histogram_args.append(
-            (variable, forecast, ground_truth, path_out, color_palette))
-        energy_spectra_args.append(
-            (variable,
-             forecast,
-             forecast_unperturbed,
-             ground_truth,
-             alpha_value,
-             path_out,
-             color_palette))
-        rmse_args.append(
-            (variable,
-                rmse_ensemble,
-                rmse_median,
-                rmse_ensemble_unperturbed,
-                alpha_value,
-                path_out,
-                color_palette))
-        spread_skill_ratio_args.append(
-            (variable,
-             mean_spread_skill_ratio,
-             mean_ensemble_spread,
-             path_out,
-             color_palette))
-        timeseries_fc_gt_args.append(
-            (variable,
-             gt_mean,
-             fc_mean,
-             fc_mean_unperturbed,
-             alpha_value,
-             path_out,
-             color_palette))
-    # Use multiprocessing to execute all plot functions in parallel
-    with multiprocessing.Pool(processes=1) as pool:
-        pool.starmap(plot_rank_histogram, rank_histogram_args)
-    with multiprocessing.Pool(processes=4) as pool:
-        pool.starmap(plot_rmse, rmse_args)
-        pool.starmap(plot_spread_skill_ratio, spread_skill_ratio_args)
-        pool.starmap(calculate_and_plot_energy_spectra, energy_spectra_args)
-        pool.starmap(plot_timeseries_fc_gt, timeseries_fc_gt_args)
+    for plot_args in [default_plot_args, ifs_plot_args]:
+        for args in plot_args["rank_histogram"]:
+            plot_rank_histogram(*args)
+        for args in plot_args["rmse"]:
+            plot_rmse(*args)
+        for args in plot_args["spread_skill_ratio"]:
+            plot_spread_skill_ratio(*args)
+        for args in plot_args["energy_spectra"]:
+            plot_energy_spectra(*args)
+        for args in plot_args["timeseries_fc_gt"]:
+            plot_timeseries_fc_gt(*args)
