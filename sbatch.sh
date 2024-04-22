@@ -13,8 +13,8 @@
 export DATE_TIME=201801010000 # Lothar: 199912250000, Burglind: 201801010000
 export MODEL_NAME=fourcastnetv2-small # fourcastnetv2-small, graphcast
 export PERTURBATION_INIT=0.0
-export PERTURBATION_LATENT=0.0
-export NUM_MEMBERS=1
+export PERTURBATION_LATENT=0.02
+export NUM_MEMBERS=49
 
 # if conda env ai-models does not exist then create it
 if ! mamba env list | grep -q ai-models; then

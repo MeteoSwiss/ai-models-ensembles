@@ -60,7 +60,7 @@ ds_single = earthkit.data.from_source(
     day=days,
     time=times,
 )
-ds_single.save(f"{args.start_date}/{args.model_name}/era5_single.grib")
+# ds_single.save(f"{args.start_date}/{args.model_name}/era5_single.grib")
 
 ds_pressure = earthkit.data.from_source(
     "cds",
@@ -75,7 +75,7 @@ ds_pressure = earthkit.data.from_source(
     time=times,
     levels=pressure_levels,
 )
-ds_pressure.save(f"{args.start_date}/{args.model_name}/era5_pressure.grib")
+# ds_pressure.save(f"{args.start_date}/{args.model_name}/era5_pressure.grib")
 
 ds_combined = ds_single + ds_pressure
 ds_combined.isel(time=0).save(f"{args.start_date}/{args.model_name}/era5_init.grib")
@@ -87,6 +87,6 @@ ds_combined = ds_combined.to_xarray().sel(
         start_date,
         end_date)).chunk(
             chunks=chunks).to_zarr(
-    f"{args.start_date}/{args.model_name}/era5_analysis.zarr",
+    f"{args.start_date}/{args.model_name}/ground_truth.zarr",
     mode="w",
     consolidated=True)

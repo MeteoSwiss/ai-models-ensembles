@@ -36,7 +36,7 @@ else:
 grib_files.sort()
 
 # BUG: There is an annoying GRIB issue, where the three variables below are present
-# on mulitple heightAboveGround levels. Should be fixed in model-output rather than
+# on mulitple heightAboveGround levels. Should be fixed in model-output rather than here
 # Define the shortNames and their corresponding filter keys
 shortNames = ["100v", "100u", "2t", "rest"]
 filter_keys = [{"shortName": "100v"}, {"shortName": "100u"}, {"shortName": "2t"}, None]

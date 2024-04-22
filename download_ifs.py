@@ -69,7 +69,7 @@ chunks_surface["surface"] = chunks_surface.pop("isobaricInhPa")
 
 # Retrieve the single level data
 ds_single = earthkit.data.from_source("mars", request, lazily=True)
-ds_single.save(f"{args.date_time}/{args.model_name}/ifs_single.grib")
+# ds_single.save(f"{args.date_time}/{args.model_name}/ifs_single.grib")
 
 ds_single = ds_single.to_xarray(chunks=chunks_surface).drop_vars(
     "valid_time").chunk(chunks_surface)
@@ -90,7 +90,7 @@ for i, number_chunk in enumerate(number_chunks):
     )
     ds_pressure_chunk = earthkit.data.from_source("mars", request, lazily=True)
     ds_pressure.append(ds_pressure_chunk)
-    ds_pressure_chunk.save(f"{args.date_time}/{args.model_name}/ifs_pressure_{i}.grib")
+    # ds_pressure_chunk.save(f"{args.date_time}/{args.model_name}/ifs_pressure_{i}.grib")
 
 
 shortnames = list(set(ds_pressure[0].metadata("shortName")))
