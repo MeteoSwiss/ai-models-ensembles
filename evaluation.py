@@ -10,6 +10,7 @@ from matplotlib.ticker import FixedLocator
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 matplotlib.use("Agg")
+matplotlib.rcParams.update({'font.size': 15})
 plt.ioff()
 
 parser = argparse.ArgumentParser(description="Evaluate the NeurWP Ensemble.")
@@ -575,7 +576,7 @@ def plot_rank_histogram(
     rank_counts = dict(zip(unique_ranks, rank_counts))
 
     # Plot the rank histogram
-    fig, ax = plt.subplots(figsize=(8, 6))
+    fig, ax = plt.subplots(figsize=(12, 9))
     ax.bar(
         list(rank_counts.keys()),
         list(rank_counts.values()),
@@ -591,7 +592,8 @@ def plot_rank_histogram(
         os.path.join(
             path_out,
             f"rank_histogram_{variable}{'_' + str(level) if level else ''}.png",
-        )
+        ),
+        dpi=300,
     )
     plt.close(fig)
 
@@ -611,7 +613,7 @@ def plot_energy_spectra(
     print(f"Plotting energy spectra for variable: {variable}, level: {level}")
     freq_x = np.fft.fftfreq(next(iter(radial_psd_forecast.values())).size, d=1.0)
     freq_x = np.fft.fftshift(freq_x)
-    fig, ax = plt.subplots(figsize=(8, 6))
+    fig, ax = plt.subplots(figsize=(12, 9))
 
     for i, (member, psd) in enumerate(
         radial_psd_forecast[level].items()
@@ -674,7 +676,11 @@ def plot_energy_spectra(
     ax.set_xlabel("Frequency")
     ax.set_ylabel("Power Spectral Density")
     ax.legend()
-    plt.savefig(os.path.join(path_out, f"energy_spectra_comparison_{variable}.png"))
+    plt.savefig(
+        os.path.join(
+            path_out,
+            f"energy_spectra_comparison_{variable}.png"),
+        dpi=300)
     plt.close(fig)
 
 
@@ -691,7 +697,7 @@ def plot_rmse(
     y_lims=None,
 ):
     print(f"Creating RMSE plots for variable: {variable}, level: {level}")
-    fig, ax = plt.subplots(figsize=(8, 6))
+    fig, ax = plt.subplots(figsize=(12, 9))
 
     # Select the level if provided
     if level is not None:
@@ -731,7 +737,8 @@ def plot_rmse(
         os.path.join(
             path_out,
             f"rmse_{variable}{'_' + str(level) if level is not None else ''}.png",
-        )
+        ),
+        dpi=300,
     )
     plt.close(fig)
 
@@ -755,7 +762,7 @@ def plot_spread_skill_ratio(
         data_array = spread_skill_ratio[variable]
         ensemble_spread_data = ensemble_spread[variable]
 
-    fig, ax = plt.subplots(figsize=(8, 6))
+    fig, ax = plt.subplots(figsize=(12, 9))
     data_array.plot(ax=ax, color=color_palette[5])
 
     ax2 = ax.twinx()
@@ -768,13 +775,14 @@ def plot_spread_skill_ratio(
     ax.set_xlabel("")
     ax.set_ylabel("Spread-skill ratio")
     ax.set_title(
-        f"Spread-Skill Ratio and Ensemble Spread of {model_name} for {variable}{' at level ' + str(level) if level is not None else ''}"
+        f"{model_name} for {variable}{' at level ' + str(level) if level is not None else ''}"
     )
 
     if y_lims2 is not None:
         (ymin, ymax) = y_lims2
         ax2.set_ylim(ymin.item() * 0.9, ymax.item() * 1.1)
 
+    ax2.set_xlabel("")
     ax2.set_ylabel("Ensemble Spread", color=color_palette[4])
     ax2.tick_params(axis="y", colors=color_palette[4])
     ax2.set_title("")
@@ -782,7 +790,8 @@ def plot_spread_skill_ratio(
         os.path.join(
             path_out,
             f"spread_skill_ratio_{variable}{'_' + str(level) if level is not None else ''}.png",
-        ))
+        ),
+        dpi=300,)
     plt.close(fig)
 
 
@@ -799,7 +808,7 @@ def plot_timeseries_fc_gt(
     y_lims=None,
 ):
     print(f"Creating timeseries plots for variable: {variable}, level: {level}")
-    fig, ax = plt.subplots(figsize=(8, 6))
+    fig, ax = plt.subplots(figsize=(12, 9))
 
     # Select the level if provided
     gt_mean_var = (
@@ -860,6 +869,7 @@ def plot_timeseries_fc_gt(
     ax2.set_yticks([])
     ax2.set_xlabel("Density")
 
+    ax.set_xlabel("")
     ax.set_ylabel(f"{variable}{' at level ' + str(level) if level is not None else ''}")
     ax.set_title(
         f"Forecast vs Ground-Truth Comparison: {variable}{' at level ' + str(level) if level is not None else ''}"
@@ -869,7 +879,8 @@ def plot_timeseries_fc_gt(
         os.path.join(
             path_out,
             f"timeseries_fc_gt_{variable}{'_' + str(level) if level is not None else ''}.png",
-        ))
+        ),
+        dpi=300,)
     plt.close(fig)
 
 
