@@ -1,2 +1,4 @@
-jax[cuda11_pip]==0.4.20
+jax[cuda12_pip]==0.4.20
+jaxlib[cuda12_pip]==0.4.20
+nvidia-cudnn-cu12==8.9.4.25
 git+https://github.com/deepmind/graphcast.git
