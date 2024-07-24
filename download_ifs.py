@@ -12,14 +12,16 @@ parser.add_argument(
     "date_time", type=str, help="Date and time in the format YYYYMMDDHHMM"
 )
 parser.add_argument(
-    "interval", type=int, help="The time step in hours between each analysis time"
-)
+    "interval", type=int,
+    help="The time step in hours between each analysis time")
 parser.add_argument("num_days", type=int, help="Number of days to download")
 parser.add_argument("model_name", type=str, help="The ai-model name")
 
 args = parser.parse_args()
 
-settings.set("user-cache-directory", "/scratch/mch/sadamov/temp/earthkit-cache")
+settings.set(
+    "user-cache-directory",
+    "/scratch/mch/sadamov/temp/earthkit-cache")
 
 # Read parameters from fields.txt
 path = os.path.join(args.date_time, args.model_name)
@@ -90,7 +92,8 @@ for i, number_chunk in enumerate(number_chunks):
     )
     ds_pressure_chunk = earthkit.data.from_source("mars", request, lazily=True)
     ds_pressure.append(ds_pressure_chunk)
-    # ds_pressure_chunk.save(f"{args.date_time}/{args.model_name}/ifs_pressure_{i}.grib")
+    # ds_pressure_chunk.save(
+    #     f"{args.date_time}/{args.model_name}/ifs_pressure_{i}.grib")
 
 
 shortnames = list(set(ds_pressure[0].metadata("shortName")))
@@ -113,4 +116,8 @@ for i, ds in enumerate(ds_pressure):
     )
 
 print("Adding Surface data")
-ds_single.to_zarr("ifs_ens.zarr", consolidated=True, mode="a")
+ds_single.drop_vars(
+    ["z"] if "z" in ds_single.variables else []).to_zarr(
+        "ifs_ens.zarr",
+        consolidated=True,
+    mode="a")

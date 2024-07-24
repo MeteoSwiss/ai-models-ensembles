@@ -29,7 +29,7 @@ parser.add_argument(
 args = parser.parse_args()
 
 # Open the GRIB file
-f = open(args.date_time + "/era5_init.grib", "rb")
+f = open(args.date_time + "/" + args.model_name + "/era5_init.grib", "rb")
 
 # Open a new GRIB file for writing
 path_out = os.path.join(
