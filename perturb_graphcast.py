@@ -30,8 +30,8 @@ def perturb_weights(params, perturbation_strength):
 
     # Keys for the 7th processor layer weights
     keys_to_perturb = [
-        'params:mesh_gnn/~_networks_builder/processor_edges_7_mesh_mlp/~/linear_0:w',
-        'params:mesh_gnn/~_networks_builder/processor_edges_7_mesh_mlp/~/linear_1:w']
+        'params:mesh_gnn/~_networks_builder/processor_edges_13_mesh_mlp/~/linear_0:w',
+        'params:mesh_gnn/~_networks_builder/processor_edges_13_mesh_mlp/~/linear_1:w']
 
     for key in keys_to_perturb:
         if key in params:

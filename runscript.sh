@@ -2,17 +2,6 @@
 set -e
 set -u
 
-# Some paths to avoid using popd and pushd + relative paths
-BASE_DIR=$PWD
-DATE_DIR="${BASE_DIR}/${DATE_TIME}"
-MODEL_DIR="${DATE_DIR}/${MODEL_NAME}"
-PERTURBATION_DIR="${MODEL_DIR}/init_${PERTURBATION_INIT}_latent_${PERTURBATION_LATENT}"
-
-# All AI-models produce 10 days of forecasts with 6-hourly intervals
-NUM_DAYS=10
-END_DATE_TIME=$(date -d "${DATE_TIME:0:8} + $((NUM_DAYS)) days" +%Y%m%d)0000
-INTERVAL=6
-
 create_dir_if_not_exists() {
     if ! test -d "$1"; then
         echo "Creating directory $1"
@@ -46,6 +35,7 @@ proceed_if_not_exists "${MODEL_DIR}/${MODEL_NAME}.grib" "pushd ${MODEL_DIR} && \
 python -u create_zarr.py "$MODEL_DIR"
 
 create_dir_if_not_exists "$PERTURBATION_DIR"
+create_dir_if_not_exists "$REGION_DIR"
 
 for MEMBER in $(seq 0 $((NUM_MEMBERS - 1))); do
     MEMBER_DIR="${PERTURBATION_DIR}/${MEMBER}"
@@ -87,28 +77,28 @@ for MEMBER in $(seq 0 $((NUM_MEMBERS - 1))); do
             "pushd ${MEMBER_DIR} &&  ai-models --input file --file \
     ${MEMBER_DIR}/era5_init.grib $MODEL_NAME && popd"
 
-    create_dir_if_not_exists "${MEMBER_DIR}/animations"
+    create_dir_if_not_exists "${MEMBER_DIR}/${CROP_REGION}/animations"
 done
 
 python -u create_zarr.py "$PERTURBATION_DIR" --subdir_search True
 
-if ! test -d "${MODEL_DIR}/png_${MODEL_NAME}"; then
+if ! test -d "${REGION_DIR}/png_${MODEL_NAME}"; then
     echo "Evaluating model and generating figures"
     python -u evaluation.py "$DATE_TIME" "$MODEL_NAME" "$PERTURBATION_INIT" \
-            "$PERTURBATION_LATENT" "$NUM_MEMBERS"
+            "$PERTURBATION_LATENT" "$NUM_MEMBERS" "$CROP_REGION"
 fi
 
-if [ -z "$(find "${PERTURBATION_DIR}/0/animations/" -name '*gif' -print -quit 2>/dev/null)" ]; then
+if [ -z "$(find "${PERTURBATION_DIR}/0/${CROP_REGION}/animations/" -name '*gif' -print -quit 2>/dev/null)" ]; then
     echo "Generating Animations"
-    python -u animator.py "$DATE_TIME" "$MODEL_NAME" "$PERTURBATION_INIT" "$PERTURBATION_LATENT"
-    # python -u animator_3d.py "$DATE_TIME" "$MODEL_NAME" "$PERTURBATION_INIT" "$PERTURBATION_LATENT"
+    python -u animator.py "$DATE_TIME" "$MODEL_NAME" "$PERTURBATION_INIT" "$PERTURBATION_LATENT" "$CROP_REGION"
+    # python -u animator_3d.py "$DATE_TIME" "$MODEL_NAME" "$PERTURBATION_INIT" "$PERTURBATION_LATENT" "$CROP_REGION"
 fi
 
 echo "Cleaning up GRIB files"
 if command -v fd &>/dev/null; then
-    fd -IH --type f ".grib" "${PERTURBATION_DIR}" -x rm {}
+    fd -IH --type f ".grib" "${REGION_DIR}" -x rm {}
 else
-    find "${PERTURBATION_DIR}" -type f -name "*.grib" -delete
+    find "${REGION_DIR}" -type f -name "*.grib" -delete
 fi
 
 echo "*****DONE*****"

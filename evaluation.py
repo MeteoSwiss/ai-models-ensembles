@@ -1,6 +1,7 @@
 import argparse
 import os
 
+import cartopy.crs as ccrs
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
@@ -28,7 +29,11 @@ parser.add_argument(
 parser.add_argument(
     "members",
     type=int,
-    help="The number of        ensemble members")
+    help="The number of ensemble members")
+parser.add_argument(
+    "crop_region",
+    type=str,
+    help="The region to crop the data to")
 
 args = parser.parse_args()
 
@@ -36,14 +41,18 @@ config = {
     "color_palette": sns.color_palette(
         ["#f75b78", "#6495ed", "#0e2d75", "#f9c740", "#45b7aa", "#353434"]
     ),
-    "sample_size": 1000000,
+    "sample_size": 100000,
     "radial_bins": 30,
     "coarsen": 10,
     "selected_vars": ["t2m", "u10", "v10", "msl"]
 }
 
 
-def load_and_prepare_data(path_in):
+def load_and_prepare_data(path_in, crop_region):
+    if crop_region == "europe":
+        lat_min, lat_max = 35, 70
+        lon_min, lon_max = -10, 40
+
     ground_truth = xr.open_zarr(
         f"{path_in}/ground_truth.zarr",
         consolidated=True).isel(
@@ -55,6 +64,56 @@ def load_and_prepare_data(path_in):
     forecast_unperturbed = xr.open_zarr(
         f"{path_in}/forecast.zarr", consolidated=True)
     forecast_ifs = xr.open_zarr(f"{path_in}/ifs_ens.zarr", consolidated=True)
+
+    if crop_region == "europe":
+        lat_min, lat_max = 25, 80
+        lon_min, lon_max = 340, 50
+
+        # Use modulo arithmetic to ensure longitudes are in 0-360 range
+        lon_min = lon_min % 360
+        lon_max = lon_max % 360
+
+        # Create a list of longitudes that wraps around 0/360
+        lats = list(range(lat_min, lat_max + 1))
+        lons = list(range(lon_min, 360)) + list(range(0, lon_max + 1))
+
+        # Crop all datasets to the European lat-lon box
+        ground_truth = ground_truth.sel(latitude=lats, longitude=lons)
+        forecast = forecast.sel(latitude=lats, longitude=lons)
+        forecast_unperturbed = forecast_unperturbed.sel(
+            latitude=lats, longitude=lons)
+        forecast_ifs = forecast_ifs.sel(latitude=lats, longitude=lons)
+
+        # Create the plot
+        print(ground_truth["t2m"].isel(time=0))
+
+        fig, ax = plt.subplots(figsize=(12, 8), subplot_kw={
+            'projection': ccrs.PlateCarree()})
+
+        lat = ground_truth.latitude.values
+        lon = ground_truth.longitude.values
+
+        im = ax.pcolormesh(
+            lon, lat,
+            ground_truth["t2m"].isel(time=0, step=0).values,
+            cmap="plasma", transform=ccrs.PlateCarree()
+        )
+
+        ax.set_title("Ground Truth t2m at surface, initial time")
+        ax.coastlines()
+        ax.set_xticks([])
+        ax.set_yticks([])
+
+        # Add colorbar
+        cbar = plt.colorbar(im, ax=ax, orientation='horizontal', pad=0.05)
+        cbar.set_label('Temperature (K)')
+
+        # Adjust layout and save
+        plt.tight_layout()
+        plt.savefig("ground_truth_t2m_map.png",
+                    dpi=300,
+                    bbox_inches='tight')
+        plt.close(fig)
 
     forecast_ifs = (
         forecast_ifs.rename_dims({"number": "member"})
@@ -917,12 +976,20 @@ if __name__ == "__main__":
         args.members <= 50
     ), "The number of ensemble members must be less than or equal to 50 to plot IFS ENS"
     model_name = args.model_name.title()
-    path_out = os.path.join(path_in, f"png_{args.model_name}")
-    path_out_ifs = os.path.join(path_in, "png_ifs")
+    path_out = os.path.join(
+        path_in,
+        f"init_{args.perturbation_init}_latent_{args.perturbation_latent}",
+        args.crop_region,
+        f"png_{args.model_name}")
+    path_out_ifs = os.path.join(
+        path_in,
+        f"init_{args.perturbation_init}_latent_{args.perturbation_latent}",
+        args.crop_region,
+        "png_ifs")
     os.makedirs(path_out, exist_ok=True)
     os.makedirs(path_out_ifs, exist_ok=True)
 
-    data = load_and_prepare_data(path_in)
+    data = load_and_prepare_data(path_in, args.crop_region)
 
     print("data loaded", flush=True)
     default_stats = calculate_stats(

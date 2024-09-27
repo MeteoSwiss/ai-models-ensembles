@@ -23,6 +23,10 @@ parser.add_argument(
     "print_pressure_levels",
     action='store_false',
     help="print pressure levels")
+parser.add_argument(
+    "crop_region",
+    type=str,
+    help="The region to crop the data to")
 args = parser.parse_args()
 
 
@@ -88,9 +92,9 @@ def create_and_save_animation(path, ground_truth, var, level, fig, updatefig):
     plt.close()
 
 
-def process_member(member, forecast, ground_truth, path_forecast, lat, lon):
+def process_member(member, forecast, ground_truth, path_forecast, crop_region, lat, lon):
     print("Creating animations for member: ", member)
-    path_gif = f"{path_forecast}/{member}/animations"
+    path_gif = f"{path_forecast}/{member}/{crop_region}/animations"
     variables = forecast.data_vars
     pressure_levels = forecast.isobaricInhPa.values if "isobaricInhPa" in forecast.dims else []
     for var in variables:
@@ -132,7 +136,7 @@ def main():
 
     with multiprocessing.Pool() as pool:
         pool.starmap(process_member,
-                     [(member, forecast, ground_truth, path_forecast, lat, lon)
+                     [(member, forecast, ground_truth, path_forecast, args.crop_region lat, lon)
                       for member in members_to_plot])
 
 

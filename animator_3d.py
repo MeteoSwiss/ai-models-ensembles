@@ -20,6 +20,10 @@ parser.add_argument(
     "perturbation_latent",
     type=float,
     help="The latent perturbation size")
+parser.add_argument(
+    "crop_region",
+    type=str,
+    help="The region to crop the data to")
 args = parser.parse_args()
 
 
@@ -119,7 +123,7 @@ def create_and_save_animation(path, difference, var, member, unit, vmin, vmax):
     plt.close()
 
 
-def process_member(member, perturbed, unperturbed, path_perturbed):
+def process_member(member, perturbed, unperturbed, path_perturbed, crop_region):
     init_perturbed = xr.open_dataset(
         os.path.join(path_perturbed, str(member), "era5_init.grib"),
         engine="cfgrib")
@@ -130,6 +134,7 @@ def process_member(member, perturbed, unperturbed, path_perturbed):
         args.model_name,
         f"init_{args.perturbation_init}_latent_{args.perturbation_latent}",
         str(member),
+        crop_region,
         "animations")
     os.makedirs(path_gif, exist_ok=True)
     variables = perturbed.data_vars
@@ -167,7 +172,7 @@ def main():
 
     with multiprocessing.Pool() as pool:
         pool.starmap(process_member,
-                     [(member, forecast_perturbed, unperturbed, path_perturbed)
+                     [(member, forecast_perturbed, unperturbed, path_perturbed, crop_region)
                       for member in members_to_plot])
 
 

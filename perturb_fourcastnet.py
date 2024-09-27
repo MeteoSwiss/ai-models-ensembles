@@ -12,7 +12,10 @@ parser.add_argument(
     type=str,
     help="Date and time in the format YYYYMMDDHHMM")
 parser.add_argument("model_name", type=str, help="The ai-model name")
-parser.add_argument("perturbation_init", type=float, help="The init perturbation size")
+parser.add_argument(
+    "perturbation_init",
+    type=float,
+    help="The init perturbation size")
 parser.add_argument(
     "perturbation_latent",
     type=float,
@@ -28,8 +31,9 @@ def load_model_weights(model, checkpoint_path, device):
     checkpoint = torch.load(checkpoint_path, map_location=device)
     try:
         # Try adding model weights as dictionary
-        new_state_dict = {k[7:]: v for k,
-                          v in checkpoint["model_state"].items() if k[7:] != "ged"}
+        new_state_dict = {
+            k[7:]: v for k, v in checkpoint["model_state"].items()
+            if k[7:] != "ged"}
         model.load_state_dict(new_state_dict)
     except Exception:
         model.load_state_dict(checkpoint["model_state"])
@@ -48,14 +52,17 @@ def perturb_weights(model, perturbation_strength):
     # perturbed_layers = list(range(len(model.blocks[0].filter_layer.filter.w)))
 
     for block in [model.blocks[i] for i in perturbed_blocks]:
-        spectral_attention_layer = block.filter_layer.filter
-        for param in [spectral_attention_layer.w[i] for i in perturbed_layers]:
-            noise = torch.randn_like(param.data[:, :, 0]) * perturbation_strength
+        # layer = block.filter_layer.filter
+        layer = block.outer_skip
+
+        for param in [layer.w[i] for i in perturbed_layers]:
+            noise = torch.randn_like(
+                param.data[:, :, 0]) * perturbation_strength
             param.data[:, :, 0] += noise
-        print(
-            "Amplitude tensor now ranges from", float(torch.min(param.data[:, :, 0])),
-            "to", float(torch.max(param.data[:, :, 0])),
-            "with a mean of", float(torch.mean(param.data[:, :, 0])))
+        print("Amplitude tensor now ranges from",
+              float(torch.min(param.data[:, :, 0])),
+              "to", float(torch.max(param.data[:, :, 0])),
+              "with a mean of", float(torch.mean(param.data[:, :, 0])))
     return model
 
 
@@ -77,12 +84,15 @@ def main():
         args.perturbation_latent)
 
     torch.manual_seed(args.member)
-    checkpoint_path = os.path.join(str(args.date_time), args.model_name, "weights.tar")
+    checkpoint_path = os.path.join(
+        str(args.date_time),
+        args.model_name, "weights.tar")
     model = nvs.FourierNeuralOperatorNet()
     model.zero_grad()
     model.eval()
 
-    device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+    device = torch.device(
+        "cuda") if torch.cuda.is_available() else torch.device("cpu")
 
     model = load_model_weights(model, checkpoint_path, device)
     model = perturb_weights(model, args.perturbation_latent)
