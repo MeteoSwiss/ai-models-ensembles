@@ -49,6 +49,22 @@ config = {
 
 
 def load_and_prepare_data(path_in, crop_region):
+    """
+    Load the data and prepare it for evaluation.
+
+    Args:
+        path_in (str): The path to the input data.
+        crop_region (str): The region to crop the data to. Can be "europe" or "global".
+
+    Returns:
+        dict: A dictionary containing
+            ground truth (xr.Dataset): The ground truth data.
+            forecast (xr.Dataset): The forecast data.
+            forecast_unperturbed (xr.Dataset): The unperturbed forecast data.
+            forecast_ifs (xr.Dataset): The IFS forecast data.
+            forecast_unperturbed_ifs (xr.Dataset): The unperturbed IFS forecast data.
+    """
+
     if crop_region == "europe":
         lat_min, lat_max = 35, 70
         lon_min, lon_max = -10, 40
@@ -195,6 +211,17 @@ def load_and_prepare_data(path_in, crop_region):
 
 
 def calculate_stats(ground_truth, forecast, forecast_unperturbed):
+    """
+    Calculate the statistics for the evaluation.
+
+    Args:
+        ground_truth (xr.Dataset): The ground truth data.
+        forecast (xr.Dataset): The forecast data.
+        forecast_unperturbed (xr.Dataset): The unperturbed forecast data.
+
+    Returns:
+        dict: A dictionary containing the statistics.
+    """
     fc_mean = forecast.mean(dim=["latitude", "longitude"])
     fc_mean_unperturbed = forecast_unperturbed.mean(
         dim=["latitude", "longitude"])
@@ -314,6 +341,20 @@ def calculate_stats(ground_truth, forecast, forecast_unperturbed):
 def calculate_y_lims(
     vars_3d, vars_2d, forecast, forecast_ifs, default_stats, ifs_stats
 ):
+    """
+    Calculate the y-limits for the plots.
+
+    Args:
+        vars_3d (list): The 3D variables.
+        vars_2d (list): The 2D variables.
+        forecast (xr.Dataset): The forecast data.
+        forecast_ifs (xr.Dataset): The IFS forecast data.
+        default_stats (dict): The default statistics.
+        ifs_stats (dict): The IFS statistics.
+
+    Returns:
+        dict: A dictionary containing the y-limits.
+    """
     y_lims_rmse = {}
     y_lims_spread_skill_ratio = {}
     y_lims_timeseries = {}
@@ -487,6 +528,8 @@ def calculate_y_lims(
             energy_spectra_max,
         )
 
+    print("Y-limits calculated")
+
     return {
         "y_lims_rmse": y_lims_rmse,
         "y_lims_spread_skill_ratio": y_lims_spread_skill_ratio,
@@ -508,6 +551,25 @@ def prepare_plot_args(
     path_out=".",
     model_name="",
 ):
+    """
+    Prepare the arguments for the plotting functions.
+    
+    Args:
+        data (dict): A dictionary containing the data.
+        stats (dict): A dictionary containing the statistics.
+        vars_3d (list): The 3D variables.
+        vars_2d (list): The 2D variables.
+        y_lims_rmse (dict): The y-limits for the RMSE plots.
+        y_lims_spread_skill_ratio (dict): The y-limits for the spread-skill ratio plots.
+        y_lims_timeseries (dict): The y-limits for the timeseries plots.
+        y_lims_energy_spectra (dict): The y-limits for the energy spectra plots.
+        use_ifs (bool): Whether to use the IFS data.
+        path_out (str): The path to the output directory.
+        model_name (str): The name of the model.
+        
+    Returns:
+        dict: A dictionary containing the plotting arguments.
+    """
     forecast_key = "forecast_ifs" if use_ifs else "forecast"
     rank_histogram_args = []
     energy_spectra_args = []
@@ -597,6 +659,9 @@ def prepare_plot_args(
                         y_lims_timeseries[(var, level)],
                     )
                 )
+
+    print("Plotting arguments prepared")
+
     return {
         "rank_histogram": rank_histogram_args,
         "energy_spectra": energy_spectra_args,
@@ -609,6 +674,18 @@ def prepare_plot_args(
 def plot_rank_histogram(
         variable, forecast, ground_truth, path_out, color_palette, model_name,
         level=None):
+    """
+    Plot the rank histogram.
+    
+    Args:
+        variable (str): The variable to plot.
+        forecast (xr.Dataset): The forecast data.
+        ground_truth (xr.Dataset): The ground truth data.
+        path_out (str): The path to the output directory.
+        color_palette (list): The color palette.
+        model_name (str): The name of the model.
+        level (int): The level to plot.
+    """
     print(f"Creating rank histogram for variable: {variable}, level: {level}")
 
     forecast_var = (
@@ -680,6 +757,21 @@ def plot_energy_spectra(
     level=None,
     y_lims=None,
 ):
+    """
+    Plot the energy spectra.
+    
+    Args:
+        variable (str): The variable to plot.
+        radial_psd_forecast (dict): The radial PSD forecast data.
+        radial_psd_unperturbed (dict): The radial PSD unperturbed data.
+        radial_psd_ground_truth (dict): The radial PSD ground truth data.
+        alpha_value (float): The alpha value for the plot.
+        path_out (str): The path to the output directory.
+        color_palette (list): The color palette.
+        model_name (str): The name of the model.
+        level (int): The level to plot.
+        y_lims (tuple): The y-limits for the plot.
+    """
     print(f"Plotting energy spectra for variable: {variable}, level: {level}")
     freq_x = np.fft.fftfreq(
         next(
@@ -770,6 +862,21 @@ def plot_rmse(
     level=None,
     y_lims=None,
 ):
+    """
+    Plot the RMSE.
+    
+    Args:
+        variable (str): The variable to plot.
+        rmse (xr.Dataset): The RMSE data.
+        rmse_median (xr.Dataset): The median RMSE data.
+        rmse_unperturbed (xr.Dataset): The unperturbed RMSE data.
+        alpha_value (float): The alpha value for the plot.
+        path_out (str): The path to the output directory.
+        color_palette (list): The color palette.
+        model_name (str): The name of the model.
+        level (int): The level to plot.
+        y_lims (tuple): The y-limits for the plot.
+    """
     print(f"Creating RMSE plots for variable: {variable}, level: {level}")
     fig, ax = plt.subplots(figsize=(12, 9))
 
@@ -828,6 +935,20 @@ def plot_spread_skill_ratio(
     y_lims1=None,
     y_lims2=None,
 ):
+    """
+    Plot the spread-skill ratio.
+    
+    Args:
+        variable (str): The variable to plot.
+        spread_skill_ratio (xr.Dataset): The spread-skill ratio data.
+        ensemble_spread (xr.Dataset): The ensemble spread data.
+        path_out (str): The path to the output directory.
+        color_palette (list): The color palette.
+        model_name (str): The name of the model.
+        level (int): The level to plot.
+        y_lims1 (tuple): The y-limits for the spread-skill ratio plot.
+        y_lims2 (tuple): The y-limits for the ensemble spread plot.
+    """
     print(
         f"Creating spread-skill ratio plots for variable: {variable}, level: {level}")
     if level is not None:
@@ -884,6 +1005,21 @@ def plot_timeseries_fc_gt(
     level=None,
     y_lims=None,
 ):
+    """
+    Plot the timeseries forecast vs ground truth.
+    
+    Args:
+        variable (str): The variable to plot.
+        gt_mean (xr.Dataset): The ground truth data.
+        fc_mean (xr.Dataset): The forecast data.
+        fc_mean_unperturbed (xr.Dataset): The unperturbed forecast data.
+        alpha_value (float): The alpha value for the plot.
+        path_out (str): The path to the output directory.
+        color_palette (list): The color palette.
+        model_name (str): The name of the model.
+        level (int): The level to plot.
+        y_lims (tuple): The y-limits for the plot.
+    """
     print(
         f"Creating timeseries plots for variable: {variable}, level: {level}")
     fig, ax = plt.subplots(figsize=(12, 9))
@@ -1019,7 +1155,6 @@ if __name__ == "__main__":
         default_stats,
         ifs_stats,
     )
-    print("y_lims calculated", flush=True)
 
     default_plot_args = prepare_plot_args(
         data,
