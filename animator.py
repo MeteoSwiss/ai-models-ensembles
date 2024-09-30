@@ -14,7 +14,10 @@ parser.add_argument(
     type=str,
     help="Date and time in the format YYYYMMDDHHMM")
 parser.add_argument("model_name", type=str, help="The ai-model name")
-parser.add_argument("perturbation_init", type=float, help="The init perturbation size")
+parser.add_argument(
+    "perturbation_init",
+    type=float,
+    help="The init perturbation size")
 parser.add_argument(
     "perturbation_latent",
     type=float,
@@ -56,7 +59,9 @@ def create_update_function(forecast, ground_truth, var, level,
                 axes, ["Forecast", "Ground Truth"]):
             dim = "step"
             image.set_array(data[var].sel(isobaricInhPa=level).isel(
-                {dim: i}).values if not is_surface else data[var].isel({dim: i}).values)
+                {dim: i}).values
+                if not is_surface else
+                data[var].isel({dim: i}).values)
             ax.set_title(
                 f"{title_prefix} {var} at {'surface' if is_surface else level}, {(i+1)*6} hours")
         return image1, image2,
@@ -66,8 +71,24 @@ def create_update_function(forecast, ground_truth, var, level,
 def plot_variable(forecast, ground_truth, var, level, lat, lon):
     fig, axes = plt.subplots(2, figsize=(10, 15), subplot_kw={
                              'projection': ccrs.PlateCarree()})
-    image1 = create_plot(axes[0], forecast, var, level, 0, "Forecast", lat, lon)
-    image2 = create_plot(axes[1], ground_truth, var, level, 0, "Ground Truth", lat, lon)
+    image1 = create_plot(
+        axes[0],
+        forecast,
+        var,
+        level,
+        0,
+        "Forecast",
+        lat,
+        lon)
+    image2 = create_plot(
+        axes[1],
+        ground_truth,
+        var,
+        level,
+        0,
+        "Ground Truth",
+        lat,
+        lon)
     updatefig = create_update_function(
         forecast,
         ground_truth,
@@ -92,7 +113,8 @@ def create_and_save_animation(path, ground_truth, var, level, fig, updatefig):
     plt.close()
 
 
-def process_member(member, forecast, ground_truth, path_forecast, crop_region, lat, lon):
+def process_member(member, forecast, ground_truth,
+                   path_forecast, crop_region, lat, lon):
     print("Creating animations for member: ", member)
     path_gif = f"{path_forecast}/{member}/{crop_region}/animations"
     variables = forecast.data_vars
@@ -119,7 +141,10 @@ def main():
         str(args.date_time),
         args.model_name,
         f"init_{args.perturbation_init}_latent_{args.perturbation_latent}")
-    forecast = xr.open_zarr(path_forecast + "/forecast.zarr", consolidated=True)
+    forecast = xr.open_zarr(
+        path_forecast +
+        "/forecast.zarr",
+        consolidated=True)
     ground_truth = xr.open_zarr(
         f"{args.date_time}/{args.model_name}/ground_truth.zarr",
         consolidated=True)
@@ -129,15 +154,26 @@ def main():
     ground_truth["step"] = ("time", np.arange(len(ground_truth["time"])))
     ground_truth = ground_truth.swap_dims({"time": "step"})
 
+    if args.crop_region == "europe":
+        lat_min, lat_max = 35, 70
+        lon_min, lon_max = -10, 40
+        forecast = forecast.sel(
+            latitude=slice(lat_min, lat_max),
+            longitude=slice(lon_min, lon_max))
+        ground_truth = ground_truth.sel(
+            latitude=slice(lat_min, lat_max),
+            longitude=slice(lon_min, lon_max))
+
     lat = ground_truth.latitude.values
     lon = ground_truth.longitude.values
 
     members_to_plot = forecast.member.values[:5]
 
     with multiprocessing.Pool() as pool:
-        pool.starmap(process_member,
-                     [(member, forecast, ground_truth, path_forecast, args.crop_region lat, lon)
-                      for member in members_to_plot])
+        pool.starmap(
+            process_member,
+            [(member, forecast, ground_truth, path_forecast, args.crop_region,
+              lat, lon) for member in members_to_plot])
 
 
 if __name__ == "__main__":

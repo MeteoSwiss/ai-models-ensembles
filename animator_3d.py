@@ -170,9 +170,20 @@ def main():
 
     members_to_plot = forecast_perturbed.member.values[:5]
 
+    if args.crop_region == "europe":
+        lat_min, lat_max = 35, 70
+        lon_min, lon_max = -10, 40
+        forecast_perturbed = forecast_perturbed.sel(
+            latitude=slice(lat_min, lat_max),
+            longitude=slice(lon_min, lon_max))
+        unperturbed = unperturbed.sel(
+            latitude=slice(lat_min, lat_max),
+            longitude=slice(lon_min, lon_max))
+
+
     with multiprocessing.Pool() as pool:
         pool.starmap(process_member,
-                     [(member, forecast_perturbed, unperturbed, path_perturbed, crop_region)
+                     [(member, forecast_perturbed, unperturbed, path_perturbed, args.crop_region)
                       for member in members_to_plot])
 
 
