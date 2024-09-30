@@ -82,11 +82,11 @@ done
 
 python -u create_zarr.py "$PERTURBATION_DIR" --subdir_search True
 
-if ! test -d "${REGION_DIR}/png_${MODEL_NAME}"; then
+# if ! test -d "${REGION_DIR}/png_${MODEL_NAME}"; then
     echo "Evaluating model and generating figures"
     python -u evaluation.py "$DATE_TIME" "$MODEL_NAME" "$PERTURBATION_INIT" \
-            "$PERTURBATION_LATENT" "$NUM_MEMBERS" "$CROP_REGION"
-fi
+            "$PERTURBATION_LATENT" "$NUM_MEMBERS" "$CROP_REGION" False
+# fi
 
 if [ -z "$(find "${PERTURBATION_DIR}/0/${CROP_REGION}/animations/" -name '*gif' -print -quit 2>/dev/null)" ]; then
     echo "Generating Animations"

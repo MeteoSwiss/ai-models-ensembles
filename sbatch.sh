@@ -3,8 +3,8 @@
 #SBATCH --nodes=1
 #SBATCH --partition=postproc
 #SBATCH --account=s83
-#SBATCH --output=logs/logs%j.out
-#SBATCH --error=logs/logs%j.err
+#SBATCH --output=logs/out.log
+#SBATCH --error=logs/err.log
 #SBATCH --time=24:00:00
 #SBATCH --no-requeue
 #SBATCH --mem=444G
