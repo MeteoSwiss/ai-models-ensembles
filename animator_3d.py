@@ -15,7 +15,10 @@ parser.add_argument(
     type=str,
     help="Date and time in the format YYYYMMDDHHMM")
 parser.add_argument("model_name", type=str, help="The ai-model name")
-parser.add_argument("perturbation_init", type=float, help="The init perturbation size")
+parser.add_argument(
+    "perturbation_init",
+    type=float,
+    help="The init perturbation size")
 parser.add_argument(
     "perturbation_latent",
     type=float,
@@ -44,12 +47,14 @@ def power_alpha_scale(data, epsilon=1e-6, power=0.5):
 def calculate_rgba(data, norm, cmap_name='RdBu_r'):
     rgb = plt.get_cmap(cmap_name)(norm(data))
     alpha = power_alpha_scale(data)
-    alpha = alpha[:, :, np.newaxis]  # Add a new axis to make alpha three-dimensional
+    # Add a new axis to make alpha three-dimensional
+    alpha = alpha[:, :, np.newaxis]
     rgba = np.concatenate((rgb[:, :, :3], alpha), axis=-1)
     return rgba
 
 
-def plot_variable_3d(difference, var, member, step, fig, ax, mappable, vmin, vmax):
+def plot_variable_3d(difference, var, member, step,
+                     fig, ax, mappable, vmin, vmax):
     ax.cla()
 
     ax.set_title(
@@ -73,7 +78,8 @@ def plot_variable_3d(difference, var, member, step, fig, ax, mappable, vmin, vma
             ax.plot_surface(X, Y, Z, facecolors=rgba, shade=False)
         ax.invert_zaxis()
     else:
-        # If data doesn't have a vertical dimension, plot it at a constant level of 0
+        # If data doesn't have a vertical dimension, plot it at a constant
+        # level of 0
         Z = np.zeros_like(X)
         rgba = calculate_rgba(data, norm)
         ax.plot_surface(X, Y, Z, facecolors=rgba, shade=False)
@@ -110,8 +116,13 @@ def create_and_save_animation(path, difference, var, member, unit, vmin, vmax):
     mappable.set_clim(vmin, vmax)
     fig, ax = plot_variable_3d(difference, var, member, 0,
                                fig, ax, mappable, vmin, vmax)
-    cbar = fig.colorbar(mappable, ax=ax, orientation='vertical', shrink=0.5, pad=0.2,
-                        label=f"{var.upper()} [{unit}]")
+    cbar = fig.colorbar(
+        mappable,
+        ax=ax,
+        orientation='vertical',
+        shrink=0.5,
+        pad=0.2,
+        label=f"{var.upper()} [{unit}]")
 
     for label in cbar.ax.get_yticklabels():
         label.set_color('darkgray')
@@ -123,11 +134,13 @@ def create_and_save_animation(path, difference, var, member, unit, vmin, vmax):
     plt.close()
 
 
-def process_member(member, perturbed, unperturbed, path_perturbed, crop_region):
+def process_member(member, perturbed, unperturbed,
+                   path_perturbed, crop_region):
     init_perturbed = xr.open_dataset(
         os.path.join(path_perturbed, str(member), "era5_init.grib"),
         engine="cfgrib")
-    init_perturbed = init_perturbed.expand_dims({"step": [np.timedelta64(0, 'ns')]})
+    init_perturbed = init_perturbed.expand_dims(
+        {"step": [np.timedelta64(0, 'ns')]})
     perturbed = xr.concat([init_perturbed, perturbed], dim="step")
     path_gif = os.path.join(
         args.date_time,
@@ -145,7 +158,14 @@ def process_member(member, perturbed, unperturbed, path_perturbed, crop_region):
         unit = variables[var].units
         vmin = difference[var].min().values
         vmax = difference[var].max().values
-        create_and_save_animation(path_gif, difference, var, member, unit, vmin, vmax)
+        create_and_save_animation(
+            path_gif,
+            difference,
+            var,
+            member,
+            unit,
+            vmin,
+            vmax)
 
 
 def main():
@@ -165,26 +185,41 @@ def main():
         "/era5_init.grib",
         engine="cfgrib")
 
-    init_unperturbed = init_unperturbed.expand_dims({"step": [np.timedelta64(0, 'ns')]})
-    unperturbed = xr.concat([init_unperturbed, forecast_unperturbed], dim="step")
+    init_unperturbed = init_unperturbed.expand_dims(
+        {"step": [np.timedelta64(0, 'ns')]})
+    unperturbed = xr.concat(
+        [init_unperturbed, forecast_unperturbed],
+        dim="step")
 
     members_to_plot = forecast_perturbed.member.values[:5]
 
     if args.crop_region == "europe":
-        lat_min, lat_max = 35, 70
-        lon_min, lon_max = -10, 40
-        forecast_perturbed = forecast_perturbed.sel(
-            latitude=slice(lat_min, lat_max),
-            longitude=slice(lon_min, lon_max))
-        unperturbed = unperturbed.sel(
-            latitude=slice(lat_min, lat_max),
-            longitude=slice(lon_min, lon_max))
+        lat_min, lat_max = 25, 80
+        lon_min, lon_max = 340, 50
 
+        # Use modulo arithmetic to ensure longitudes are in 0-360 range
+        lon_min = lon_min % 360
+        lon_max = lon_max % 360
+
+        # Create a list of longitudes that wraps around 0/360
+        lats = list(range(lat_min, lat_max + 1))
+        lons = list(range(lon_min, 360)) + list(range(0, lon_max + 1))
+
+        # Crop all datasets to the European lat-lon box
+        forecast_unperturbed = forecast_unperturbed.sel(
+            latitude=lats, longitude=lons)
+        forecast_perturbed = forecast_perturbed.sel(
+            latitude=lats, longitude=lons)
+        init_unperturbed = init_unperturbed.sel(
+            latitude=lats, longitude=lons)
 
     with multiprocessing.Pool() as pool:
         pool.starmap(process_member,
-                     [(member, forecast_perturbed, unperturbed, path_perturbed, args.crop_region)
-                      for member in members_to_plot])
+                     [(member,
+                       forecast_perturbed,
+                       unperturbed,
+                       path_perturbed,
+                       args.crop_region) for member in members_to_plot])
 
 
 if __name__ == "__main__":

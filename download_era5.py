@@ -84,13 +84,14 @@ ds_pressure = earthkit.data.from_source(
 
 ds_single = ds_single.sel(stepRange=["11-12", "0"])
 
+# TP times have to be shifted to match expected 12-hourly time steps
 if args.model_name == "graphcast":
     ds_tp = ds_single.sel({"shortName": "tp"})
     ds_rest = ds_single.sel(
         {"shortName": ['lsm', '2t', 'msl', '10u', '10v', 'z']})
-    ds_tp_prev = ds_tp.sel(date=date_prev, time=time_prev)
+    ds_tp_prev = ds_tp.isel(date=1, time=1)
     ds_rest_prev = ds_rest.sel(date=date_prev, time=time_prev)
-    ds_tp_now = ds_tp.sel(date=date_now, time=time_now + 600)
+    ds_tp_now = ds_tp.isel(date=2, time=1)
     ds_rest_now = ds_rest.sel(date=date_now, time=time_now)
     ds_pressure_prev = ds_pressure.sel(date=date_prev, time=time_prev)
     ds_pressure_now = ds_pressure.sel(date=date_now, time=time_now)

@@ -34,13 +34,21 @@ args = parser.parse_args()
 
 
 def create_plot(ax, data, var, level, step, title_prefix, lat, lon):
-    dim = "step"
     is_surface = level == "surface"
+
+    if not is_surface:
+        plot_data = data[var].isel(isobaricInhPa=level, step=step).values
+    else:
+        plot_data = data[var].isel(step=step).values
+
     im = ax.pcolormesh(
-        lon, lat,
-        data[var].sel(isobaricInhPa=level).isel({dim: step}).values
-        if not is_surface else data[var].isel({dim: step}).values,
-        cmap="plasma", transform=ccrs.PlateCarree(), animated=True)
+        lon,
+        lat,
+        plot_data,
+        cmap="plasma",
+        transform=ccrs.PlateCarree(),
+        animated=True)
+
     ax.set_title(
         f"{title_prefix} {var} at {'surface' if is_surface else level}, {(step+1)*6} hours")
     ax.coastlines()
@@ -155,14 +163,20 @@ def main():
     ground_truth = ground_truth.swap_dims({"time": "step"})
 
     if args.crop_region == "europe":
-        lat_min, lat_max = 35, 70
-        lon_min, lon_max = -10, 40
-        forecast = forecast.sel(
-            latitude=slice(lat_min, lat_max),
-            longitude=slice(lon_min, lon_max))
-        ground_truth = ground_truth.sel(
-            latitude=slice(lat_min, lat_max),
-            longitude=slice(lon_min, lon_max))
+        lat_min, lat_max = 25, 80
+        lon_min, lon_max = 340, 50
+
+        # Use modulo arithmetic to ensure longitudes are in 0-360 range
+        lon_min = lon_min % 360
+        lon_max = lon_max % 360
+
+        # Create a list of longitudes that wraps around 0/360
+        lats = list(range(lat_min, lat_max + 1))
+        lons = list(range(lon_min, 360)) + list(range(0, lon_max + 1))
+
+        # Crop all datasets to the European lat-lon box
+        ground_truth = ground_truth.sel(latitude=lats, longitude=lons)
+        forecast = forecast.sel(latitude=lats, longitude=lons)
 
     lat = ground_truth.latitude.values
     lon = ground_truth.longitude.values

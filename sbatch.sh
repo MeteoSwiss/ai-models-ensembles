@@ -1,7 +1,7 @@
 #!/usr/bin/bash -l
 #SBATCH --job-name=ai-models-ensembles
 #SBATCH --nodes=1
-#SBATCH --partition=postproc
+#SBATCH --partition=normal
 #SBATCH --account=s83
 #SBATCH --output=logs/out.log
 #SBATCH --error=logs/err.log
@@ -13,7 +13,7 @@ export DATE_TIME=201801010000 # Lothar: 199912250000, Burglind: 201801010000
 export MODEL_NAME=graphcast # fourcastnetv2-small, graphcast
 export PERTURBATION_INIT=0.0
 export PERTURBATION_LATENT=0.01
-export NUM_MEMBERS=49
+export NUM_MEMBERS=2
 export CROP_REGION=europe # Crop to a specific region
 
 # Some paths to avoid using popd and pushd + relative paths
@@ -27,6 +27,11 @@ export REGION_DIR="${PERTURBATION_DIR}/${CROP_REGION}"
 export NUM_DAYS=10
 export END_DATE_TIME=$(date -d "${DATE_TIME:0:8} + $((NUM_DAYS)) days" +%Y%m%d)0000
 export INTERVAL=6
+if MODEL_NAME="graphcast"; then
+    export LEAD_TIME=246
+else
+    export LEAD_TIME=240
+fi
 
 # if conda env ai-models does not exist then create it
 if ! mamba env list | grep -q ai-models; then

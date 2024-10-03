@@ -31,7 +31,8 @@ proceed_if_not_exists "${MODEL_DIR}/ifs_ens.zarr/.zmetadata" "python download_if
     $DATE_TIME $INTERVAL $NUM_DAYS $MODEL_NAME"
 
 proceed_if_not_exists "${MODEL_DIR}/${MODEL_NAME}.grib" "pushd ${MODEL_DIR} && \
-    ai-models --input file --file era5_init.grib --download-assets $MODEL_NAME && popd"
+    ai-models --input file --file era5_init.grib --lead-time ${LEAD_TIME} \
+    --download-assets $MODEL_NAME && popd"
 python -u create_zarr.py "$MODEL_DIR"
 
 create_dir_if_not_exists "$PERTURBATION_DIR"
@@ -75,7 +76,7 @@ for MEMBER in $(seq 0 $((NUM_MEMBERS - 1))); do
     # Run the model from a local GRIB-file
     proceed_if_not_exists "${PERTURBATION_DIR}/forecast.zarr/member/${MEMBER}" \
             "pushd ${MEMBER_DIR} &&  ai-models --input file --file \
-    ${MEMBER_DIR}/era5_init.grib $MODEL_NAME && popd"
+    ${MEMBER_DIR}/era5_init.grib --lead-time ${LEAD_TIME} $MODEL_NAME && popd"
 
     create_dir_if_not_exists "${MEMBER_DIR}/${CROP_REGION}/animations"
 done
@@ -85,7 +86,7 @@ python -u create_zarr.py "$PERTURBATION_DIR" --subdir_search True
 # if ! test -d "${REGION_DIR}/png_${MODEL_NAME}"; then
     echo "Evaluating model and generating figures"
     python -u evaluation.py "$DATE_TIME" "$MODEL_NAME" "$PERTURBATION_INIT" \
-            "$PERTURBATION_LATENT" "$NUM_MEMBERS" "$CROP_REGION" False
+            "$PERTURBATION_LATENT" "$NUM_MEMBERS" "$CROP_REGION"
 # fi
 
 if [ -z "$(find "${PERTURBATION_DIR}/0/${CROP_REGION}/animations/" -name '*gif' -print -quit 2>/dev/null)" ]; then
