@@ -1,36 +1,10 @@
-import argparse
-import multiprocessing
 import os
 
 import cartopy.crs as ccrs
 import matplotlib.animation as animation
 import matplotlib.pyplot as plt
-import numpy as np
-import xarray as xr
 
-parser = argparse.ArgumentParser(description="Generate 3D gif-animations.")
-parser.add_argument(
-    "date_time",
-    type=str,
-    help="Date and time in the format YYYYMMDDHHMM")
-parser.add_argument("model_name", type=str, help="The ai-model name")
-parser.add_argument(
-    "perturbation_init",
-    type=float,
-    help="The init perturbation size")
-parser.add_argument(
-    "perturbation_latent",
-    type=float,
-    help="The latent perturbation size")
-parser.add_argument(
-    "print_pressure_levels",
-    action='store_false',
-    help="print pressure levels")
-parser.add_argument(
-    "crop_region",
-    type=str,
-    help="The region to crop the data to")
-args = parser.parse_args()
+from data_load_preproc import load_and_prepare_data, parse_args
 
 
 def create_plot(ax, data, var, level, step, title_prefix, lat, lon):
@@ -122,12 +96,12 @@ def create_and_save_animation(path, ground_truth, var, level, fig, updatefig):
 
 
 def process_member(member, forecast, ground_truth,
-                   path_forecast, crop_region, lat, lon):
-    print("Creating animations for member: ", member)
-    path_gif = f"{path_forecast}/{member}/{crop_region}/animations"
+                   path_forecast, lat, lon, args):
+    path_gif = f"{path_forecast}/{member}/{args.crop_region}/animations"
     variables = forecast.data_vars
     pressure_levels = forecast.isobaricInhPa.values if "isobaricInhPa" in forecast.dims else []
     for var in variables:
+        print("Creating animation for member", member, "and variable:", var)
         if "isobaricInhPa" in forecast[var].dims:
             if args.print_pressure_levels:
                 for level in pressure_levels:
@@ -145,49 +119,43 @@ def process_member(member, forecast, ground_truth,
 
 
 def main():
+
+    args, config = parse_args()
+    path_in = os.path.join(str(args.date_time), args.model_name)
     path_forecast = os.path.join(
         str(args.date_time),
         args.model_name,
         f"init_{args.perturbation_init}_latent_{args.perturbation_latent}")
-    forecast = xr.open_zarr(
-        path_forecast +
-        "/forecast.zarr",
-        consolidated=True)
-    ground_truth = xr.open_zarr(
-        f"{args.date_time}/{args.model_name}/ground_truth.zarr",
-        consolidated=True)
-    ground_truth = ground_truth.isel(
-        surface=0, step=0, number=0).drop_isel(
-        time=0)
-    ground_truth["step"] = ("time", np.arange(len(ground_truth["time"])))
-    ground_truth = ground_truth.swap_dims({"time": "step"})
 
-    if args.crop_region == "europe":
-        lat_min, lat_max = 25, 80
-        lon_min, lon_max = 340, 50
+    data = load_and_prepare_data(
+        path_in,
+        config["selected_vars"],
+        args.crop_region,
+        args.model_name,
+        args.perturbation_init,
+        args.perturbation_latent,
+        args.members,
+        debug_mode=args.debug,
+    )
 
-        # Use modulo arithmetic to ensure longitudes are in 0-360 range
-        lon_min = lon_min % 360
-        lon_max = lon_max % 360
+    lat = data["ground_truth"].latitude.values
+    lon = data["ground_truth"].longitude.values
 
-        # Create a list of longitudes that wraps around 0/360
-        lats = list(range(lat_min, lat_max + 1))
-        lons = list(range(lon_min, 360)) + list(range(0, lon_max + 1))
+    members_to_plot = data["forecast"].member.values[:3]
 
-        # Crop all datasets to the European lat-lon box
-        ground_truth = ground_truth.sel(latitude=lats, longitude=lons)
-        forecast = forecast.sel(latitude=lats, longitude=lons)
+    # with multiprocessing.Pool() as pool:
+    #     pool.starmap(
+    #         process_member,
+    #         [(member, data["forecast"],
+    #         data["ground_truth"],
+    #         path_forecast, lat, lon, args)
+    #         for member in members_to_plot])
 
-    lat = ground_truth.latitude.values
-    lon = ground_truth.longitude.values
-
-    members_to_plot = forecast.member.values[:5]
-
-    with multiprocessing.Pool() as pool:
-        pool.starmap(
-            process_member,
-            [(member, forecast, ground_truth, path_forecast, args.crop_region,
-              lat, lon) for member in members_to_plot])
+    for member in members_to_plot:
+        process_member(
+            member, data["forecast"],
+            data["ground_truth"],
+            path_forecast, lat, lon, args)
 
 
 if __name__ == "__main__":

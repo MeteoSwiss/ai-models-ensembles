@@ -1,5 +1,56 @@
+import argparse
+
 import numpy as np
+import seaborn as sns
 import xarray as xr
+
+
+def parse_args():
+    """
+    Parse the command line arguments.
+
+    Returns:
+        tuple: A tuple containing the arguments and the configuration.
+    """
+
+    parser = argparse.ArgumentParser(
+        description="Evaluate the NeurWP Ensemble.")
+    parser.add_argument(
+        "date_time", type=str, help="Date and time in the format YYYYMMDDHHMM"
+    )
+    parser.add_argument("model_name", type=str, help="The ai-model name")
+    parser.add_argument(
+        "perturbation_init",
+        type=float,
+        help="The init perturbation size")
+    parser.add_argument(
+        "perturbation_latent", type=float, help="The latent perturbation size"
+    )
+    parser.add_argument(
+        "members",
+        type=int,
+        help="The number of ensemble members")
+    parser.add_argument(
+        "crop_region",
+        type=str,
+        help="The region to crop the data to")
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Whether to run in debug mode",
+        default=False)
+
+    args = parser.parse_args()
+
+    config = {
+        "color_palette": sns.color_palette(
+            ["#f75b78", "#6495ed", "#0e2d75", "#f9c740", "#45b7aa", "#353434"]
+        ),
+        "sample_size": 100000,
+        "selected_vars": ["t2m", "u10"],
+    }
+
+    return args, config
 
 
 def load_and_prepare_data(
@@ -34,14 +85,17 @@ def load_and_prepare_data(
             forecast_unperturbed_ifs (xr.Dataset): The unperturbed IFS forecast data.
     """
 
-    ground_truth = xr.open_zarr(f"{path_in}/ground_truth.zarr", consolidated=True).isel(
-        number=0, surface=0
-    )
+    ground_truth = xr.open_zarr(
+        f"{path_in}/ground_truth.zarr",
+        consolidated=True).isel(
+        number=0,
+        surface=0)
     forecast = xr.open_zarr(
         f"{path_in}/init_{perturb_init}_latent_{perturb_latent}/forecast.zarr",
         consolidated=True,
     )
-    forecast_unperturbed = xr.open_zarr(f"{path_in}/forecast.zarr", consolidated=True)
+    forecast_unperturbed = xr.open_zarr(
+        f"{path_in}/forecast.zarr", consolidated=True)
     forecast_ifs = xr.open_zarr(f"{path_in}/ifs_ens.zarr", consolidated=True)
 
     if crop_region == "europe":
@@ -59,7 +113,8 @@ def load_and_prepare_data(
         # Crop all datasets to the European lat-lon box
         ground_truth = ground_truth.sel(latitude=lats, longitude=lons)
         forecast = forecast.sel(latitude=lats, longitude=lons)
-        forecast_unperturbed = forecast_unperturbed.sel(latitude=lats, longitude=lons)
+        forecast_unperturbed = forecast_unperturbed.sel(
+            latitude=lats, longitude=lons)
         forecast_ifs = forecast_ifs.sel(latitude=lats, longitude=lons)
     else:
         lat_min, lat_max = -90, 90
@@ -78,8 +133,7 @@ def load_and_prepare_data(
         forecast["step"] = forecast["step"].values / 1e9 / 3600
         forecast_unperturbed = forecast_unperturbed.drop_isel(step=0)
         forecast_unperturbed["step"] = forecast_unperturbed["step"] - np.timedelta64(
-            6, "h"
-        )
+            6, "h")
     forecast_ifs["member"] = forecast_ifs["member"] - 1
     forecast_unperturbed = forecast_unperturbed.sel(
         member=0,
@@ -88,7 +142,8 @@ def load_and_prepare_data(
         member=0,
     )
     forecast_ifs = forecast_ifs.isel(member=slice(1, None))
-    forecast_unperturbed = xr.concat([ground_truth, forecast_unperturbed], "step")
+    forecast_unperturbed = xr.concat(
+        [ground_truth, forecast_unperturbed], "step")
     forecast = xr.concat(
         [ground_truth, forecast],
         "step",
@@ -121,7 +176,8 @@ def load_and_prepare_data(
     forecast = forecast.sel(isobaricInhPa=full_levels)
     forecast_ifs = forecast_ifs.sel(isobaricInhPa=full_levels)
     forecast_unperturbed = forecast_unperturbed.sel(isobaricInhPa=full_levels)
-    forecast_unperturbed_ifs = forecast_unperturbed_ifs.sel(isobaricInhPa=full_levels)
+    forecast_unperturbed_ifs = forecast_unperturbed_ifs.sel(
+        isobaricInhPa=full_levels)
     ground_truth = ground_truth.sel(isobaricInhPa=full_levels)
 
     ground_truth = ground_truth[selected_vars]
@@ -139,7 +195,10 @@ def load_and_prepare_data(
 
         ground_truth = ground_truth.isel(step=slice(0, max_time_steps))
         forecast = forecast.isel(step=slice(0, max_time_steps))
-        forecast_unperturbed = forecast_unperturbed.isel(step=slice(0, max_time_steps))
+        forecast_unperturbed = forecast_unperturbed.isel(
+            step=slice(
+                0,
+                max_time_steps))
         forecast_ifs = forecast_ifs.isel(step=slice(0, max_time_steps))
         forecast_unperturbed_ifs = forecast_unperturbed_ifs.isel(
             step=slice(0, max_time_steps)
@@ -177,12 +236,18 @@ def calculate_stats(ground_truth, forecast, forecast_unperturbed, crop_region):
         dict: A dictionary containing the statistics.
     """
     fc_mean = forecast.mean(dim=["latitude", "longitude"])
-    fc_mean_unperturbed = forecast_unperturbed.mean(dim=["latitude", "longitude"])
+    fc_mean_unperturbed = forecast_unperturbed.mean(
+        dim=["latitude", "longitude"])
     gt_mean = ground_truth.mean(dim=["latitude", "longitude"])
     squared_diff = (forecast - ground_truth) ** 2
     squared_diff_mean = (forecast.mean(dim="member") - ground_truth) ** 2
     rmse_grid = np.sqrt(squared_diff.mean(dim="member")).drop_isel(step=0)
-    rmse = np.sqrt(squared_diff.mean(dim=["latitude", "longitude"])).drop_isel(step=0)
+    rmse = np.sqrt(
+        squared_diff.mean(
+            dim=[
+                "latitude",
+                "longitude"])).drop_isel(
+        step=0)
     rmse_mean = np.sqrt(
         squared_diff_mean.mean(dim=["latitude", "longitude"])
     ).drop_isel(step=0)
@@ -197,7 +262,8 @@ def calculate_stats(ground_truth, forecast, forecast_unperturbed, crop_region):
 
     ensemble_spread_grid = forecast.std(dim="member").drop_isel(step=0)
     spread_skill_ratio_grid = ensemble_spread_grid / rmse_grid
-    spread_skill_ratio = spread_skill_ratio_grid.mean(dim=["latitude", "longitude"])
+    spread_skill_ratio = spread_skill_ratio_grid.mean(
+        dim=["latitude", "longitude"])
     ensemble_spread = ensemble_spread_grid.mean(dim=["latitude", "longitude"])
 
     def calculate_energy_spectra(data, lat_band=(30, 60)):
@@ -223,12 +289,13 @@ def calculate_stats(ground_truth, forecast, forecast_unperturbed, crop_region):
 
             # Calculate wavelengths
             n = data_mean.longitude.size
-            wavelengths = (360 / np.fft.fftfreq(n)[1 : n // 2]) * 111  # Convert to km
+            wavelengths = (360 / np.fft.fftfreq(n)
+                           [1: n // 2]) * 111  # Convert to km
 
             energy_spectra_members.append(
                 xr.Dataset(
                     {
-                        "power": ("wavelength", power_spectrum[1 : n // 2]),
+                        "power": ("wavelength", power_spectrum[1: n // 2]),
                         "wavelength": ("wavelength", wavelengths),
                     }
                 )
@@ -341,16 +408,19 @@ def calculate_y_lims(
                 (spread_skill_ratio_min, spread_skill_ratio_max),
                 (ensemble_spread_min, ensemble_spread_max),
             )
-            y_lims_timeseries[(variable, level)] = (timeseries_min, timeseries_max)
+            y_lims_timeseries[(variable, level)] = (
+                timeseries_min, timeseries_max)
 
         energy_spectra_min = min(
-            default_stats["energy_spectra"][variable]["forecast"].power.min().values,
-            ifs_stats["energy_spectra"][variable]["forecast"].power.min().values,
-        )
+            default_stats["energy_spectra"][variable]
+            ["forecast"].power.min().values,
+            ifs_stats["energy_spectra"][variable]
+            ["forecast"].power.min().values,)
         energy_spectra_max = max(
-            default_stats["energy_spectra"][variable]["forecast"].power.max().values,
-            ifs_stats["energy_spectra"][variable]["forecast"].power.max().values,
-        )
+            default_stats["energy_spectra"][variable]
+            ["forecast"].power.max().values,
+            ifs_stats["energy_spectra"][variable]
+            ["forecast"].power.max().values,)
         energy_level = None if variable in vars_2d else forecast.isobaricInhPa.values[0]
         y_lims_energy_spectra[(variable, energy_level)] = (
             energy_spectra_min,
