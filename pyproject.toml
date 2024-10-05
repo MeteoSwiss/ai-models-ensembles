@@ -1,7 +1,7 @@
 [project]
-name = "ai-models-ensembles-amplitude"
+name = "ai-models-ensembles"
 version = "0.1.0"
-description = "Ensemble forecasting with AI models and amplitude perturbations"
+description = "Ensemble forecasting with AI models and weight perturbations"
 authors = [{ name = "Simon Adamov", email = "simon.adamov@meteoswiss.ch" }]
 license = "BSD-3"
 
