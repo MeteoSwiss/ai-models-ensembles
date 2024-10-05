@@ -92,11 +92,13 @@ python -u -m ai_models_ensembles.create_zarr.py "$PERTURBATION_DIR" --subdir_sea
             "$PERTURBATION_LATENT" "$NUM_MEMBERS" "$CROP_REGION"
 # fi
 
-if [ -z "$(find "${PERTURBATION_DIR}/0/${CROP_REGION}/animations/" -name '*gif' -print -quit 2>/dev/null)" ]; then
+# if [ -z "$(find "${PERTURBATION_DIR}/0/${CROP_REGION}/animations/" -name '*gif' -print -quit 2>/dev/null)" ]; then
     echo "Generating Animations"
-    python -u -m ai_models_ensembles.animator.py "$DATE_TIME" "$MODEL_NAME" "$PERTURBATION_INIT" "$PERTURBATION_LATENT" "$CROP_REGION"
-    # python -u -m ai_models_ensembles.animator_3d.py "$DATE_TIME" "$MODEL_NAME" "$PERTURBATION_INIT" "$PERTURBATION_LATENT" "$CROP_REGION"
-fi
+    python -u src/animator.py "$DATE_TIME" "$MODEL_NAME" "$PERTURBATION_INIT" \
+            "$PERTURBATION_LATENT" "$NUM_MEMBERS" "$CROP_REGION"
+    # python -u src/animator_3d.py "$DATE_TIME" "$MODEL_NAME" "$PERTURBATION_INIT" \
+            # "$PERTURBATION_LATENT" "$NUM_MEMBERS" "$CROP_REGION"
+# fi
 
 echo "Cleaning up GRIB files"
 if command -v fd &>/dev/null; then

@@ -1,11 +1,9 @@
-import argparse
 import os
 
 import cartopy.crs as ccrs
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
-import seaborn as sns
 import xarray as xr
 from cartopy.mpl.geoaxes import GeoAxes
 from mpl_toolkits.axes_grid1 import make_axes_locatable
@@ -16,6 +14,7 @@ from .data_load_preproc import (
     calculate_stats,
     calculate_y_lims,
     load_and_prepare_data,
+    parse_args,
 )
 
 matplotlib.use("Agg")
@@ -709,7 +708,7 @@ def plot_timeseries_fc_gt(
             extent.item())
 
     # Arbitrary number to make sure the density curves look decent
-    if fc_mean.member.size > 20:
+    if fc_mean.member.size >= 20:
         # Collect all values for the density plot at the latest time step
         fc_values_last_step = fc_mean_var.isel(step=-1).values
 
@@ -723,12 +722,13 @@ def plot_timeseries_fc_gt(
 
         # Generate y-values for the KDE
         y_values = np.linspace(y_lims[0], y_lims[1], 100)
+        y_values_norm = (y_values - y_lims[0]) / (y_lims[1] - y_lims[0]) * 10
 
         # Calculate the densities
         densities = kde(y_values)
 
         # Normalize the densities so that the area under the curve is 1
-        densities /= np.trapz(densities, y_values)
+        densities /= np.trapz(densities, y_values_norm)
 
         # Plot the densities
         ax2.plot(densities, y_values, color=color_palette[1])
@@ -769,44 +769,21 @@ def plot_timeseries_fc_gt(
 
 if __name__ == "__main__":
 
-    parser = argparse.ArgumentParser(
-        description="Evaluate the NeurWP Ensemble.")
-    parser.add_argument(
-        "date_time", type=str, help="Date and time in the format YYYYMMDDHHMM"
-    )
-    parser.add_argument("model_name", type=str, help="The ai-model name")
-    parser.add_argument(
-        "perturbation_init",
-        type=float,
-        help="The init perturbation size")
-    parser.add_argument(
-        "perturbation_latent", type=float, help="The latent perturbation size"
-    )
-    parser.add_argument(
-        "members",
-        type=int,
-        help="The number of ensemble members")
-    parser.add_argument(
-        "crop_region",
-        type=str,
-        help="The region to crop the data to")
-    parser.add_argument(
-        "--debug",
-        action="store_true",
-        help="Whether to run in debug mode",
-        default=False)
-
-    args = parser.parse_args()
-
-    config = {
-        "color_palette": sns.color_palette(
-            ["#f75b78", "#6495ed", "#0e2d75", "#f9c740", "#45b7aa", "#353434"]
-        ),
-        "sample_size": 100000,
-        "selected_vars": ["t2m", "u10"],
-    }
-
+    # TODO: config should be passed as argument to the other functions
+    args, config = parse_args()
     path_in = os.path.join(str(args.date_time), args.model_name)
+
+    data = load_and_prepare_data(
+        path_in,
+        config["selected_vars"],
+        args.crop_region,
+        args.model_name,
+        args.perturbation_init,
+        args.perturbation_latent,
+        args.members,
+        debug_mode=args.debug,
+    )
+
     assert (
         args.members <= 50
     ), "The number of ensemble members must be less than or equal to 50 to plot IFS ENS"
@@ -827,16 +804,6 @@ if __name__ == "__main__":
     os.makedirs(os.path.join(path_out, "scorecards"), exist_ok=True)
     os.makedirs(os.path.join(path_out_ifs, "scorecards"), exist_ok=True)
 
-    data = load_and_prepare_data(
-        path_in,
-        config["selected_vars"],
-        args.crop_region,
-        args.model_name,
-        args.perturbation_init,
-        args.perturbation_latent,
-        args.members,
-        debug_mode=args.debug,
-    )
 
 # class Args:
 #     def __init__(self):
@@ -924,11 +891,11 @@ if __name__ == "__main__":
             plot_energy_spectra(*args_i)
         for args_i in plot_args["timeseries_fc_gt"]:
             plot_timeseries_fc_gt(*args_i)
-        for args_i in plot_args["error_map"]:
-            plot_error_map(*args_i)
+        plot_error_map(*plot_args["error_map"][0])
 
     # Combined plots using both IFS and MODEL in combination
     for args_i in default_plot_args["spread_skill_ratio"]:
+        # TODO: solve this with str-indices for robustness (dicts)
         args_i.insert(3, ifs_stats["spread_skill_ratio"])
         args_i.insert(4, ifs_stats["ensemble_spread"])
         args_i[7] = [args_i[7], "IFS ENS"]

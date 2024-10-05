@@ -1,4 +1,3 @@
-import argparse
 import multiprocessing
 import os
 
@@ -9,25 +8,7 @@ import numpy as np
 import xarray as xr
 from matplotlib.colors import TwoSlopeNorm
 
-parser = argparse.ArgumentParser(description="Generate 3D gif-animations.")
-parser.add_argument(
-    "date_time",
-    type=str,
-    help="Date and time in the format YYYYMMDDHHMM")
-parser.add_argument("model_name", type=str, help="The ai-model name")
-parser.add_argument(
-    "perturbation_init",
-    type=float,
-    help="The init perturbation size")
-parser.add_argument(
-    "perturbation_latent",
-    type=float,
-    help="The latent perturbation size")
-parser.add_argument(
-    "crop_region",
-    type=str,
-    help="The region to crop the data to")
-args = parser.parse_args()
+from data_load_preproc import load_and_prepare_data, parse_args
 
 
 def power_alpha_scale(data, epsilon=1e-6, power=0.5):
@@ -54,7 +35,7 @@ def calculate_rgba(data, norm, cmap_name='RdBu_r'):
 
 
 def plot_variable_3d(difference, var, member, step,
-                     fig, ax, mappable, vmin, vmax):
+                     fig, ax, mappable, vmin, vmax, args):
     ax.cla()
 
     ax.set_title(
@@ -97,13 +78,15 @@ def plot_variable_3d(difference, var, member, step,
     # Set the color of the tick labels to dark gray
 
 
-def update_plot(num, difference, var, fig, ax, member, mappable, vmin, vmax):
+def update_plot(num, difference, var, fig, ax,
+                member, mappable, vmin, vmax, args):
     fig, ax = plot_variable_3d(difference, var, member, num,
-                               fig, ax, mappable, vmin, vmax)
+                               fig, ax, mappable, vmin, vmax, args)
     return fig, ax
 
 
-def create_and_save_animation(path, difference, var, member, unit, vmin, vmax):
+def create_and_save_animation(
+        path, difference, var, member, unit, vmin, vmax, args):
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
     mappable = cm.ScalarMappable(cmap='RdBu_r')
@@ -115,7 +98,7 @@ def create_and_save_animation(path, difference, var, member, unit, vmin, vmax):
 
     mappable.set_clim(vmin, vmax)
     fig, ax = plot_variable_3d(difference, var, member, 0,
-                               fig, ax, mappable, vmin, vmax)
+                               fig, ax, mappable, vmin, vmax, args)
     cbar = fig.colorbar(
         mappable,
         ax=ax,
@@ -129,13 +112,13 @@ def create_and_save_animation(path, difference, var, member, unit, vmin, vmax):
 
     ani = animation.FuncAnimation(
         fig, update_plot, frames=difference.step.size,
-        fargs=(difference, var, fig, ax, member, mappable, vmin, vmax))
+        fargs=(difference, var, fig, ax, member, mappable, vmin, vmax, args))
     ani.save(f"{path}/{var}_difference.gif", writer='imagemagick')
     plt.close()
 
 
 def process_member(member, perturbed, unperturbed,
-                   path_perturbed, crop_region):
+                   path_perturbed, args):
     init_perturbed = xr.open_dataset(
         os.path.join(path_perturbed, str(member), "era5_init.grib"),
         engine="cfgrib")
@@ -147,7 +130,7 @@ def process_member(member, perturbed, unperturbed,
         args.model_name,
         f"init_{args.perturbation_init}_latent_{args.perturbation_latent}",
         str(member),
-        crop_region,
+        args.crop_region,
         "animations")
     os.makedirs(path_gif, exist_ok=True)
     variables = perturbed.data_vars
@@ -165,61 +148,38 @@ def process_member(member, perturbed, unperturbed,
             member,
             unit,
             vmin,
-            vmax)
+            vmax,
+            args)
 
 
 def main():
-    path_unperturbed = os.path.join(args.date_time, args.model_name)
+    args, config = parse_args()
+    path_in = os.path.join(str(args.date_time), args.model_name)
     path_perturbed = os.path.join(
         str(args.date_time),
         args.model_name,
         f"init_{args.perturbation_init}_latent_{args.perturbation_latent}")
-    forecast_unperturbed = xr.open_zarr(
-        path_unperturbed + "/forecast.zarr",
-        consolidated=True)
-    forecast_perturbed = xr.open_zarr(
-        path_perturbed + "/forecast.zarr",
-        consolidated=True)
-    init_unperturbed = xr.open_dataset(
-        path_unperturbed +
-        "/era5_init.grib",
-        engine="cfgrib")
 
-    init_unperturbed = init_unperturbed.expand_dims(
-        {"step": [np.timedelta64(0, 'ns')]})
-    unperturbed = xr.concat(
-        [init_unperturbed, forecast_unperturbed],
-        dim="step")
+    data = load_and_prepare_data(
+        path_in,
+        config["selected_vars"],
+        args.crop_region,
+        args.model_name,
+        args.perturbation_init,
+        args.perturbation_latent,
+        args.members,
+        debug_mode=args.debug,
+    )
 
-    members_to_plot = forecast_perturbed.member.values[:5]
-
-    if args.crop_region == "europe":
-        lat_min, lat_max = 25, 80
-        lon_min, lon_max = 340, 50
-
-        # Use modulo arithmetic to ensure longitudes are in 0-360 range
-        lon_min = lon_min % 360
-        lon_max = lon_max % 360
-
-        # Create a list of longitudes that wraps around 0/360
-        lats = list(range(lat_min, lat_max + 1))
-        lons = list(range(lon_min, 360)) + list(range(0, lon_max + 1))
-
-        # Crop all datasets to the European lat-lon box
-        forecast_unperturbed = forecast_unperturbed.sel(
-            latitude=lats, longitude=lons)
-        forecast_perturbed = forecast_perturbed.sel(
-            latitude=lats, longitude=lons)
-        init_unperturbed = init_unperturbed.sel(
-            latitude=lats, longitude=lons)
+    members_to_plot = data["forecast_perturbed"].member.values[:3]
 
     with multiprocessing.Pool() as pool:
         pool.starmap(process_member,
                      [(member,
-                       forecast_perturbed,
-                       unperturbed,
+                       data["forecast_perturbed"],
+                       data["unperturbed"],
                        path_perturbed,
-                       args.crop_region) for member in members_to_plot])
+                       args) for member in members_to_plot])
 
 
 if __name__ == "__main__":
