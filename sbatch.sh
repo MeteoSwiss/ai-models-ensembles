@@ -13,7 +13,7 @@ export DATE_TIME=201801010000 # Lothar: 199912250000, Burglind: 201801010000
 export MODEL_NAME=graphcast # fourcastnetv2-small, graphcast
 export PERTURBATION_INIT=0.0
 export PERTURBATION_LATENT=0.01
-export NUM_MEMBERS=2
+export NUM_MEMBERS=49
 export CROP_REGION=europe # Crop to a specific region
 
 # Some paths to avoid using popd and pushd + relative paths
