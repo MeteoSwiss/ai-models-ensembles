@@ -13,11 +13,13 @@ export DATE_TIME=201801010000 # Lothar: 199912250000, Burglind: 201801010000
 export MODEL_NAME=graphcast # fourcastnetv2-small, graphcast
 export PERTURBATION_INIT=0.0
 export PERTURBATION_LATENT=0.01
-export NUM_MEMBERS=49
+export NUM_MEMBERS=2
 export CROP_REGION=europe # Crop to a specific region
+export OUTPUT_DIR=/scratch/mch/sadamov/pyprojects_data/ai-models-ensembles
 
 # Some paths to avoid using popd and pushd + relative paths
-export BASE_DIR=$PWD
+export SRC_DIR=$PWD
+export BASE_DIR=$OUTPUT_DIR
 export DATE_DIR="${BASE_DIR}/${DATE_TIME}"
 export MODEL_DIR="${DATE_DIR}/${MODEL_NAME}"
 export PERTURBATION_DIR="${MODEL_DIR}/init_${PERTURBATION_INIT}_latent_${PERTURBATION_LATENT}"
@@ -35,15 +37,16 @@ fi
 
 # if conda env ai-models does not exist then create it
 if ! mamba env list | grep -q ai-models; then
-    mamba env create -n ai-models -f environment.yml
+    mamba env create -n ai-models -f $SRC_DIR/environment.yml
     mamba activate ai-models
-    pip install -r requirements.txt -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
+    pip install -r $SRC_DIR/requirements.txt -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
+    pip install -e $SRC_DIR
 fi
 
 mamba activate ai-models
 
 if [ ! -x runscript.sh ]; then
-    chmod +x runscript.sh
+    chmod +x $SRC_DIR/runscript.sh
 fi
 
-srun runscript.sh
+srun $SRC_DIR/runscript.sh

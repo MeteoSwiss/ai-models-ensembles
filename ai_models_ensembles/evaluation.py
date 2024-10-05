@@ -12,7 +12,7 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from scipy.stats import gaussian_kde
 
-from data_load_preproc import (
+from .data_load_preproc import (
     calculate_stats,
     calculate_y_lims,
     load_and_prepare_data,
