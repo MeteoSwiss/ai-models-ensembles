@@ -4,7 +4,7 @@ import cartopy.crs as ccrs
 import matplotlib.animation as animation
 import matplotlib.pyplot as plt
 
-from data_load_preproc import load_and_prepare_data, parse_args
+from .data_load_preproc import load_and_prepare_data, parse_args
 
 
 def create_plot(ax, data, var, level, step, title_prefix, lat, lon):
@@ -97,7 +97,8 @@ def create_and_save_animation(path, ground_truth, var, level, fig, updatefig):
 
 def process_member(member, forecast, ground_truth,
                    path_forecast, lat, lon, args):
-    path_gif = f"{path_forecast}/{member}/{args.crop_region}/animations"
+    path_gif = f"{path_forecast}/{args.crop_region}/{member}/animations"
+    os.makedirs(path_gif, exist_ok=True)
     variables = forecast.data_vars
     pressure_levels = forecast.isobaricInhPa.values if "isobaricInhPa" in forecast.dims else []
     for var in variables:
@@ -121,8 +122,9 @@ def process_member(member, forecast, ground_truth,
 def main():
 
     args, config = parse_args()
-    path_in = os.path.join(str(args.date_time), args.model_name)
+    path_in = os.path.join(args.out_dir, str(args.date_time), args.model_name)
     path_forecast = os.path.join(
+        args.out_dir,
         str(args.date_time),
         args.model_name,
         f"init_{args.perturbation_init}_latent_{args.perturbation_latent}")

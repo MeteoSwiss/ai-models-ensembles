@@ -6,6 +6,7 @@ import numpy as np
 # Create an argument parser
 parser = argparse.ArgumentParser(
     description="Perturb the weights in the FourierNeuralOperatorBlock.")
+parser.add_argument("out_dir", type=str, help="The output directory")
 parser.add_argument(
     "date_time",
     type=str,
@@ -52,6 +53,7 @@ def perturb_weights(params, perturbation_strength):
 def main():
     name = "params/GraphCast_operational - ERA5-HRES 1979-2021 - resolution 0.25 - pressure levels 13 - mesh 2to6 - precipitation output only.npz"
     checkpoint_path = os.path.join(
+        args.out_dir,
         str(args.date_time),
         args.model_name, name)
     params = dict(np.load(checkpoint_path))
@@ -65,6 +67,7 @@ def main():
 
     # Save the perturbed weights
     path_out = os.path.join(
+        args.out_dir,
         str(args.date_time),
         args.model_name,
         f"init_{args.perturbation_init}_latent_{args.perturbation_latent}",

@@ -15,6 +15,7 @@ def parse_args():
 
     parser = argparse.ArgumentParser(
         description="Evaluate the NeurWP Ensemble.")
+    parser.add_argument("out_dir", type=str, help="The output directory")
     parser.add_argument(
         "date_time", type=str, help="Date and time in the format YYYYMMDDHHMM"
     )
@@ -47,7 +48,7 @@ def parse_args():
             ["#f75b78", "#6495ed", "#0e2d75", "#f9c740", "#45b7aa", "#353434"]
         ),
         "sample_size": 100000,
-        "selected_vars": ["t2m", "u10"],
+        "selected_vars": ["t2m", "t"],
     }
 
     return args, config
@@ -278,29 +279,48 @@ def calculate_stats(ground_truth, forecast, forecast_unperturbed, crop_region):
         # Calculate energy spectra for each member
         for member in data_last_step.member:
             data_member = data_last_step.sel(member=member)
-            # Calculate mean over latitude band
-            data_mean = data_member.mean(dim="latitude")
 
-            # Calculate FFT along longitude
-            fft = np.fft.fft(data_mean.values, axis=-1)
+            # Check if 'isobaricInhPa' is a dimension
+            if 'isobaricInhPa' in data_member.dims:
+                levels = data_member.isobaricInhPa.values
+            else:
+                # Default to level 1 if 'isobaricInhPa' is not present
+                levels = [0]
 
-            # Calculate power spectrum
-            power_spectrum = np.abs(fft) ** 2
+            power_spectra = []
+            wavelengths = []
 
-            # Calculate wavelengths
-            n = data_mean.longitude.size
-            wavelengths = (360 / np.fft.fftfreq(n)
-                           [1: n // 2]) * 111  # Convert to km
+            for level in levels:
+                # Select data for the current level
+                data_level = data_member.sel(
+                    isobaricInhPa=level) if 'isobaricInhPa' in data_member.dims else data_member
+
+                # Calculate mean over latitude band
+                data_mean = data_level.mean(dim="latitude")
+
+                # Calculate FFT along longitude
+                fft = np.fft.fft(data_mean.values, axis=-1)
+
+                # Calculate power spectrum
+                power_spectrum = np.abs(fft) ** 2
+
+                # Calculate wavelengths
+                n = data_mean.longitude.size
+                wavelength = (360 / np.fft.fftfreq(n)
+                              [1: n // 2]) * 111  # Convert to km
+
+                power_spectra.append(power_spectrum[1: n // 2])
+                wavelengths.append(wavelength)
 
             energy_spectra_members.append(
                 xr.Dataset(
                     {
-                        "power": ("wavelength", power_spectrum[1: n // 2]),
-                        "wavelength": ("wavelength", wavelengths),
+                        "power": (["level", "wavelength"], power_spectra),
+                        "wavelength": (["level", "wavelength"], wavelengths),
+                        "level": ("level", levels)
                     }
                 )
             )
-
         # Concatenate energy spectra of all members along a new dimension
         energy_spectra_concat = xr.concat(energy_spectra_members, dim="member")
 
@@ -411,21 +431,20 @@ def calculate_y_lims(
             y_lims_timeseries[(variable, level)] = (
                 timeseries_min, timeseries_max)
 
-        energy_spectra_min = min(
-            default_stats["energy_spectra"][variable]
-            ["forecast"].power.min().values,
-            ifs_stats["energy_spectra"][variable]
-            ["forecast"].power.min().values,)
-        energy_spectra_max = max(
-            default_stats["energy_spectra"][variable]
-            ["forecast"].power.max().values,
-            ifs_stats["energy_spectra"][variable]
-            ["forecast"].power.max().values,)
-        energy_level = None if variable in vars_2d else forecast.isobaricInhPa.values[0]
-        y_lims_energy_spectra[(variable, energy_level)] = (
-            energy_spectra_min,
-            energy_spectra_max,
-        )
+            energy_spectra_min = min(
+                default_stats["energy_spectra"][variable]
+                ["forecast"].sel(level=level).power.min().values,
+                ifs_stats["energy_spectra"][variable]
+                ["forecast"].sel(level=level).power.min().values,)
+            energy_spectra_max = max(
+                default_stats["energy_spectra"][variable]
+                ["forecast"].sel(level=level).power.max().values,
+                ifs_stats["energy_spectra"][variable]
+                ["forecast"].sel(level=level).power.max().values,)
+            y_lims_energy_spectra[(variable, level)] = (
+                energy_spectra_min,
+                energy_spectra_max,
+            )
 
     print("Y-limits calculated")
 

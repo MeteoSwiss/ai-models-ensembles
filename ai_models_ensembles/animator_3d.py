@@ -8,7 +8,7 @@ import numpy as np
 import xarray as xr
 from matplotlib.colors import TwoSlopeNorm
 
-from data_load_preproc import load_and_prepare_data, parse_args
+from .data_load_preproc import load_and_prepare_data, parse_args
 
 
 def power_alpha_scale(data, epsilon=1e-6, power=0.5):
@@ -117,28 +117,21 @@ def create_and_save_animation(
     plt.close()
 
 
-def process_member(member, perturbed, unperturbed,
-                   path_perturbed, args):
-    init_perturbed = xr.open_dataset(
-        os.path.join(path_perturbed, str(member), "era5_init.grib"),
-        engine="cfgrib")
-    init_perturbed = init_perturbed.expand_dims(
-        {"step": [np.timedelta64(0, 'ns')]})
-    perturbed = xr.concat([init_perturbed, perturbed], dim="step")
+def process_member(member, forecast, forecast_unperturbed,
+                   path_forecast, args, config):
     path_gif = os.path.join(
-        args.date_time,
-        args.model_name,
-        f"init_{args.perturbation_init}_latent_{args.perturbation_latent}",
-        str(member),
+        path_forecast,
         args.crop_region,
+        str(member),
         "animations")
     os.makedirs(path_gif, exist_ok=True)
-    variables = perturbed.data_vars
-    difference = perturbed.sel(member=member) - unperturbed.sel(member=0)
+    variables = config["selected_vars"]
+    difference = forecast.sel(
+        member=member) - forecast_unperturbed
 
     for var in variables:
         print("Creating difference animation for variable: ", var)
-        unit = variables[var].units
+        unit = forecast[var].attrs["units"]
         vmin = difference[var].min().values
         vmax = difference[var].max().values
         create_and_save_animation(
@@ -154,8 +147,9 @@ def process_member(member, perturbed, unperturbed,
 
 def main():
     args, config = parse_args()
-    path_in = os.path.join(str(args.date_time), args.model_name)
-    path_perturbed = os.path.join(
+    path_in = os.path.join(args.out_dir, str(args.date_time), args.model_name)
+    path_forecast = os.path.join(
+        args.out_dir,
         str(args.date_time),
         args.model_name,
         f"init_{args.perturbation_init}_latent_{args.perturbation_latent}")
@@ -171,16 +165,22 @@ def main():
         debug_mode=args.debug,
     )
 
-    members_to_plot = data["forecast_perturbed"].member.values[:3]
+    members_to_plot = data["forecast"].member.values[:3]
 
-    with multiprocessing.Pool() as pool:
-        pool.starmap(process_member,
-                     [(member,
-                       data["forecast_perturbed"],
-                       data["unperturbed"],
-                       path_perturbed,
-                       args) for member in members_to_plot])
+    # with multiprocessing.Pool() as pool:
+    #     pool.starmap(process_member,
+    #                  [(member,
+    #                    data["forecast"],
+    #                    data["forecast_unperturbed"],
+    #                    path_forecast,
+    #                    args,
+    #                    config) for member in members_to_plot])
 
+
+    for member in members_to_plot:
+        process_member(member, data["forecast"],
+                       data["forecast_unperturbed"],
+                       path_forecast, args, config)
 
 if __name__ == "__main__":
     main()

@@ -7,6 +7,7 @@ import torch
 # Create an argument parser
 parser = argparse.ArgumentParser(
     description="Perturb the weights in the FourierNeuralOperatorBlock.")
+parser.add_argument("out_dir", type=str, help="The output directory")
 parser.add_argument(
     "date_time",
     type=str,
@@ -73,6 +74,7 @@ def save_model_weights(model, path):
 
 def main():
     path_out = os.path.join(
+        args.out_dir,
         str(args.date_time),
         args.model_name,
         f"init_{args.perturbation_init}_latent_{args.perturbation_latent}",
@@ -85,6 +87,7 @@ def main():
 
     torch.manual_seed(args.member)
     checkpoint_path = os.path.join(
+        args.out_dir,
         str(args.date_time),
         args.model_name, "weights.tar")
     model = nvs.FourierNeuralOperatorNet()

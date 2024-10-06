@@ -8,6 +8,7 @@ import xarray as xr
 from earthkit.data import settings
 
 parser = argparse.ArgumentParser(description="Download ERA5 data.")
+parser.add_argument("out_dir", type=str, help="The output directory")
 parser.add_argument(
     "start_date", type=str, help="Start date in the format YYYYMMDDHHMM"
 )
@@ -27,7 +28,7 @@ settings.set(
     "user-cache-directory",
     "/scratch/mch/sadamov/temp/earthkit-cache")
 
-path = os.path.join(args.start_date, args.model_name)
+path = os.path.join(args.out_dir, args.start_date, args.model_name)
 with open(path + "/fields.txt", "r") as f:
     lines = f.readlines()
 

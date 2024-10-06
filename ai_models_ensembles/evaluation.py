@@ -390,39 +390,41 @@ def plot_energy_spectra(
     """
     Plot the energy spectra for each member and the mean of all members.
     """
-    print(f"Plotting energy spectra for variable: {variable}")
+    print(f"Plotting energy spectra for variable: {variable} on level {level}")
     fig, ax = plt.subplots(figsize=(12, 9))
 
     # Plot each member's energy spectra
-    for member in energy_spectra_forecast.member:
+    for member in energy_spectra_forecast.sel(level=level).member:
         ax.loglog(
-            energy_spectra_forecast.wavelength,
-            energy_spectra_forecast.sel(member=member).power,
+            energy_spectra_forecast.sel(level=level).wavelength,
+            energy_spectra_forecast.sel(member=member, level=level).power,
             color=color_palette[1],
             alpha=alpha_value,
             label=f"{model_name} Member" if member == 0 else None,
         )
 
     # Calculate and plot the mean energy spectra
-    mean_energy_spectra = energy_spectra_forecast.mean(dim="member")
+    mean_energy_spectra = energy_spectra_forecast.sel(
+        level=level).mean(
+        dim="member")
     ax.loglog(
-        mean_energy_spectra.wavelength,
-        mean_energy_spectra.power,
+        mean_energy_spectra.sel(level=level).wavelength,
+        mean_energy_spectra.sel(level=level).power,
         color=color_palette[2],
         label=f"{model_name} Mean",
     )
 
     # Plot the unperturbed and ground truth energy spectra
     ax.loglog(
-        energy_spectra_unperturbed.wavelength,
-        energy_spectra_unperturbed.power,
+        energy_spectra_unperturbed.sel(level=level).wavelength,
+        energy_spectra_unperturbed.sel(level=level).power,
         color=color_palette[3],
         label=f"{model_name} Unperturbed",
         linestyle="--",
     )
     ax.loglog(
-        energy_spectra_ground_truth.wavelength,
-        energy_spectra_ground_truth.power,
+        energy_spectra_ground_truth.sel(level=level).wavelength,
+        energy_spectra_ground_truth.sel(level=level).power,
         color=color_palette[0],
         label="Ground Truth: ERA5",
         linestyle=":",
@@ -431,7 +433,8 @@ def plot_energy_spectra(
     ax.set_xlabel("Wavelength (km)")
     ax.set_ylabel("Power")
     ax.set_title(
-        f"Energy Spectra for {variable}\nRegion: {region}, Init Date: {date_time}, Model: {model_name}"
+        f"Energy Spectra for {variable} on level {level}\nRegion: {region},"
+        f"Init Date: {date_time}, Model: {model_name}"
     )
     ax.legend()
 
@@ -771,7 +774,7 @@ if __name__ == "__main__":
 
     # TODO: config should be passed as argument to the other functions
     args, config = parse_args()
-    path_in = os.path.join(str(args.date_time), args.model_name)
+    path_in = os.path.join(args.out_dir, str(args.date_time), args.model_name)
 
     data = load_and_prepare_data(
         path_in,

@@ -8,6 +8,7 @@ import xarray as xr
 from earthkit.data import settings
 
 parser = argparse.ArgumentParser(description="Download IFS data.")
+parser.add_argument("out_dir", type=str, help="The output directory")
 parser.add_argument(
     "date_time", type=str, help="Date and time in the format YYYYMMDDHHMM"
 )
@@ -24,7 +25,7 @@ settings.set(
     "/scratch/mch/sadamov/temp/earthkit-cache")
 
 # Read parameters from fields.txt
-path = os.path.join(args.date_time, args.model_name)
+path = os.path.join(args.out_dir, args.date_time, args.model_name)
 with open(path + "/fields.txt", "r") as f:
     lines = f.readlines()
 
@@ -109,7 +110,7 @@ for i, ds in enumerate(ds_pressure):
 
     print("Writing to zarr")
     ds_combined.to_zarr(
-        "ifs_ens.zarr",
+        f"{path}/ifs_ens.zarr",
         consolidated=True,
         mode="w" if i == 0 else "a",
         append_dim="number" if i > 0 else None,
@@ -118,6 +119,6 @@ for i, ds in enumerate(ds_pressure):
 print("Adding Surface data")
 ds_single.drop_vars(
     ["z"] if "z" in ds_single.variables else []).to_zarr(
-        "ifs_ens.zarr",
+        f"{path}/ifs_ens.zarr",
         consolidated=True,
     mode="a")
