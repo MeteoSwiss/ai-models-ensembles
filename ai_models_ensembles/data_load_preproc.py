@@ -3,6 +3,7 @@ import argparse
 import numpy as np
 import seaborn as sns
 import xarray as xr
+from scipy import signal
 
 
 def parse_args():
@@ -121,53 +122,54 @@ def load_and_prepare_data(
         lat_min, lat_max = -90, 90
         lon_min, lon_max = 0, 360
 
+    # align ifs forecast with forecast dimensions
     forecast_ifs = (
         forecast_ifs.rename({"number": "member"})
         .set_index(member="member")
-        .isel(surface=0)
+        .isel(surface=0, time=0)
     )
 
-    ground_truth = ground_truth.isel(step=0)
-    if model_name == "graphcast":
-        forecast = forecast.drop_isel(step=0)
-        forecast["step"] = forecast["step"] - np.timedelta64(6, "h")
-        forecast["step"] = forecast["step"].values / 1e9 / 3600
-        forecast_unperturbed = forecast_unperturbed.drop_isel(step=0)
-        forecast_unperturbed["step"] = forecast_unperturbed["step"] - np.timedelta64(
-            6, "h")
+    # Select the appropriate members in all datasets
+    # IFS member 0 was confirmed by ECMWF to be unperturbed
     forecast_ifs["member"] = forecast_ifs["member"] - 1
-    forecast_unperturbed = forecast_unperturbed.sel(
-        member=0,
-    )
-    forecast_unperturbed_ifs = forecast_ifs.isel(time=0).sel(
-        member=0,
-    )
+    forecast_unperturbed = forecast_unperturbed.sel(member=0)
+    forecast_unperturbed_ifs = forecast_ifs.sel(member=0)
     forecast_ifs = forecast_ifs.isel(member=slice(1, None))
-    forecast_unperturbed = xr.concat(
-        [ground_truth, forecast_unperturbed], "step")
-    forecast = xr.concat(
-        [ground_truth, forecast],
-        "step",
-    )
-
     indices = np.random.permutation(forecast.member.size)
     indices_ifs = np.random.permutation(forecast_ifs.member.size)
     selected_indices = indices[:num_members]
     selected_indices_ifs = indices_ifs[:num_members]
-    forecast = forecast.isel(member=selected_indices, time=0)
-    forecast_ifs = forecast_ifs.isel(member=selected_indices_ifs, time=0)
-    forecast_unperturbed = forecast_unperturbed.isel(time=0)
-
-    ground_truth["step"] = ("time", np.arange(len(ground_truth["time"])))
-    ground_truth = ground_truth.swap_dims({"time": "step"})
-    forecast_ifs["step"] = forecast["step"]
-    forecast_unperturbed["step"] = forecast["step"]
-    forecast_unperturbed_ifs["step"] = forecast["step"]
-    ground_truth["step"] = forecast["step"]
-
+    forecast = forecast.isel(member=selected_indices)
+    forecast_ifs = forecast_ifs.isel(member=selected_indices_ifs)
     forecast = forecast.transpose(..., "member")
     forecast_ifs = forecast_ifs.transpose(..., "member")
 
+    # Ensure all datasets have the same step coordinates
+    # For plotting the easiest approach is conversion to float
+    # For ground_truth, step and time have the reversed meaning
+    ground_truth = ground_truth.isel(step=0)
+    if model_name == "graphcast":
+        forecast = forecast.drop_isel(step=0)
+        forecast["step"] = (forecast["step"] - np.timedelta64(6, "h"))
+        forecast_unperturbed = forecast_unperturbed.drop_isel(step=0)
+        forecast_unperturbed["step"] = (
+            forecast_unperturbed["step"] - np.timedelta64(6, "h"))
+
+    forecast_unperturbed = xr.concat(
+        [ground_truth.isel(time=0, drop=True), forecast_unperturbed], "step")
+    forecast = xr.concat(
+        [ground_truth.isel(time=0, drop=True), forecast], "step")
+
+    step_values = np.int64(forecast.step.values) / 1e9 / 3600
+    ground_truth["step"] = ("time", np.arange(len(ground_truth["time"])))
+    ground_truth = ground_truth.swap_dims({"time": "step"})
+    ground_truth['step'] = step_values
+    forecast['step'] = step_values
+    forecast_unperturbed['step'] = step_values
+    forecast_ifs['step'] = step_values
+    forecast_unperturbed_ifs['step'] = step_values
+
+    # Ensure all datasets have the same isobaricInhPa coordinates
     full_levels = forecast_ifs.isobaricInhPa.where(
         ~forecast_ifs.t.isnull()
         .any(dim=["latitude", "longitude", "step", "member"])
@@ -181,6 +183,7 @@ def load_and_prepare_data(
         isobaricInhPa=full_levels)
     ground_truth = ground_truth.sel(isobaricInhPa=full_levels)
 
+    # Select the data variables
     ground_truth = ground_truth[selected_vars]
     forecast = forecast[selected_vars]
     forecast_unperturbed = forecast_unperturbed[selected_vars]
@@ -260,6 +263,8 @@ def calculate_stats(ground_truth, forecast, forecast_unperturbed, crop_region):
 
     if crop_region == "europe":
         lat_min, lat_max = 25, 80
+    else:
+        lat_min, lat_max = -90, 90
 
     ensemble_spread_grid = forecast.std(dim="member").drop_isel(step=0)
     spread_skill_ratio_grid = ensemble_spread_grid / rmse_grid
@@ -267,114 +272,186 @@ def calculate_stats(ground_truth, forecast, forecast_unperturbed, crop_region):
         dim=["latitude", "longitude"])
     ensemble_spread = ensemble_spread_grid.mean(dim=["latitude", "longitude"])
 
-    def calculate_energy_spectra(data, lat_band=(30, 60)):
-        lat_slice = slice(lat_band[0], lat_band[1])
-        data_lat_band = data.sel(latitude=lat_slice)
+    # Detrending the data using the detrend function from scipy.signal to remove any
+    # linear trends. Applying a window function (Hann window) to the detrended data
+    # using the windows.hann function from scipy.signal to reduce spectral leakage.
+    # Normalizing the power spectrum by dividing it by (n * np.sum(window ** 2)) to
+    # account for the window function and the data size. Updating the wavenumber
+    # calculation to convert from wavenumber to rad/km, assuming Earth's radius of 6371
+    # km.
 
-        # Select the last time step
-        data_last_step = data_lat_band.isel(step=-1)
+    def calculate_energy_spectra(
+            forecast, forecast_unperturbed, ground_truth, lat_band=(-90, 90)):
+        energy_spectra_forecast = []
+        energy_spectra_unperturbed = []
+        energy_spectra_ground_truth = []
 
-        energy_spectra_members = []
+        for data, energy_spectra_list in zip(
+            [forecast, forecast_unperturbed, ground_truth],
+            [energy_spectra_forecast, energy_spectra_unperturbed,
+             energy_spectra_ground_truth]):
+            lat_slice = slice(lat_band[0], lat_band[1])
+            data_lat_band = data.sel(latitude=lat_slice)
 
-        # Calculate energy spectra for each member
-        for member in data_last_step.member:
-            data_member = data_last_step.sel(member=member)
+            # Select the last time step
+            data_last_step = data_lat_band.isel(step=-1)
 
-            # Check if 'isobaricInhPa' is a dimension
-            if 'isobaricInhPa' in data_member.dims:
-                levels = data_member.isobaricInhPa.values
-            else:
-                # Default to level 1 if 'isobaricInhPa' is not present
-                levels = [0]
+            for var in data_last_step.data_vars:
+                var_data = data_last_step[var]
 
-            power_spectra = []
-            wavelengths = []
+                # Check if 'isobaricInhPa' is a dimension
+                if 'isobaricInhPa' in var_data.dims:
+                    levels = var_data.isobaricInhPa.values
+                else:
+                    levels = [0]  # Use a placeholder value for level
 
-            for level in levels:
-                # Select data for the current level
-                data_level = data_member.sel(
-                    isobaricInhPa=level) if 'isobaricInhPa' in data_member.dims else data_member
+                power_spectra = []
+                wavenumbers = []
 
-                # Calculate mean over latitude band
-                data_mean = data_level.mean(dim="latitude")
+                for level in levels:
+                    # Select data for the current level
+                    data_level = var_data.sel(
+                        isobaricInhPa=level) if 'isobaricInhPa' in var_data.dims else var_data
 
-                # Calculate FFT along longitude
-                fft = np.fft.fft(data_mean.values, axis=-1)
+                    # Calculate mean over latitude band
+                    data_mean = data_level.mean(dim="latitude")
+                    longitude_index = data_mean.get_axis_num('longitude')
 
-                # Calculate power spectrum
-                power_spectrum = np.abs(fft) ** 2
+                    # Remove mean (instead of detrending)
+                    data_detrended = data_mean.values - np.mean(
+                        data_mean.values, axis=longitude_index, keepdims=True)
 
-                # Calculate wavelengths
-                n = data_mean.longitude.size
-                wavelength = (360 / np.fft.fftfreq(n)
-                              [1: n // 2]) * 111  # Convert to km
+                    # Apply window function (Hann window)
+                    window = signal.windows.hann(
+                        data_detrended.shape[longitude_index], sym=False)
+                    data_windowed = data_detrended * \
+                        window[:, np.newaxis] if data_detrended.ndim > 1 else data_detrended * window
 
-                power_spectra.append(power_spectrum[1: n // 2])
-                wavelengths.append(wavelength)
+                    # Calculate FFT along longitude
+                    fft = np.fft.rfft(data_windowed, axis=longitude_index)
+                    n = data_mean.longitude.size
 
-            energy_spectra_members.append(
-                xr.Dataset(
-                    {
-                        "power": (["level", "wavelength"], power_spectra),
-                        "wavelength": (["level", "wavelength"], wavelengths),
-                        "level": ("level", levels)
-                    }
-                )
-            )
-        # Concatenate energy spectra of all members along a new dimension
-        energy_spectra_concat = xr.concat(energy_spectra_members, dim="member")
+                    # Calculate power spectrum (with adjusted normalization)
+                    power_spectrum = (
+                        np.abs(fft) ** 2) / (n * np.mean(window**2))
 
-        return energy_spectra_concat
+                    # Calculate wavenumbers
+                    wavenumber = np.fft.rfftfreq(
+                        n, d=1.0) * n  # in cycles per domain
 
-    energy_spectra = {}
-    for var in forecast.data_vars:
-        energy_spectra[var] = {
-            "forecast": calculate_energy_spectra(
-                forecast[var], lat_band=(lat_min, lat_max)
-            ),
-            "unperturbed": calculate_energy_spectra(
-                forecast_unperturbed[var].expand_dims("member"),
-                lat_band=(lat_min, lat_max),
-            ).squeeze(),  # Remove singleton 'member' dimension
-            "ground_truth": calculate_energy_spectra(
-                ground_truth[var].expand_dims("member"), lat_band=(lat_min, lat_max)
-            ).squeeze(),
-        }
+                    # Convert wavenumber to rad/km (assuming Earth's radius of
+                    # 6371 km)
+                    wavenumber_rad_km = wavenumber / (2 * np.pi * 6371)
+
+                    power_spectra.append(power_spectrum)
+                    wavenumbers.append(wavenumber)
+
+                if 'isobaricInhPa' in var_data.dims:
+                    if 'member' in var_data.dims:
+                        energy_spectra_list.append(
+                            xr.Dataset(
+                                {
+                                    var: (["isobaricInhPa", "wavenumber", "member"], np.array(power_spectra)),
+                                },
+                                coords={
+                                    "isobaricInhPa": ("isobaricInhPa", levels),
+                                    "wavenumber": ("wavenumber", wavenumbers[0]),
+                                    "member": ("member", data_last_step.member.values),
+                                },
+                            )
+                        )
+                    else:
+                        energy_spectra_list.append(
+                            xr.Dataset(
+                                {
+                                    var: (["isobaricInhPa", "wavenumber"], np.array(power_spectra)),
+                                },
+                                coords={
+                                    "isobaricInhPa": ("isobaricInhPa", levels),
+                                    "wavenumber": ("wavenumber", wavenumbers[0]),
+                                },
+                            )
+                        )
+                else:
+                    if 'member' in var_data.dims:
+                        energy_spectra_list.append(
+                            xr.Dataset(
+                                {
+                                    var: (["wavenumber", "member"], np.squeeze(np.array(power_spectra))),
+                                },
+                                coords={
+                                    "wavenumber": ("wavenumber", wavenumbers[0]),
+                                    "member": ("member", data_last_step.member.values),
+                                },
+                            )
+                        )
+                    else:
+                        energy_spectra_list.append(
+                            xr.Dataset(
+                                {
+                                    var: (["wavenumber"], np.squeeze(np.array(power_spectra))),
+                                },
+                                coords={
+                                    "wavenumber": ("wavenumber", wavenumbers[0]),
+                                },
+                            )
+                        )
+
+        energy_spectra_forecast_concat = xr.merge(energy_spectra_forecast)
+        energy_spectra_unperturbed_concat = xr.merge(
+            energy_spectra_unperturbed)
+        energy_spectra_ground_truth_concat = xr.merge(
+            energy_spectra_ground_truth)
+
+        return energy_spectra_forecast_concat, energy_spectra_unperturbed_concat, energy_spectra_ground_truth_concat
+
+    energy_spectra_forecast, energy_spectra_unperturbed, energy_spectra_ground_truth = calculate_energy_spectra(
+        forecast, forecast_unperturbed, ground_truth, lat_band=(lat_min, lat_max))
 
     return {
-        "fc_mean": fc_mean,
-        "fc_mean_unperturbed": fc_mean_unperturbed,
-        "gt_mean": gt_mean,
+        "ts_fc_mean": fc_mean,
+        "ts_fc_mean_unperturbed": fc_mean_unperturbed,
+        "ts_gt_mean": gt_mean,
         "rmse": rmse,
         "rmse_mean": rmse_mean,
         "rmse_unperturbed": rmse_unperturbed,
-        "spread_skill_ratio": spread_skill_ratio,
-        "ensemble_spread": ensemble_spread,
-        "energy_spectra": energy_spectra,
+        "sr_ensemble_spread": ensemble_spread,
+        "sr_spread_skill_ratio": spread_skill_ratio,
+        "energy_spectra_forecast": energy_spectra_forecast,
+        "energy_spectra_unperturbed": energy_spectra_unperturbed,
+        "energy_spectra_ground_truth": energy_spectra_ground_truth,
     }
 
 
 def calculate_y_lims(
-    vars_3d, vars_2d, forecast, forecast_ifs, default_stats, ifs_stats
-):
-    """
-    Calculate the y-limits for the plots.
+        vars_3d, vars_2d, forecast, forecast_ifs, default_stats, ifs_stats):
+    y_lims = {
+        "y_lims_rmse": {},
+        "y_lims_spread_skill_ratio": {},
+        "y_lims_timeseries": {},
+        "y_lims_energy_spectra": {},
+    }
 
-    Args:
-        vars_3d (list): The 3D variables.
-        vars_2d (list): The 2D variables.
-        forecast (xr.Dataset): The forecast data.
-        forecast_ifs (xr.Dataset): The IFS forecast data.
-        default_stats (dict): The default statistics.
-        ifs_stats (dict): The IFS statistics.
+    def get_stat(stat_dict, stat_name, variable, is_3d, sel_kwargs):
+        return (
+            stat_dict[stat_name][variable].sel(**sel_kwargs)
+            if is_3d
+            else stat_dict[stat_name][variable]
+        )
 
-    Returns:
-        dict: A dictionary containing the y-limits.
-    """
-    y_lims_rmse = {}
-    y_lims_spread_skill_ratio = {}
-    y_lims_timeseries = {}
-    y_lims_energy_spectra = {}
+    stat_names = [
+        "ts_fc_mean",
+        "ts_fc_mean_unperturbed",
+        "ts_gt_mean",
+        "rmse",
+        "rmse_mean",
+        "rmse_unperturbed",
+        "sr_ensemble_spread",
+        "sr_spread_skill_ratio",
+        "energy_spectra_forecast",
+        "energy_spectra_unperturbed",
+        "energy_spectra_ground_truth",
+    ]
 
     for variable in vars_3d + vars_2d:
         is_3d = variable in vars_3d
@@ -383,74 +460,52 @@ def calculate_y_lims(
         for level in levels:
             sel_kwargs = {"isobaricInhPa": level} if is_3d else {}
 
-            def get_stat(stat_dict, stat_name):
-                return (
-                    stat_dict[stat_name][variable].sel(**sel_kwargs)
-                    if is_3d
-                    else stat_dict[stat_name][variable]
-                )
+            ts_min, ts_max = float('inf'), float('-inf')
+            energy_min, energy_max = float('inf'), float('-inf')
+            rmse_min, rmse_max = float('inf'), float('-inf')
+            spread_skill_min, spread_skill_max = float('inf'), float('-inf')
+            ensemble_spread_min, ensemble_spread_max = float(
+                'inf'), float('-inf')
 
-            rmse_min = min(
-                get_stat(default_stats, "rmse").min().values,
-                get_stat(ifs_stats, "rmse").min().values,
-            )
-            rmse_max = max(
-                get_stat(default_stats, "rmse").max().values,
-                get_stat(ifs_stats, "rmse").max().values,
-            )
-            spread_skill_ratio_min = min(
-                get_stat(default_stats, "spread_skill_ratio").min().values,
-                get_stat(ifs_stats, "spread_skill_ratio").min().values,
-            )
-            spread_skill_ratio_max = max(
-                get_stat(default_stats, "spread_skill_ratio").max().values,
-                get_stat(ifs_stats, "spread_skill_ratio").max().values,
-            )
-            ensemble_spread_min = min(
-                get_stat(default_stats, "ensemble_spread").min().values,
-                get_stat(ifs_stats, "ensemble_spread").min().values,
-            )
-            ensemble_spread_max = max(
-                get_stat(default_stats, "ensemble_spread").max().values,
-                get_stat(ifs_stats, "ensemble_spread").max().values,
-            )
-            timeseries_min = min(
-                get_stat(default_stats, "fc_mean").min().values,
-                get_stat(ifs_stats, "fc_mean").min().values,
-            )
-            timeseries_max = max(
-                get_stat(default_stats, "fc_mean").max().values,
-                get_stat(ifs_stats, "fc_mean").max().values,
-            )
+            for stat_name in stat_names:
+                default_stat = get_stat(
+                    default_stats, stat_name, variable, is_3d, sel_kwargs)
+                ifs_stat = get_stat(
+                    ifs_stats, stat_name, variable, is_3d, sel_kwargs)
 
-            y_lims_rmse[(variable, level)] = (rmse_min, rmse_max)
-            y_lims_spread_skill_ratio[(variable, level)] = (
-                (spread_skill_ratio_min, spread_skill_ratio_max),
-                (ensemble_spread_min, ensemble_spread_max),
-            )
-            y_lims_timeseries[(variable, level)] = (
-                timeseries_min, timeseries_max)
+                stat_min = min(
+                    default_stat.min().values,
+                    ifs_stat.min().values,)
+                stat_max = max(
+                    default_stat.max().values,
+                    ifs_stat.max().values,)
 
-            energy_spectra_min = min(
-                default_stats["energy_spectra"][variable]
-                ["forecast"].sel(level=level).power.min().values,
-                ifs_stats["energy_spectra"][variable]
-                ["forecast"].sel(level=level).power.min().values,)
-            energy_spectra_max = max(
-                default_stats["energy_spectra"][variable]
-                ["forecast"].sel(level=level).power.max().values,
-                ifs_stats["energy_spectra"][variable]
-                ["forecast"].sel(level=level).power.max().values,)
-            y_lims_energy_spectra[(variable, level)] = (
-                energy_spectra_min,
-                energy_spectra_max,
-            )
+                if stat_name.startswith("ts"):
+                    ts_min = min(ts_min, stat_min)
+                    ts_max = max(ts_max, stat_max)
+                elif stat_name.startswith("energy"):
+                    energy_min = min(energy_min, stat_min)
+                    energy_max = max(energy_max, stat_max)
+                elif stat_name.startswith("rmse"):
+                    rmse_min = min(rmse_min, stat_min)
+                    rmse_max = max(rmse_max, stat_max)
+                elif stat_name == "sr_spread_skill_ratio":
+                    spread_skill_min = min(spread_skill_min, stat_min)
+                    spread_skill_max = max(spread_skill_max, stat_max)
+                elif stat_name == "sr_ensemble_spread":
+                    ensemble_spread_min = min(ensemble_spread_min, stat_min)
+                    ensemble_spread_max = max(ensemble_spread_max, stat_max)
+
+            y_lims["y_lims_timeseries"][(variable, level)] = (ts_min, ts_max)
+            y_lims["y_lims_energy_spectra"][
+                (variable, level)] = (
+                energy_min, energy_max)
+            y_lims["y_lims_rmse"][(variable, level)] = (rmse_min, rmse_max)
+            y_lims["y_lims_spread_skill_ratio"][
+                (variable, level)] = (
+                (spread_skill_min, spread_skill_max),
+                (ensemble_spread_min, ensemble_spread_max))
 
     print("Y-limits calculated")
 
-    return {
-        "y_lims_rmse": y_lims_rmse,
-        "y_lims_spread_skill_ratio": y_lims_spread_skill_ratio,
-        "y_lims_timeseries": y_lims_timeseries,
-        "y_lims_energy_spectra": y_lims_energy_spectra,
-    }
+    return y_lims

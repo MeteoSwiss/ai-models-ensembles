@@ -1,11 +1,11 @@
 #!/usr/bin/bash -l
 #SBATCH --job-name=ai-models-ensembles
 #SBATCH --nodes=1
-#SBATCH --partition=normal
+#SBATCH --partition=debug
 #SBATCH --account=s83
 #SBATCH --output=logs/out.log
 #SBATCH --error=logs/err.log
-#SBATCH --time=24:00:00
+#SBATCH --time=00:30:00
 #SBATCH --no-requeue
 #SBATCH --mem=444G
 
@@ -14,7 +14,7 @@ export MODEL_NAME=graphcast # fourcastnetv2-small, graphcast
 export PERTURBATION_INIT=0.0
 export PERTURBATION_LATENT=0.005
 export NUM_MEMBERS=2
-export CROP_REGION=europe # Crop to a specific region
+export CROP_REGION=global # Crop to a specific region
 export OUTPUT_DIR=/scratch/mch/sadamov/pyprojects_data/ai-models-ensembles
 
 # Some paths to avoid using popd and pushd + relative paths

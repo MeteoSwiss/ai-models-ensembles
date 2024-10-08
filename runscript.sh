@@ -86,16 +86,16 @@ done
 
 python -u -m ai_models_ensembles.create_zarr "$PERTURBATION_DIR" --subdir_search True
 
-if ! test -d "${REGION_DIR}/png_${MODEL_NAME}"; then
+# if ! test -d "${REGION_DIR}/png_${MODEL_NAME}"; then
     echo "Evaluating model and generating figures"
     python -u -m ai_models_ensembles.evaluation "$OUTPUT_DIR" "$DATE_TIME" "$MODEL_NAME" "$PERTURBATION_INIT" \
             "$PERTURBATION_LATENT" "$NUM_MEMBERS" "$CROP_REGION"
-fi
+# fi
 
 # if [ -z "$(find "${PERTURBATION_DIR}/0/${CROP_REGION}/animations/" -name '*gif' -print -quit 2>/dev/null)" ]; then
     echo "Generating Animations"
-    # python -u -m ai_models_ensembles.animator "$OUTPUT_DIR" "$DATE_TIME" "$MODEL_NAME" "$PERTURBATION_INIT" \
-    #         "$PERTURBATION_LATENT" "$NUM_MEMBERS" "$CROP_REGION"
+    python -u -m ai_models_ensembles.animator "$OUTPUT_DIR" "$DATE_TIME" "$MODEL_NAME" "$PERTURBATION_INIT" \
+            "$PERTURBATION_LATENT" "$NUM_MEMBERS" "$CROP_REGION"
     python -u -m ai_models_ensembles.animator_3d "$OUTPUT_DIR" "$DATE_TIME" "$MODEL_NAME" "$PERTURBATION_INIT" \
             "$PERTURBATION_LATENT" "$NUM_MEMBERS" "$CROP_REGION"
 # fi
