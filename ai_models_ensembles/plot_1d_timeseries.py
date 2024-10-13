@@ -10,7 +10,7 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from scipy.stats import gaussian_kde
 
-from .data_load_preproc import (
+from .preprocess_data import (
     calculate_stats,
     calculate_y_lims,
     load_and_prepare_data,
@@ -323,35 +323,6 @@ def plot_rank_histogram(
     unique_ranks, rank_counts = np.unique(gt_rank.values, return_counts=True)
     rank_counts = dict(zip(unique_ranks, rank_counts))
 
-    # # ---------------------------------------------------
-    # ensemble_values = combined_sample.drop_sel(member=9999).values.flatten()
-    # ground_truth_values = combined_sample.sel(member=9999).values.flatten()
-
-    # # Estimate the PDF for each dataset
-    # ensemble_kde = gaussian_kde(ensemble_values)
-    # ground_truth_kde = gaussian_kde(ground_truth_values)
-
-    # # Generate x-values for plotting
-    # x_min = min(ensemble_values.min(), ground_truth_values.min())
-    # x_max = max(ensemble_values.max(), ground_truth_values.max())
-    # x = np.linspace(x_min, x_max, 1000)
-
-    # # Evaluate the PDFs at the x-values
-    # ensemble_pdf = ensemble_kde(x)
-    # ground_truth_pdf = ground_truth_kde(x)
-
-    # plt.figure(figsize=(10, 6))
-    # plt.plot(x, ensemble_pdf, label="Ensemble Members", color="b")
-    # plt.plot(x, ground_truth_pdf, label="Ground Truth", color="r")
-    # plt.title(
-    #     f"Density Distribution of Values for {variable}\nRegion: {region},"
-    #     f"Init Date: {date_time}, Model: {model_name}"
-    # )
-    # plt.xlabel(f'Value in {ground_truth[variable].attrs["units"]}')
-    # plt.ylabel("Density")
-    # plt.legend()
-    # plt.savefig(f"density_distribution_{variable}.png")
-    # plt.close()
 
     # Plot the rank histogram
     fig, ax = plt.subplots(figsize=(12, 9))
@@ -461,7 +432,18 @@ def plot_energy_spectra(
     # Get the minimum and maximum values of the wavenumber from the data
     wavenumber_min, wavenumber_max = ax.get_xlim()
 
-    # Add reference lines for k^(-3) and k^(-5/3) slopes
+    # k ^ (-3) slope: This slope is associated with the theory of two - dimensional
+    # turbulence and is often referred to as the enstrophy cascade. It was proposed by
+    # Robert Kraichnan in the 1960s. In the atmosphere, this slope is typically observed
+    # at larger scales(low wavenumbers) and is associated with quasi - two -
+    # dimensional, rotational dynamics dominated by the Earth's rotation and
+    # stratification. 
+    # k ^ (-5 / 3) slope: This slope is associated with the theory of
+    # three - dimensional turbulence and is often referred to as the energy cascade or
+    # Kolmogorov spectrum. It was first proposed by Andrey Kolmogorov in the 1940s. In
+    # the atmosphere, this slope is typically observed at smaller scales(high
+    # wavenumbers) where the flow behaves more like three - dimensional isotropic
+    # turbulence.
     k_range = np.logspace(
         np.log10(wavenumber_min),
         np.log10(wavenumber_max),
@@ -941,3 +923,22 @@ if __name__ == "__main__":
         args_dict["model_names"] = [args_dict.pop("model_name"), "IFS ENS"]
 
         plot_spread_skill_ratio(**args_dict)
+
+
+        import matplotlib.pyplot as plt
+        import numpy as np
+
+        # Sample data
+        x = np.linspace(0, 10, 100)
+        y = np.sin(x)
+
+        # Create a simple plot
+        plt.figure(figsize=(10, 6))
+        plt.plot(x, y, label='Sine Wave')
+        plt.xlabel('X-axis')
+        plt.ylabel('Y-axis')
+        plt.title('Simple Sine Wave Plot')
+        plt.legend()
+        plt.grid(True)
+        plt.savefig(os.path.join(path_out, 'simple_sine_wave_plot.png'))
+        plt.close()

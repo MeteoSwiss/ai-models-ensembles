@@ -46,7 +46,7 @@ fi
 mamba activate ai-models
 
 if [ ! -x runscript.sh ]; then
-    chmod +x $SRC_DIR/runscript.sh
+    chmod +x $SRC_DIR/ensemble_forecast_pipeline.sh
 fi
 
-srun $SRC_DIR/runscript.sh
+srun $SRC_DIR/ensemble_forecast_pipeline.sh

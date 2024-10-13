@@ -1,9 +1,12 @@
 import argparse
 
+import dask
 import numpy as np
 import seaborn as sns
 import xarray as xr
 from scipy import signal
+
+dask.config.set(**{'array.slicing.split_large_chunks': True})
 
 
 def parse_args():
@@ -12,6 +15,8 @@ def parse_args():
 
     Returns:
         tuple: A tuple containing the arguments and the configuration.
+            args (argparse.Namespace): The parsed arguments.
+            config (dict): The configuration.
     """
 
     parser = argparse.ArgumentParser(
@@ -119,8 +124,8 @@ def load_and_prepare_data(
             latitude=lats, longitude=lons)
         forecast_ifs = forecast_ifs.sel(latitude=lats, longitude=lons)
     else:
-        lat_min, lat_max = -90, 90
-        lon_min, lon_max = 0, 360
+        lat_min, lat_max = ground_truth.latitude.isel(latitude=[0, -1])
+        lon_min, lon_max = ground_truth.longitude.isel(longitude=[0, -1])
 
     # align ifs forecast with forecast dimensions
     forecast_ifs = (
@@ -264,7 +269,7 @@ def calculate_stats(ground_truth, forecast, forecast_unperturbed, crop_region):
     if crop_region == "europe":
         lat_min, lat_max = 25, 80
     else:
-        lat_min, lat_max = -90, 90
+        lat_min, lat_max = ground_truth.latitude.isel(latitude=[0, -1])
 
     ensemble_spread_grid = forecast.std(dim="member").drop_isel(step=0)
     spread_skill_ratio_grid = ensemble_spread_grid / rmse_grid
@@ -281,7 +286,7 @@ def calculate_stats(ground_truth, forecast, forecast_unperturbed, crop_region):
     # km.
 
     def calculate_energy_spectra(
-            forecast, forecast_unperturbed, ground_truth, lat_band=(-90, 90)):
+            forecast, forecast_unperturbed, ground_truth, lat_band):
         energy_spectra_forecast = []
         energy_spectra_unperturbed = []
         energy_spectra_ground_truth = []
@@ -341,7 +346,7 @@ def calculate_stats(ground_truth, forecast, forecast_unperturbed, crop_region):
 
                     # Convert wavenumber to rad/km (assuming Earth's radius of
                     # 6371 km)
-                    wavenumber_rad_km = wavenumber / (2 * np.pi * 6371)
+                    # wavenumber_rad_km = wavenumber / (2 * np.pi * 6371)
 
                     power_spectra.append(power_spectrum)
                     wavenumbers.append(wavenumber)

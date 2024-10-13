@@ -4,14 +4,14 @@ import cartopy.crs as ccrs
 import matplotlib.animation as animation
 import matplotlib.pyplot as plt
 
-from .data_load_preproc import load_and_prepare_data, parse_args
+from .preprocess_data import load_and_prepare_data, parse_args
 
 
 def create_plot(ax, data, var, level, step, title_prefix, lat, lon):
     is_surface = level == "surface"
 
     if not is_surface:
-        plot_data = data[var].isel(isobaricInhPa=level, step=step).values
+        plot_data = data[var].sel(isobaricInhPa=level).isel(step=step).values
     else:
         plot_data = data[var].isel(step=step).values
 
@@ -100,17 +100,15 @@ def process_member(member, forecast, ground_truth,
     path_gif = f"{path_forecast}/{args.crop_region}/{member}/animations"
     os.makedirs(path_gif, exist_ok=True)
     variables = forecast.data_vars
-    pressure_levels = forecast.isobaricInhPa.values if "isobaricInhPa" in forecast.dims else []
     for var in variables:
         print("Creating animation for member", member, "and variable:", var)
         if "isobaricInhPa" in forecast[var].dims:
-            if args.print_pressure_levels:
-                for level in pressure_levels:
-                    fig, updatefig = plot_variable(
-                        forecast.sel(member=member),
-                        ground_truth, var, level, lat, lon)
-                    create_and_save_animation(
-                        path_gif, ground_truth, var, level, fig, updatefig)
+            for level in forecast.isobaricInhPa.values:
+                fig, updatefig = plot_variable(
+                    forecast.sel(member=member),
+                    ground_truth, var, level, lat, lon)
+                create_and_save_animation(
+                    path_gif, ground_truth, var, level, fig, updatefig)
         else:
             fig, updatefig = plot_variable(
                 forecast.sel(member=member),

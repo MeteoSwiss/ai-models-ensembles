@@ -8,7 +8,7 @@ import numpy as np
 import xarray as xr
 from matplotlib.colors import TwoSlopeNorm
 
-from .data_load_preproc import load_and_prepare_data, parse_args
+from .preprocess_data import load_and_prepare_data, parse_args
 
 
 def power_alpha_scale(data, epsilon=1e-6, power=0.5):
