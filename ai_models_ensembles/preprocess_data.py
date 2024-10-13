@@ -2,6 +2,7 @@ import argparse
 
 import dask
 import numpy as np
+import scores
 import seaborn as sns
 import xarray as xr
 from scipy import signal
@@ -248,7 +249,8 @@ def calculate_stats(ground_truth, forecast, forecast_unperturbed, crop_region):
     fc_mean_unperturbed = forecast_unperturbed.mean(
         dim=["latitude", "longitude"])
     gt_mean = ground_truth.mean(dim=["latitude", "longitude"])
-    squared_diff = (forecast - ground_truth) ** 2
+    diff = forecast - ground_truth
+    squared_diff = diff ** 2
     squared_diff_mean = (forecast.mean(dim="member") - ground_truth) ** 2
     rmse_grid = np.sqrt(squared_diff.mean(dim="member")).drop_isel(step=0)
     rmse = np.sqrt(
@@ -277,6 +279,17 @@ def calculate_stats(ground_truth, forecast, forecast_unperturbed, crop_region):
         dim=["latitude", "longitude"])
     ensemble_spread = ensemble_spread_grid.mean(dim=["latitude", "longitude"])
 
+    # Now compute CRPS
+    crps = scores.probability.crps_for_ensemble(
+        forecast,
+        ground_truth,
+        ensemble_member_dim="member",
+        method="ecdf",
+        preserve_dims=["step","latitude", "longitude", "isobaricInhPa"],
+    )
+    print(crps)
+
+
     # Detrending the data using the detrend function from scipy.signal to remove any
     # linear trends. Applying a window function (Hann window) to the detrended data
     # using the windows.hann function from scipy.signal to reduce spectral leakage.
@@ -284,7 +297,7 @@ def calculate_stats(ground_truth, forecast, forecast_unperturbed, crop_region):
     # account for the window function and the data size. Updating the wavenumber
     # calculation to convert from wavenumber to rad/km, assuming Earth's radius of 6371
     # km.
-
+    
     def calculate_energy_spectra(
             forecast, forecast_unperturbed, ground_truth, lat_band):
         energy_spectra_forecast = []
@@ -417,6 +430,7 @@ def calculate_stats(ground_truth, forecast, forecast_unperturbed, crop_region):
         "ts_fc_mean": fc_mean,
         "ts_fc_mean_unperturbed": fc_mean_unperturbed,
         "ts_gt_mean": gt_mean,
+        "diff": diff,
         "rmse": rmse,
         "rmse_mean": rmse_mean,
         "rmse_unperturbed": rmse_unperturbed,
@@ -425,8 +439,9 @@ def calculate_stats(ground_truth, forecast, forecast_unperturbed, crop_region):
         "energy_spectra_forecast": energy_spectra_forecast,
         "energy_spectra_unperturbed": energy_spectra_unperturbed,
         "energy_spectra_ground_truth": energy_spectra_ground_truth,
+        "crps": crps,
+        "ensemble_spread_grid": ensemble_spread_grid,
     }
-
 
 def calculate_y_lims(
         vars_3d, vars_2d, forecast, forecast_ifs, default_stats, ifs_stats):

@@ -1,7 +1,7 @@
 #!/usr/bin/bash -l
 #SBATCH --job-name=ai-models-ensembles
 #SBATCH --nodes=1
-#SBATCH --partition=debug
+#SBATCH --partition=postproc
 #SBATCH --account=s83
 #SBATCH --output=logs/out.log
 #SBATCH --error=logs/err.log
