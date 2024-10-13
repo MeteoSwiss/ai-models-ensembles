@@ -54,7 +54,7 @@ def parse_args():
             ["#f75b78", "#6495ed", "#0e2d75", "#f9c740", "#45b7aa", "#353434"]
         ),
         "sample_size": 100000,
-        "selected_vars": ["t2m", "t"],
+        "selected_vars": ["t2m", "u10", "v10", "t"],
     }
 
     return args, config
