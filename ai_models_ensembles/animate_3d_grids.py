@@ -1,11 +1,9 @@
-import multiprocessing
 import os
 
 import matplotlib.animation as animation
 import matplotlib.cm as cm
 import matplotlib.pyplot as plt
 import numpy as np
-import xarray as xr
 from matplotlib.colors import TwoSlopeNorm
 
 from .preprocess_data import load_and_prepare_data, parse_args
@@ -18,14 +16,14 @@ def power_alpha_scale(data, epsilon=1e-6, power=0.5):
     else:
         normalized_data = np.abs(data) / max_abs_value + epsilon
         # Apply a power scaling to make values close to zero more transparent
-        alpha = normalized_data ** power
+        alpha = normalized_data**power
         alpha = np.clip(alpha, 0, 1)
         if not isinstance(alpha, np.ndarray):
             alpha = alpha.values
         return alpha
 
 
-def calculate_rgba(data, norm, cmap_name='RdBu_r'):
+def calculate_rgba(data, norm, cmap_name="RdBu_r"):
     rgb = plt.get_cmap(cmap_name)(norm(data))
     alpha = power_alpha_scale(data)
     # Add a new axis to make alpha three-dimensional
@@ -34,15 +32,17 @@ def calculate_rgba(data, norm, cmap_name='RdBu_r'):
     return rgba
 
 
-def plot_variable_3d(difference, var, member, step,
-                     fig, ax, mappable, vmin, vmax, args):
+def plot_variable_3d(
+    difference, var, member, step, fig, ax, mappable, vmin, vmax, args
+):
     ax.cla()
 
     ax.set_title(
         "Differences Perturbed - Unperturbed Forecast \n"
         # BUG: seperate the two
         f"Initial Perturbation of T: {args.perturbation_init} - Latent Perturbation: {args.perturbation_latent}\n"
-        f"Variable: {var.upper()} - Member: {member:02} - Step: {step:02}")
+        f"Variable: {var.upper()} - Member: {member:02} - Step: {step:02}"
+    )
     ax.title.set_position([0.6, 1.03])
     norm = TwoSlopeNorm(vmin=vmin, vcenter=0, vmax=vmax)
     data = difference[var].isel(step=step)
@@ -66,30 +66,29 @@ def plot_variable_3d(difference, var, member, step,
         ax.plot_surface(X, Y, Z, facecolors=rgba, shade=False)
         ax.set_zticks([0])  # Only show the 0 label on the z-axis
 
-    ax.set_xlabel('Longitude')
-    ax.set_ylabel('Latitude')
-    ax.set_zlabel('Level')
-    ax.tick_params(axis='x', colors='darkgray')
-    ax.tick_params(axis='y', colors='darkgray')
-    ax.tick_params(axis='z', colors='darkgray')
+    ax.set_xlabel("Longitude")
+    ax.set_ylabel("Latitude")
+    ax.set_zlabel("Level")
+    ax.tick_params(axis="x", colors="darkgray")
+    ax.tick_params(axis="y", colors="darkgray")
+    ax.tick_params(axis="z", colors="darkgray")
 
     return fig, ax
 
     # Set the color of the tick labels to dark gray
 
 
-def update_plot(num, difference, var, fig, ax,
-                member, mappable, vmin, vmax, args):
-    fig, ax = plot_variable_3d(difference, var, member, num,
-                               fig, ax, mappable, vmin, vmax, args)
+def update_plot(num, difference, var, fig, ax, member, mappable, vmin, vmax, args):
+    fig, ax = plot_variable_3d(
+        difference, var, member, num, fig, ax, mappable, vmin, vmax, args
+    )
     return fig, ax
 
 
-def create_and_save_animation(
-        path, difference, var, member, unit, vmin, vmax, args):
+def create_and_save_animation(path, difference, var, member, unit, vmin, vmax, args):
     fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    mappable = cm.ScalarMappable(cmap='RdBu_r')
+    ax = fig.add_subplot(111, projection="3d")
+    mappable = cm.ScalarMappable(cmap="RdBu_r")
     mappable.set_array([])
 
     # Ensure vmin and vmax are symmetrical around zero
@@ -97,37 +96,36 @@ def create_and_save_animation(
     vmin, vmax = -max_abs, max_abs
 
     mappable.set_clim(vmin, vmax)
-    fig, ax = plot_variable_3d(difference, var, member, 0,
-                               fig, ax, mappable, vmin, vmax, args)
+    fig, ax = plot_variable_3d(
+        difference, var, member, 0, fig, ax, mappable, vmin, vmax, args
+    )
     cbar = fig.colorbar(
         mappable,
         ax=ax,
-        orientation='vertical',
+        orientation="vertical",
         shrink=0.5,
         pad=0.2,
-        label=f"{var.upper()} [{unit}]")
+        label=f"{var.upper()} [{unit}]",
+    )
 
     for label in cbar.ax.get_yticklabels():
-        label.set_color('darkgray')
+        label.set_color("darkgray")
 
     ani = animation.FuncAnimation(
-        fig, update_plot, frames=difference.step.size,
-        fargs=(difference, var, fig, ax, member, mappable, vmin, vmax, args))
-    ani.save(f"{path}/{var}_difference.gif", writer='imagemagick')
+        fig,
+        update_plot,
+        frames=difference.step.size,
+        fargs=(difference, var, fig, ax, member, mappable, vmin, vmax, args),
+    )
+    ani.save(f"{path}/{var}_difference.gif", writer="imagemagick")
     plt.close()
 
 
-def process_member(member, forecast, forecast_unperturbed,
-                   path_forecast, args, config):
-    path_gif = os.path.join(
-        path_forecast,
-        args.crop_region,
-        str(member),
-        "animations")
+def process_member(member, forecast, forecast_unperturbed, path_forecast, args, config):
+    path_gif = os.path.join(path_forecast, args.crop_region, str(member), "animations")
     os.makedirs(path_gif, exist_ok=True)
     variables = config["selected_vars"]
-    difference = forecast.sel(
-        member=member) - forecast_unperturbed
+    difference = forecast.sel(member=member) - forecast_unperturbed
 
     for var in variables:
         print("Creating difference animation for variable: ", var)
@@ -135,14 +133,8 @@ def process_member(member, forecast, forecast_unperturbed,
         vmin = difference[var].min().values
         vmax = difference[var].max().values
         create_and_save_animation(
-            path_gif,
-            difference,
-            var,
-            member,
-            unit,
-            vmin,
-            vmax,
-            args)
+            path_gif, difference, var, member, unit, vmin, vmax, args
+        )
 
 
 def main():
@@ -152,7 +144,8 @@ def main():
         args.out_dir,
         str(args.date_time),
         args.model_name,
-        f"init_{args.perturbation_init}_latent_{args.perturbation_latent}")
+        f"init_{args.perturbation_init}_latent_{args.perturbation_latent}",
+    )
 
     data = load_and_prepare_data(
         path_in,
@@ -176,11 +169,16 @@ def main():
     #                    args,
     #                    config) for member in members_to_plot])
 
-
     for member in members_to_plot:
-        process_member(member, data["forecast"],
-                       data["forecast_unperturbed"],
-                       path_forecast, args, config)
+        process_member(
+            member,
+            data["forecast"],
+            data["forecast_unperturbed"],
+            path_forecast,
+            args,
+            config,
+        )
+
 
 if __name__ == "__main__":
     main()

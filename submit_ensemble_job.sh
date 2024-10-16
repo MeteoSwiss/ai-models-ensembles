@@ -36,14 +36,14 @@ else
 fi
 
 # if conda env ai-models does not exist then create it
-if ! mamba env list | grep -q ai-models; then
+if ! conda env list | grep -q ai-models; then
     mamba env create -n ai-models -f $SRC_DIR/environment.yml
-    mamba activate ai-models
+    conda activate ai-models
     pip install -r $SRC_DIR/requirements.txt -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
     pip install -e $SRC_DIR
 fi
 
-mamba activate ai-models
+conda activate ai-models
 
 if [ ! -x runscript.sh ]; then
     chmod +x $SRC_DIR/ensemble_forecast_pipeline.sh

@@ -287,7 +287,6 @@ def calculate_stats(ground_truth, forecast, forecast_unperturbed, crop_region):
         method="ecdf",
         preserve_dims=["step","latitude", "longitude", "isobaricInhPa"],
     )
-    print(crps)
 
 
     # Detrending the data using the detrend function from scipy.signal to remove any

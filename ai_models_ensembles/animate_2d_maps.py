@@ -9,96 +9,142 @@ from .preprocess_data import calculate_stats, load_and_prepare_data, parse_args
 
 
 def create_plot(ax, data, var, level, step, title_prefix, lat, lon):
-    is_surface = level == "surface"
+    """
+    Create a plot for a given variable, level, and time step.
 
-    if not is_surface:
-        plot_data = data[var].sel(isobaricInhPa=level).isel(step=step).values
-    else:
-        plot_data = data[var].isel(step=step).values
+    Args:
+        ax: Matplotlib axis object
+        data: xarray dataset
+        var: Variable to plot
+        level: Level to plot
+        step: Time step to plot
+        title_prefix: Prefix for the title
+        lat: Latitude values
+        lon: Longitude values
+
+    Returns:
+        im: Matplotlib image object
+    """
+    print(data)
+    plot_data = data.isel(step=step).values
 
     im = ax.pcolormesh(
-        lon,
-        lat,
-        plot_data,
-        cmap="plasma",
-        transform=ccrs.PlateCarree(),
-        animated=True)
+        lon, lat, plot_data, cmap="plasma", transform=ccrs.PlateCarree(), animated=True
+    )
 
-    ax.set_title(
-        f"{title_prefix} {var} at {'surface' if is_surface else level}, {(step+1)*6} hours")
+    ax.set_title(f"{title_prefix} {var} at {level}, {(step+1)*6} hours")
     ax.coastlines()
     ax.set_xticks([])
     ax.set_yticks([])
     return im
 
-def create_update_function(forecast, ground_truth, var, level,
-                           image1, image2, axes, lat, lon):
+
+def create_update_function(
+    forecast, ground_truth, var, level, image1, image2, axes, lat, lon
+):
+    """
+    Create an update function for the animation.
+
+    Args:
+        forecast: Forecast data
+        ground_truth: Ground truth data
+        var: Variable to plot
+        level: Level to plot
+        image1: Matplotlib image object for forecast
+        image2: Matplotlib image object for ground truth
+        axes: Matplotlib axes object
+        lat: Latitude values
+        lon: Longitude values
+
+        Returns:
+        updatefig: Update function for the animation
+    """
+
     def updatefig(i):
-        is_surface = level == "surface"
         for image, data, ax, title_prefix in zip(
             [image1, image2],
             [forecast, ground_truth],
-            axes, ["Forecast", "Ground Truth"]):
-            if not is_surface:
-                plot_data = data[var].sel(isobaricInhPa=level).isel(step=i).values
-            else:
-                plot_data = data[var].isel(step=i).values
+            axes,
+            ["Forecast", "Ground Truth"],
+        ):
+            plot_data = data.isel(step=i).values
             image.set_array(plot_data.ravel())
-            ax.set_title(
-                f"{title_prefix} {var} at {'surface' if is_surface else level}, {(i+1)*6} hours")
-        return image1, image2,
+            ax.set_title(f"{title_prefix} {var} at {level}, {(i+1)*6} hours")
+        return (
+            image1,
+            image2,
+        )
+
     return updatefig
 
+
 def plot_variable(forecast, ground_truth, var, level, lat, lon):
-    fig, axes = plt.subplots(2, figsize=(10, 15), subplot_kw={
-                             'projection': ccrs.PlateCarree()})
-    image1 = create_plot(
-        axes[0],
-        forecast,
-        var,
-        level,
-        0,
-        "Forecast",
-        lat,
-        lon)
-    image2 = create_plot(
-        axes[1],
-        ground_truth,
-        var,
-        level,
-        0,
-        "Ground Truth",
-        lat,
-        lon)
+    """
+    Plot a variable for a given forecast and ground truth data.
+
+    Args:
+        forecast: Forecast data
+        ground_truth: Ground truth data
+        var: Variable to plot
+        level: Level to plot
+        lat: Latitude values
+        lon: Longitude values
+
+    Returns:
+        fig: Matplotlib figure object
+        updatefig: Update function for the animation
+    """
+    fig, axes = plt.subplots(
+        2, figsize=(10, 15), subplot_kw={"projection": ccrs.PlateCarree()}
+    )
+    image1 = create_plot(axes[0], forecast, var, level, 0, "Forecast", lat, lon)
+    image2 = create_plot(axes[1], ground_truth, var, level, 0, "Ground Truth", lat, lon)
     updatefig = create_update_function(
-        forecast,
-        ground_truth,
-        var,
-        level,
-        image1,
-        image2,
-        axes,
-        lat,
-        lon)
+        forecast, ground_truth, var, level, image1, image2, axes, lat, lon
+    )
     return fig, updatefig
 
-def create_and_save_animation(path, data, var, level, fig, updatefig, metric_name='comparison'):
+
+def create_and_save_animation(
+    path, data, var, level, fig, updatefig, metric_name="comparison"
+):
+    """
+    Create and save an animation for a given dataset.
+
+    Args:
+        path: Path to save the animation
+        data: xarray dataset
+        var: Variable to plot
+        level: Level to plot
+        fig: Matplotlib figure object
+        updatefig: Update function for the animation
+        metric_name: Name of the metric to plot
+    """
     ani = animation.FuncAnimation(
-        fig,
-        updatefig,
-        frames=data.step.size,
-        interval=200,
-        blit=True)
+        fig, updatefig, frames=data.step.size, interval=200, blit=True
+    )
     ani.save(f"{path}/{metric_name}_{var}_{level}.gif", writer="imagemagick")
     plt.close()
 
-def create_plot_metric(ax, metric_data, var, level, step, title_prefix, lat, lon):
-    is_surface = level == "surface"
 
-    if not is_surface:
-        plot_data = metric_data.isel(step=step).values
-    else:
-        plot_data = metric_data.isel(step=step).values
+def create_plot_metric(ax, metric_data, var, level, step, title_prefix, lat, lon):
+    """
+    Create a plot for a given metric, level, and time step.
+
+    Args:
+        ax: Matplotlib axis object
+        metric_data: xarray dataset
+        var: Variable to plot
+        level: Level to plot
+        step: Time step to plot
+        title_prefix: Prefix for the title
+        lat: Latitude values
+        lon: Longitude values
+
+    Returns:
+        im: Matplotlib image object
+    """
+    plot_data = metric_data.isel(step=step).values
 
     # Set color map limits based on the metric
     if title_prefix == "Error":
@@ -122,148 +168,380 @@ def create_plot_metric(ax, metric_data, var, level, step, title_prefix, lat, lon
         vmin=vmin,
         vmax=vmax,
         transform=ccrs.PlateCarree(),
-        animated=True)
+        animated=True,
+    )
 
-    ax.set_title(
-        f"{title_prefix} of {var} at {'surface' if is_surface else level}, {(step+1)*6} hours")
+    ax.set_title(f"{title_prefix} of {var} at {level}, {(step+1)*6} hours")
     ax.coastlines()
     ax.set_xticks([])
     ax.set_yticks([])
     return im
 
-def create_update_function_metric(metric_data, var, level, image, ax, lat, lon, metric_name):
+
+def create_update_function_metric(
+    metric_data, var, level, image, ax, lat, lon, metric_name
+):
+    """
+    Create an update function for the animation.
+
+    Args:
+        metric_data: Metric data
+        var: Variable to plot
+        level: Level to plot
+        image: Matplotlib image object
+        ax: Matplotlib axes object
+        lat: Latitude values
+        lon: Longitude values
+        metric_name: Name of the metric
+
+    Returns:
+        updatefig: Update function for the animation
+    """
+
     def updatefig(i):
-        is_surface = level == "surface"
-        if not is_surface:
-            plot_data = metric_data.isel(step=i).values
-        else:
-            plot_data = metric_data.isel(step=i).values
+        plot_data = metric_data.isel(step=i).values
         image.set_array(plot_data.ravel())
-        ax.set_title(
-            f"{metric_name} of {var} at {'surface' if is_surface else level}, {(i+1)*6} hours")
-        return image,
+        ax.set_title(f"{metric_name} of {var} at {level}, {(i+1)*6} hours")
+        return (image,)
+
     return updatefig
 
+
 def plot_metric(metric_data, var, level, lat, lon, metric_name):
-    fig, ax = plt.subplots(figsize=(10, 5), subplot_kw={
-                           'projection': ccrs.PlateCarree()})
-    image = create_plot_metric(ax, metric_data, var, level,
-                               0, metric_name, lat, lon)
+    """
+    Plot a metric for a given dataset.
+
+    Args:
+        metric_data: Metric data
+        var: Variable to plot
+        level: Level to plot
+        lat: Latitude values
+        lon: Longitude values
+        metric_name: Name of the metric
+
+    Returns:
+        fig: Matplotlib figure object
+        updatefig: Update function for the animation
+    """
+    fig, ax = plt.subplots(
+        figsize=(10, 5), subplot_kw={"projection": ccrs.PlateCarree()}
+    )
+    image = create_plot_metric(ax, metric_data, var, level, 0, metric_name, lat, lon)
     updatefig = create_update_function_metric(
-        metric_data, var, level, image, ax, lat, lon, metric_name)
+        metric_data, var, level, image, ax, lat, lon, metric_name
+    )
     return fig, updatefig
 
-def process_member(member, forecast, ground_truth, stats,
-                   path_forecast, lat, lon, args):
+
+def plot_static_steps(path_gif, data, var, level, lat, lon, metric_name):
+    """
+    Create static plots for a given dataset with a shared colorbar.
+
+    Args:
+        path_gif: Path to save the static plots
+        data: xarray dataset
+        var: Variable to plot
+        level: Level to plot
+        lat: Latitude values
+        lon: Longitude values
+        metric_name: Name of the metric
+    """
+    # Create a figure with 2x2 subplots and a colorbar
+    fig, axes = plt.subplots(
+        2, 2, figsize=(12, 10), subplot_kw={"projection": ccrs.PlateCarree()}
+    )
+    steps = [10, 20, 30, 40]
+
+    # Determine the common color range
+    vmin = np.min([data.isel(step=s).values.min() for s in steps])
+    vmax = np.max([data.isel(step=s).values.max() for s in steps])
+
+    for ax, step in zip(axes.flatten(), steps):
+        plot_data = data.isel(step=step).values
+        im = ax.pcolormesh(
+            lon,
+            lat,
+            plot_data,
+            cmap="plasma",
+            vmin=vmin,
+            vmax=vmax,
+            transform=ccrs.PlateCarree(),
+        )
+        ax.set_title(f"{(step)*6} hours")  # Only show the hour as subtitle
+        ax.coastlines()
+        ax.set_xticks([])
+        ax.set_yticks([])
+
+    # Add a shared colorbar
+    cb_ax = fig.add_axes([0.1, 0.05, 0.8, 0.02])  # Position of the colorbar
+    cbar = fig.colorbar(
+        im, cax=cb_ax, orientation="horizontal", label=f"{var} at {level}"
+    )
+    cbar.ax.tick_params(size=0, width=2)  # Make the colorbar thicker
+
+    # Add main title
+    fig.suptitle(f"{var} at {level}: {metric_name.title()}", fontsize=16)
+
+    # plt.tight_layout(
+    #     rect=[0, 0.05, 1, 0.95]
+    # )  # Adjust layout to accommodate colorbar and main title
+    plt.savefig(f"{path_gif}/{metric_name}_{var}_4fig.png")
+    plt.close(fig)
+
+
+def process_member(
+    member, forecast, ground_truth, stats, path_forecast, lat, lon, args
+):
+    """
+    Process a single ensemble member.
+
+    Args:
+        member: Ensemble member to process
+        forecast: Forecast data
+        ground_truth: Ground truth data
+        stats: Statistics data
+        path_forecast: Path to save the forecast data
+        lat: Latitude values
+        lon: Longitude values
+        args: Parsed command line arguments
+    """
     path_gif = f"{path_forecast}/{args.crop_region}/{member}/animations"
     os.makedirs(path_gif, exist_ok=True)
     variables = forecast.data_vars
     for var in variables:
-        print("Creating animations for member", member, "and variable:", var)
+        print(
+            "Creating animations and static plots for member",
+            member,
+            "and variable:",
+            var,
+        )
         if "isobaricInhPa" in forecast[var].dims:
             for level in forecast.isobaricInhPa.values:
                 # Existing forecast and ground truth animation
+                forecast_var = forecast[var].sel(member=member, isobaricInhPa=level)
+                ground_truth_var = ground_truth[var].sel(isobaricInhPa=level)
                 fig, updatefig = plot_variable(
-                    forecast.sel(member=member),
-                    ground_truth, var, level, lat, lon)
+                    forecast_var, ground_truth_var, var, level, lat, lon
+                )
                 create_and_save_animation(
-                    path_gif, forecast.sel(member=member), var, level, fig, updatefig, metric_name="Forecast_vs_GroundTruth")
+                    path_gif,
+                    forecast_var,
+                    var,
+                    level,
+                    fig,
+                    updatefig,
+                    metric_name="Forecast_vs_GroundTruth",
+                )
+
+                # Create static plot
+                plot_static_steps(
+                    path_gif, forecast_var, var, level, lat, lon, metric_name="Forecast"
+                )
 
                 # Retrieve error data from stats
-                error_data = stats['diff'][var].sel(member=member)
-                if "isobaricInhPa" in error_data.dims:
-                    error_data = error_data.sel(isobaricInhPa=level)
-                else:
-                    level = "surface"
+                error_data = stats["diff"][var].sel(member=member, isobaricInhPa=level)
+
                 # 1. Error
                 fig, updatefig = plot_metric(
-                    error_data, var, level, lat, lon, metric_name="Error")
+                    error_data, var, level, lat, lon, metric_name="Error"
+                )
                 create_and_save_animation(
-                    path_gif, error_data, var, level, fig, updatefig, metric_name='Error')
+                    path_gif,
+                    error_data,
+                    var,
+                    level,
+                    fig,
+                    updatefig,
+                    metric_name="Error",
+                )
+
+                # Create static plot for error
+                plot_static_steps(
+                    path_gif, error_data, var, level, lat, lon, metric_name="Error"
+                )
 
                 # Retrieve RMSE data (root of squared error)
-                rmse_data = np.sqrt(error_data ** 2)
+                rmse_data = np.sqrt(error_data**2)
                 # 2. RMSE
                 fig, updatefig = plot_metric(
-                    rmse_data, var, level, lat, lon, metric_name="RMSE")
+                    rmse_data, var, level, lat, lon, metric_name="RMSE"
+                )
                 create_and_save_animation(
-                    path_gif, rmse_data, var, level, fig, updatefig, metric_name='RMSE')
+                    path_gif, rmse_data, var, level, fig, updatefig, metric_name="RMSE"
+                )
+
+                # Create static plot for RMSE
+                plot_static_steps(
+                    path_gif, rmse_data, var, level, lat, lon, metric_name="RMSE"
+                )
 
         else:
             level = "surface"
             # Existing forecast and ground truth animation
+            forecast_var = forecast[var].sel(member=member)
+            ground_truth_var = ground_truth[var]
             fig, updatefig = plot_variable(
-                forecast.sel(member=member),
-                ground_truth, var, level, lat, lon)
+                forecast_var, ground_truth_var, var, level, lat, lon
+            )
             create_and_save_animation(
-                path_gif, forecast.sel(member=member), var, level, fig, updatefig, metric_name="Forecast_vs_GroundTruth")
+                path_gif,
+                forecast_var,
+                var,
+                level,
+                fig,
+                updatefig,
+                metric_name="Forecast_vs_GroundTruth",
+            )
+
+            # Create static plot
+            plot_static_steps(
+                path_gif, forecast_var, var, level, lat, lon, metric_name="Forecast"
+            )
 
             # Retrieve error data
-            error_data = stats['diff'][var].sel(member=member)
+            error_data = stats["diff"][var].sel(member=member)
             # 1. Error
             fig, updatefig = plot_metric(
-                error_data, var, level, lat, lon, metric_name="Error")
+                error_data, var, level, lat, lon, metric_name="Error"
+            )
             create_and_save_animation(
-                path_gif, error_data, var, level, fig, updatefig, metric_name='Error')
+                path_gif, error_data, var, level, fig, updatefig, metric_name="Error"
+            )
+
+            # Create static plot for error
+            plot_static_steps(
+                path_gif, error_data, var, level, lat, lon, metric_name="Error"
+            )
 
             # Retrieve RMSE data
-            rmse_data = np.sqrt(error_data ** 2)
-            # 2. RMSE
+            rmse_data = np.sqrt(error_data**2)
             fig, updatefig = plot_metric(
-                rmse_data, var, level, lat, lon, metric_name="RMSE")
+                rmse_data, var, level, lat, lon, metric_name="RMSE"
+            )
             create_and_save_animation(
-                path_gif, rmse_data, var, level, fig, updatefig, metric_name='RMSE')
+                path_gif, rmse_data, var, level, fig, updatefig, metric_name="RMSE"
+            )
 
-def process_ensemble_metrics(forecast, ground_truth, stats,
-                             path_forecast, lat, lon, args):
+            # Create static plot for RMSE
+            plot_static_steps(
+                path_gif, rmse_data, var, level, lat, lon, metric_name="RMSE"
+            )
+
+
+def process_ensemble_metrics(
+    forecast, ground_truth, stats, path_forecast, lat, lon, args
+):
+    """
+    Process ensemble metrics.
+
+    Args:
+        forecast: Forecast data
+        ground_truth: Ground truth data
+        stats: Statistics data
+        path_forecast: Path to save the forecast data
+        lat: Latitude values
+        lon: Longitude values
+        args: Parsed command line arguments
+    """
     path_gif = f"{path_forecast}/{args.crop_region}/ensemble/animations"
     os.makedirs(path_gif, exist_ok=True)
     variables = forecast.data_vars
     for var in variables:
-        print("Creating ensemble metrics animations for variable:", var)
+        print(
+            "Creating ensemble metrics animations and static plots for variable:", var
+        )
         if "isobaricInhPa" in forecast[var].dims:
             for level in forecast.isobaricInhPa.values:
                 # 3. CRPS between ensemble members and ground_truth
-                crps_data = stats['crps'][var]
-                if "isobaricInhPa" in crps_data.dims:
-                    crps_data = crps_data.sel(isobaricInhPa=level)
-                else:
-                    level = "surface"
-
-                # 4. Standard deviations across ensemble members
-                ensemble_std = stats['ensemble_spread_grid'][var]
-                if "isobaricInhPa" in ensemble_std.dims:
-                    ensemble_std = ensemble_std.sel(isobaricInhPa=level)
-                else:
-                    level = "surface"
+                crps_data = stats["crps"][var].sel(isobaricInhPa=level)
 
                 # Plot and save the animations
                 fig, updatefig = plot_metric(
-                    crps_data, var, level, lat, lon, metric_name='CRPS')
+                    crps_data, var, level, lat, lon, metric_name="CRPS"
+                )
                 create_and_save_animation(
-                    path_gif, crps_data, var, level, fig, updatefig, metric_name='CRPS')
+                    path_gif, crps_data, var, level, fig, updatefig, metric_name="CRPS"
+                )
 
+                # Create static plot for CRPS
+                plot_static_steps(
+                    path_gif, crps_data, var, level, lat, lon, metric_name="CRPS"
+                )
+
+                # 4. Standard deviations across ensemble members
+                ensemble_std = stats["ensemble_spread_grid"][var].sel(
+                    isobaricInhPa=level
+                )
+
+                # Plot and save the animations
                 fig, updatefig = plot_metric(
-                    ensemble_std, var, level, lat, lon, metric_name='Ensemble Std Dev')
+                    ensemble_std, var, level, lat, lon, metric_name="Ensemble Std Dev"
+                )
                 create_and_save_animation(
-                    path_gif, ensemble_std, var, level, fig, updatefig, metric_name='Ensemble_Std_Dev')
+                    path_gif,
+                    ensemble_std,
+                    var,
+                    level,
+                    fig,
+                    updatefig,
+                    metric_name="Ensemble_Std_Dev",
+                )
+
+                # Create static plot for Ensemble Std Dev
+                plot_static_steps(
+                    path_gif,
+                    ensemble_std,
+                    var,
+                    level,
+                    lat,
+                    lon,
+                    metric_name="Ensemble_Std_Dev",
+                )
         else:
             level = "surface"
             # 3. CRPS
-            crps_data = stats['crps'][var]
-            # 4. Ensemble standard deviation
-            ensemble_std = stats['ensemble_spread_grid'][var]
-
+            crps_data = stats["crps"][var]
             # Plot and save the animations
             fig, updatefig = plot_metric(
-                crps_data, var, level, lat, lon, metric_name='CRPS')
+                crps_data, var, level, lat, lon, metric_name="CRPS"
+            )
             create_and_save_animation(
-                path_gif, crps_data, var, level, fig, updatefig, metric_name='CRPS')
+                path_gif, crps_data, var, level, fig, updatefig, metric_name="CRPS"
+            )
 
+            # Create static plot for CRPS
+            plot_static_steps(
+                path_gif, crps_data, var, level, lat, lon, metric_name="CRPS"
+            )
+
+            # 4. Ensemble standard deviation
+            ensemble_std = stats["ensemble_spread_grid"][var]
+            # Plot and save the animations
             fig, updatefig = plot_metric(
-                ensemble_std, var, level, lat, lon, metric_name='Ensemble Std Dev')
+                ensemble_std, var, level, lat, lon, metric_name="Ensemble Std Dev"
+            )
             create_and_save_animation(
-                path_gif, ensemble_std, var, level, fig, updatefig, metric_name='Ensemble_Std_Dev')
+                path_gif,
+                ensemble_std,
+                var,
+                level,
+                fig,
+                updatefig,
+                metric_name="Ensemble_Std_Dev",
+            )
+
+            # Create static plot for Ensemble Std Dev
+            plot_static_steps(
+                path_gif,
+                ensemble_std,
+                var,
+                level,
+                lat,
+                lon,
+                metric_name="Ensemble_Std_Dev",
+            )
+
+
 def main():
     args, config = parse_args()
     path_in = os.path.join(args.out_dir, str(args.date_time), args.model_name)
@@ -271,7 +549,8 @@ def main():
         args.out_dir,
         str(args.date_time),
         args.model_name,
-        f"init_{args.perturbation_init}_latent_{args.perturbation_latent}")
+        f"init_{args.perturbation_init}_latent_{args.perturbation_latent}",
+    )
 
     data = load_and_prepare_data(
         path_in,
@@ -299,17 +578,20 @@ def main():
 
     for member in members_to_plot:
         process_member(
-            member, data["forecast"],
+            member,
+            data["forecast"],
             data["ground_truth"],
             stats,
-            path_forecast, lat, lon, args)
+            path_forecast,
+            lat,
+            lon,
+            args,
+        )
 
     # Process ensemble metrics
     process_ensemble_metrics(
-        data['forecast'],
-        data['ground_truth'],
-        stats,
-        path_forecast, lat, lon, args)
+        data["forecast"], data["ground_truth"], stats, path_forecast, lat, lon, args
+    )
 
 
 if __name__ == "__main__":
