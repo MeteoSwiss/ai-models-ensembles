@@ -50,7 +50,6 @@ path_store = os.path.join(
 )
 
 ds_list = []
-chunks = {"step": 1}
 
 # If the zarr store already exists, open it
 if os.path.exists(path_store):
@@ -63,6 +62,7 @@ if os.path.exists(path_store):
         f"Found existing zarr store with members: {zarr_store.member.values}")
 else:
     num_existing_members = 0
+
 
 for i, grib_file in enumerate(grib_files):
     print(f"Processing {grib_file}")
@@ -82,6 +82,10 @@ for i, grib_file in enumerate(grib_files):
             ds = xr.merge(ds_list, compat="override")
             ds = ds.assign_coords(member=i + num_existing_members)
             ds = ds.drop_vars("valid_time")
+            if "step" in ds.dims:
+                chunks = {"step": 1}
+            else:
+                chunks = {"time": 1}
             ds = ds.expand_dims({"member": 1})
             ds = ds.chunk(chunks=chunks)
             ds_list = []
