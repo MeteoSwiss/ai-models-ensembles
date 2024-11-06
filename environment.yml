@@ -1,4 +1,4 @@
-name: ai-models
+name: ai_models_ens
 channels:
   - pytorch
   - nvidia
@@ -13,7 +13,7 @@ dependencies:
   - pyproj
   - python=3.11
   - pytorch
-  - pytorch-cuda12.0
+  - pytorch-cuda=12.1
   - seaborn
   - torchaudio
   - torchvision
@@ -22,3 +22,7 @@ dependencies:
     - ai-models
     - ai-models-fourcastnetv2
     - ai-models-graphcast
+    - jax[cuda12]
+    - git+https://github.com/deepmind/graphcast.git
+    - cdsapi
+    - scores
