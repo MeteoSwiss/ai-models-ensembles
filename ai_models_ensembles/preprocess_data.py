@@ -35,6 +35,8 @@ def parse_args():
         "perturbation_latent", type=float, help="The latent perturbation size"
     )
     parser.add_argument(
+        "layer", type=int, help="The layer to evaluate")
+    parser.add_argument(
         "members",
         type=int,
         help="The number of ensemble members")

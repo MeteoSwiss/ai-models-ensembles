@@ -549,7 +549,7 @@ def main():
         args.out_dir,
         str(args.date_time),
         args.model_name,
-        f"init_{args.perturbation_init}_latent_{args.perturbation_latent}",
+        f"init_{args.perturbation_init}_latent_{args.perturbation_latent}_layer_{args.layer}",
     )
 
     data = load_and_prepare_data(

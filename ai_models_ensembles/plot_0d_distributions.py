@@ -3,10 +3,10 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
-import xarray as xr
 import pandas as pd
-from scipy.stats import gaussian_kde, wasserstein_distance
 import seaborn as sns
+import xarray as xr
+from scipy.stats import gaussian_kde, wasserstein_distance
 
 from .preprocess_data import load_and_prepare_data, parse_args
 
@@ -22,6 +22,7 @@ def subsample_da(data_da: xr.DataArray, max_samples: int) -> xr.DataArray:
     else:
         data_sampled = data_da
     return data_sampled
+
 
 def plot_density_distribution(
     variable: str,
@@ -96,7 +97,7 @@ def plot_density_distribution(
     plt.text(
         0.5,
         0.1,
-        f'Normalized Wasserstein distance: {w_distance_normalized:.4f}',
+        f"Normalized Wasserstein distance: {w_distance_normalized:.4f}",
         horizontalalignment="center",
         verticalalignment="center",
         transform=plt.gca().transAxes,
@@ -233,18 +234,12 @@ def prepare_density_distribution_args(
     else:
         # Prepare arguments for individual density distribution plots
         args_list.extend(
-            [
-                {**base_args, "variable": var, "level": None}
-                for var in vars_2d
-            ]
+            [{**base_args, "variable": var, "level": None} for var in vars_2d]
         )
         for var in vars_3d:
             levels = forecast[var].coords["isobaricInhPa"].values
             args_list.extend(
-                [
-                    {**base_args, "variable": var, "level": level}
-                    for level in levels
-                ]
+                [{**base_args, "variable": var, "level": level} for level in levels]
             )
 
     return args_list
@@ -267,7 +262,7 @@ def main():
         args.out_dir,
         str(args.date_time),
         args.model_name,
-        f"init_{args.perturbation_init}_latent_{args.perturbation_latent}",
+        f"init_{args.perturbation_init}_latent_{args.perturbation_latent}_layer_{args.layer}",
         args.crop_region,
         f"png_{args.model_name}",
     )

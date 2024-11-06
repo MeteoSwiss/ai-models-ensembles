@@ -12,45 +12,36 @@ from eccodes import (
 )
 
 # Create an argument parser
-parser = argparse.ArgumentParser(
-    description="Perturb the t2m field in a grib file.")
+parser = argparse.ArgumentParser(description="Perturb the t2m field in a grib file.")
 parser.add_argument("out_dir", type=str, help="The output directory")
 parser.add_argument(
-    "date_time",
-    type=str,
-    help="Date and time in the format YYYYMMDDHHMM")
+    "date_time", type=str, help="Date and time in the format YYYYMMDDHHMM"
+)
 parser.add_argument("model_name", type=str, help="The ai-model name")
+parser.add_argument("perturbation_init", type=float, help="The init perturbation size")
 parser.add_argument(
-    "perturbation_init",
-    type=float,
-    help="The init perturbation size")
+    "perturbation_latent", type=float, help="The latent perturbation size"
+)
 parser.add_argument(
-    "perturbation_latent",
-    type=float,
-    help="The latent perturbation size")
-parser.add_argument(
-    "member", type=int,
-    help="The ensemble member number and seed for the perturbation.")
+    "member", type=int, help="The ensemble member number and seed for the perturbation."
+)
 args = parser.parse_args()
 
 # Open the GRIB file
 f = open(
-    args.out_dir +
-    "/" +
-    args.date_time +
-    "/" +
-    args.model_name +
-    "/era5_init.grib",
-    "rb")
+    args.out_dir + "/" + args.date_time + "/" + args.model_name + "/era5_init.grib",
+    "rb",
+)
 
 # Open a new GRIB file for writing
 path_out = os.path.join(
     args.out_dir,
     str(args.date_time),
     args.model_name,
-    f"init_{args.perturbation_init}_latent_{args.perturbation_latent}",
+    f"init_{args.perturbation_init}_latent_{args.perturbation_latent}_layer_{args.layer}",
     str(args.member),
-    "era5_init.grib")
+    "era5_init.grib",
+)
 print("Starting from: ", path_out)
 
 g = open(path_out, "wb")
@@ -71,8 +62,7 @@ while True:
     # BUG: make this more general
     if short_name == "t":
         values = codes_get_array(gid, "values")
-        values += np.random.normal(0, 1, size=len(values)
-                                   ) * args.perturbation_init
+        values += np.random.normal(0, 1, size=len(values)) * args.perturbation_init
         codes_set_array(gid, "values", values)
 
     # Write the message to the new GRIB file

@@ -55,13 +55,13 @@ for MEMBER in $(seq 0 $((NUM_MEMBERS - 1))); do
     if [ "$(echo "$PERTURBATION_LATENT > 0.0" | bc -l)" -eq 1 ]; then
         if [ "$MODEL_NAME" = "graphcast" ]; then
             if [ ! -d "${MEMBER_DIR}/params" ]; then
-                python -u -m ai_models_ensembles.perturb_graphcast_weights $OUTPUT_DIR "$DATE_TIME" "$MODEL_NAME" \
-                    "$PERTURBATION_INIT" "$PERTURBATION_LATENT" "$MEMBER"
+                python -u -m ai_models_ensembles.perturb_graphcast_weights $OUTPUT_DIR $DATE_TIME $MODEL_NAME \
+                    $PERTURBATION_INIT $PERTURBATION_LATENT $MEMBER $LAYER
             fi
         else
             proceed_if_not_exists "${MEMBER_DIR}/weights.tar" \
                 "python -u -m ai_models_ensembles.perturb_fourcastnet_weights $OUTPUT_DIR $DATE_TIME $MODEL_NAME \
-                $PERTURBATION_INIT $PERTURBATION_LATENT $MEMBER"
+                    $PERTURBATION_INIT $PERTURBATION_LATENT $MEMBER $LAYER"
         fi
     else
         if [ "$MODEL_NAME" = "graphcast" ]; then
