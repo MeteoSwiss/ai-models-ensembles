@@ -1,28 +1,20 @@
 name: ai_models_ens
 channels:
-  - pytorch
   - nvidia
-  - pyg
-dependencies:
-  - bottleneck
-  - eccodes
-  - earthkit-data
-  - matplotlib
-  - pip
-  - pyg
-  - pyproj
-  - python=3.11
   - pytorch
-  - pytorch-cuda=12.1
-  - seaborn
-  - torchaudio
-  - torchvision
-  - zarr
+dependencies:
+  - cuda-toolkit=12.2
+  - cudnn=8.9
+  - pip
+  - python=3.10
+  - pytorch
+  - pytorch-cuda
   - pip:
     - ai-models
     - ai-models-fourcastnetv2
     - ai-models-graphcast
-    - jax[cuda12]
+    - jax[cuda12]==0.4.20
+    - "jaxlib @ https://storage.googleapis.com/jax-releases/cuda12/jaxlib-0.4.20+cuda12.cudnn89-cp310-cp310-manylinux2014_x86_64.whl"
     - git+https://github.com/deepmind/graphcast.git
-    - cdsapi
     - scores
+    - seaborn

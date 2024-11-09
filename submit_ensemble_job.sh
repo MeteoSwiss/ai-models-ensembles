@@ -38,10 +38,7 @@ else
 fi
 # if conda env ai-models does not exist then create it
 if ! conda env list | grep -q ai_models_ens; then
-    mamba env create -n ai-models -f $SRC_DIR/environment.yml
-    conda activate ai_models_ens
-    pip install -r $SRC_DIR/requirements.txt -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
-    pip install -e $SRC_DIR
+    mamba env create -n ai_models_ens -f $SRC_DIR/environment.yml
 fi
 
 conda activate ai_models_ens
