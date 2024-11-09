@@ -70,6 +70,7 @@ def load_and_prepare_data(
     model_name,
     perturb_init,
     perturb_latent,
+    layer,
     num_members,
     debug_mode=False,
 ):
@@ -101,7 +102,7 @@ def load_and_prepare_data(
         number=0,
         surface=0)
     forecast = xr.open_zarr(
-        f"{path_in}/init_{perturb_init}_latent_{perturb_latent}/forecast.zarr",
+        f"{path_in}/init_{perturb_init}_latent_{perturb_latent}_layer_{layer}/forecast.zarr",
         consolidated=True,
     )
     forecast_unperturbed = xr.open_zarr(
@@ -162,11 +163,12 @@ def load_and_prepare_data(
         forecast_unperturbed = forecast_unperturbed.drop_isel(step=0)
         forecast_unperturbed["step"] = (
             forecast_unperturbed["step"] - np.timedelta64(6, "h"))
+        #XXX: this might not be required in latest version
+        forecast_unperturbed = xr.concat(
+            [ground_truth.isel(time=0), forecast_unperturbed], "step")
+        forecast = xr.concat(
+            [ground_truth.isel(time=0), forecast], "step")
 
-    forecast_unperturbed = xr.concat(
-        [ground_truth.isel(time=0, drop=True), forecast_unperturbed], "step")
-    forecast = xr.concat(
-        [ground_truth.isel(time=0, drop=True), forecast], "step")
 
     step_values = np.int64(forecast.step.values) / 1e9 / 3600
     ground_truth["step"] = ("time", np.arange(len(ground_truth["time"])))

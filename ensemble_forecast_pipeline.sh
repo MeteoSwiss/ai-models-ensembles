@@ -88,17 +88,17 @@ python -u -m ai_models_ensembles.convert_grib_to_zarr "$PERTURBATION_DIR" --subd
 if ! test -d "${REGION_DIR}/png_${MODEL_NAME}"; then
     echo "Evaluating model and generating figures"
     python -u -m ai_models_ensembles.plot_0d_distributions "$OUTPUT_DIR" "$DATE_TIME" "$MODEL_NAME" "$PERTURBATION_INIT" \
-        "$PERTURBATION_LATENT" "$NUM_MEMBERS" "$CROP_REGION"
+        "$PERTURBATION_LATENT" "$LAYER" "$NUM_MEMBERS" "$CROP_REGION"
     python -u -m ai_models_ensembles.plot_1d_timeseries "$OUTPUT_DIR" "$DATE_TIME" "$MODEL_NAME" "$PERTURBATION_INIT" \
-        "$PERTURBATION_LATENT" "$NUM_MEMBERS" "$CROP_REGION"
+        "$PERTURBATION_LATENT" "$LAYER" "$NUM_MEMBERS" "$CROP_REGION"
 fi
 
 # if [ -z "$(find "${PERTURBATION_DIR}/${CROP_REGION}/0/animations/" -name '*gif' -print -quit 2>/dev/null)" ]; then
     echo "Generating Animations"
     python -u -m ai_models_ensembles.animate_2d_maps "$OUTPUT_DIR" "$DATE_TIME" "$MODEL_NAME" "$PERTURBATION_INIT" \
-            "$PERTURBATION_LATENT" "$NUM_MEMBERS" "$CROP_REGION"
+            "$PERTURBATION_LATENT" "$LAYER" "$NUM_MEMBERS" "$CROP_REGION"
     # python -u -m ai_models_ensembles.animate_3d_grids "$OUTPUT_DIR" "$DATE_TIME" "$MODEL_NAME" "$PERTURBATION_INIT" \
-    #         "$PERTURBATION_LATENT" "$NUM_MEMBERS" "$CROP_REGION"
+    #         "$PERTURBATION_LATENT" "$LAYER" "$NUM_MEMBERS" "$CROP_REGION"
 # fi
 
 echo "Cleaning up GRIB files"

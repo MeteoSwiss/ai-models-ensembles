@@ -826,6 +826,7 @@ if __name__ == "__main__":
         args.model_name,
         args.perturbation_init,
         args.perturbation_latent,
+        args.layer,
         args.members,
         debug_mode=args.debug,
     )

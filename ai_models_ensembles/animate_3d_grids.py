@@ -154,6 +154,7 @@ def main():
         args.model_name,
         args.perturbation_init,
         args.perturbation_latent,
+        args.layer,
         args.members,
         debug_mode=args.debug,
     )
