@@ -11,10 +11,12 @@ dependencies:
   - pytorch-cuda
   - pip:
     - ai-models
-    - ai-models-fourcastnetv2
     - ai-models-graphcast
-    - jax[cuda12]==0.4.20
+    - ai-models-fourcastnetv2
+    - jax[cuda12-pip]==0.4.20
     - "jaxlib @ https://storage.googleapis.com/jax-releases/cuda12/jaxlib-0.4.20+cuda12.cudnn89-cp310-cp310-manylinux2014_x86_64.whl"
     - git+https://github.com/deepmind/graphcast.git
+    - numcodecs
     - scores
     - seaborn
+    - zarr 
