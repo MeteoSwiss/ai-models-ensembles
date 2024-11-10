@@ -32,6 +32,8 @@ proceed_if_not_exists "${MODEL_DIR}/era5_init.grib" "python -m ai_models_ensembl
     $OUTPUT_DIR $DATE_TIME $END_DATE_TIME $INTERVAL $MODEL_NAME"
 proceed_if_not_exists "${MODEL_DIR}/ifs_ens.zarr/.zmetadata" "python -m ai_models_ensembles.download_ifs_ensemble \
     $OUTPUT_DIR $DATE_TIME $INTERVAL $NUM_DAYS $MODEL_NAME"
+proceed_if_not_exists "${MODEL_DIR}/ifs_control.zarr/.zmetadata" "python -m ai_models_ensembles.download_ifs_control \
+    $OUTPUT_DIR $DATE_TIME $INTERVAL $NUM_DAYS $MODEL_NAME"
 
 proceed_if_not_exists "${MODEL_DIR}/${MODEL_NAME}.grib" "pushd ${MODEL_DIR} && \
     ai-models --input file --file era5_init.grib --lead-time ${LEAD_TIME} \

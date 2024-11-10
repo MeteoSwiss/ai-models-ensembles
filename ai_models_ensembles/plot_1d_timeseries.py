@@ -862,7 +862,7 @@ if __name__ == "__main__":
     ifs_stats = calculate_stats(
         data["ground_truth"],
         data["forecast_ifs"],
-        data["forecast_unperturbed_ifs"],
+        data["forecast_ifs_unperturbed"],
         args.crop_region,
     )
     print("ifs stats calculated", flush=True)

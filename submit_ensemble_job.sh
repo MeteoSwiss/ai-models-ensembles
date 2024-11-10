@@ -1,11 +1,11 @@
 #!/usr/bin/bash -l
 #SBATCH --job-name=ai-models-ensembles
 #SBATCH --nodes=1
-#SBATCH --partition=normal
+#SBATCH --partition=debug
 #SBATCH --account=s83
 #SBATCH --output=logs/out_%j.log
 #SBATCH --error=logs/err_%j.log
-#SBATCH --time=24:00:00
+#SBATCH --time=00:30:00
 #SBATCH --no-requeue
 #SBATCH --mem=444G
 
