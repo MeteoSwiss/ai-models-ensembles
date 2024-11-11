@@ -27,7 +27,7 @@ def perturb_weights(params, perturbation_strength):
     """Perturb the weights of layer X in the processor of the GraphCast model."""
 
     keys_to_perturb = [
-        f"params:mesh_gnn/~_networks_builder/processor_edges_{args.layer}_mesh_mlp/~/linear_0:w",
+        # f"params:mesh_gnn/~_networks_builder/processor_edges_{args.layer}_mesh_mlp/~/linear_0:w",
         f"params:mesh_gnn/~_networks_builder/processor_edges_{args.layer}_mesh_mlp/~/linear_1:w",
     ]
 

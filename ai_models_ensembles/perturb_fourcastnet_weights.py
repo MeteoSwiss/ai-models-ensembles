@@ -45,7 +45,7 @@ def perturb_weights(model, perturbation_strength):
     print(
         f"Perturbing the weights in Layer {args.layer}",
     )
-    # Perturb layer X in the middle block
+    # Perturb middle layer in the nth block
     perturbed_blocks = [args.layer]
     perturbed_layers = [int(len(model.blocks[0].filter_layer.filter.w) / 2)]
 
