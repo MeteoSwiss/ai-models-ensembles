@@ -62,15 +62,18 @@ def plot_density_distribution(
     ensemble_kde = gaussian_kde(ensemble_values_sampled)
     ground_truth_kde = gaussian_kde(ground_truth_values_sampled)
 
-    x_min = min(ensemble_values_sampled.min(), ground_truth_values_sampled.min())
-    x_max = max(ensemble_values_sampled.max(), ground_truth_values_sampled.max())
-    x = np.linspace(x_min, x_max, 1000)
+    # Calculate combined min and max for normalization
+    combined_min = min(ensemble_values_sampled.min(), ground_truth_values_sampled.min())
+    combined_max = max(ensemble_values_sampled.max(), ground_truth_values_sampled.max())
+    x = np.linspace(combined_min, combined_max, 1000)
 
     # Normalize data before calculating Wasserstein distance
-    data_range = x_max - x_min
+    data_range = combined_max - combined_min
     if data_range != 0:
-        ensemble_values_norm = (ensemble_values_sampled - x_min) / data_range
-        ground_truth_values_norm = (ground_truth_values_sampled - x_min) / data_range
+        ensemble_values_norm = (ensemble_values_sampled - combined_min) / data_range
+        ground_truth_values_norm = (
+            ground_truth_values_sampled - combined_min
+        ) / data_range
         w_distance_normalized = wasserstein_distance(
             ensemble_values_norm, ground_truth_values_norm
         )
