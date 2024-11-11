@@ -135,6 +135,9 @@ def load_and_prepare_data(
     # Select the appropriate members in all datasets
     forecast_ifs["member"] = forecast_ifs["member"] - 1
     forecast_unperturbed = forecast_unperturbed.sel(member=0)
+    forecast_ifs_unperturbed = forecast_ifs_unperturbed.isel(
+        number=0, surface=0, time=0
+    )
     indices = np.random.permutation(forecast.member.size)
     indices_ifs = np.random.permutation(forecast_ifs.member.size)
     selected_indices = indices[:num_members]
