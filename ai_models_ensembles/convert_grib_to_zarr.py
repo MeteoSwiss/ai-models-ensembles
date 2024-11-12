@@ -59,7 +59,8 @@ if os.path.exists(path_store):
         if i not in zarr_store.member.values]
     num_existing_members = len(zarr_store.member.values)
     print(
-        f"Found existing zarr store with members: {zarr_store.member.values}")
+        f"Found existing zarr store at: {path_store} "
+        f"with members: {zarr_store.member.values}")
 else:
     num_existing_members = 0
 
