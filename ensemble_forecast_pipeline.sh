@@ -87,21 +87,23 @@ done
 
 python -u -m ai_models_ensembles.convert_grib_to_zarr "$PERTURBATION_DIR" --subdir_search True
 
-if ! test -d "${REGION_DIR}/png_${MODEL_NAME}"; then
-    echo "Evaluating model and generating figures"
+# if ! test -d "${REGION_DIR}/png_${MODEL_NAME}"; then
+    echo "Evaluating model and creating 0-dimensional figures"
     python -u -m ai_models_ensembles.plot_0d_distributions "$OUTPUT_DIR" "$DATE_TIME" "$MODEL_NAME" "$PERTURBATION_INIT" \
         "$PERTURBATION_LATENT" "$LAYER" "$NUM_MEMBERS" "$CROP_REGION"
+    echo "Creating 1-dimensional figures (lineplots)"
     python -u -m ai_models_ensembles.plot_1d_timeseries "$OUTPUT_DIR" "$DATE_TIME" "$MODEL_NAME" "$PERTURBATION_INIT" \
         "$PERTURBATION_LATENT" "$LAYER" "$NUM_MEMBERS" "$CROP_REGION"
-fi
+# fi
 
-if [ -z "$(find "${PERTURBATION_DIR}/${CROP_REGION}/0/animations/" -name '*gif' -print -quit 2>/dev/null)" ]; then
-    echo "Generating Animations"
+# if [ -z "$(find "${PERTURBATION_DIR}/${CROP_REGION}/0/animations/" -name '*gif' -print -quit 2>/dev/null)" ]; then
+    echo "Generating 2-dimensional animations (maps)"
     python -u -m ai_models_ensembles.animate_2d_maps "$OUTPUT_DIR" "$DATE_TIME" "$MODEL_NAME" "$PERTURBATION_INIT" \
             "$PERTURBATION_LATENT" "$LAYER" "$NUM_MEMBERS" "$CROP_REGION"
+    echo "Generating 3-dimensional animations (hypercubes)"
     python -u -m ai_models_ensembles.animate_3d_grids "$OUTPUT_DIR" "$DATE_TIME" "$MODEL_NAME" "$PERTURBATION_INIT" \
             "$PERTURBATION_LATENT" "$LAYER" "$NUM_MEMBERS" "$CROP_REGION"
-fi
+# fi
 
 echo "Cleaning up GRIB files"
 if command -v fd &>/dev/null; then

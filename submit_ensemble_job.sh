@@ -5,9 +5,9 @@
 #SBATCH --account=s83
 #SBATCH --output=logs/out_%j.log
 #SBATCH --error=logs/err_%j.log
-#SBATCH --time=23:59:00
+#SBATCH --time=24:00:00
 #SBATCH --no-requeue
-#SBATCH --mem=444G
+#SBATCH --mem=100G
 
 export DATE_TIME=201801010000 # Lothar: 199912250000, Burglind: 201801010000
 export MODEL_NAME=graphcast # fourcastnetv2-small, graphcast
