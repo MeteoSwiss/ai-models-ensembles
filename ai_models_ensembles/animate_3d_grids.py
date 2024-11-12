@@ -128,7 +128,7 @@ def process_member(member, forecast, forecast_unperturbed, path_forecast, args, 
     difference = forecast.sel(member=member) - forecast_unperturbed
 
     for var in variables:
-        print("Creating difference animation for variable: ", var)
+        print("Creating 3d differences animation for variable: ", var)
         unit = forecast[var].attrs["units"]
         vmin = difference[var].min().values
         vmax = difference[var].max().values
@@ -160,15 +160,6 @@ def main():
     )
 
     members_to_plot = data["forecast"].member.values[:3]
-
-    # with multiprocessing.Pool() as pool:
-    #     pool.starmap(process_member,
-    #                  [(member,
-    #                    data["forecast"],
-    #                    data["forecast_unperturbed"],
-    #                    path_forecast,
-    #                    args,
-    #                    config) for member in members_to_plot])
 
     for member in members_to_plot:
         process_member(
