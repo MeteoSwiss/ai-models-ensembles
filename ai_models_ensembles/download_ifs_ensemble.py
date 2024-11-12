@@ -63,7 +63,7 @@ chunks = {
     "number": 1,
     "step": 1,
     "time": -1,
-    "isobaricInhPa": -1,
+    "isobaricInhPa": 1,
     "latitude": -1,
     "longitude": -1,
 }
@@ -79,7 +79,6 @@ ds_single = ds_single.to_xarray(chunks=chunks_surface).drop_vars(
 # Split the "number" dimension into chunks
 number_chunks = [f"{i}/to/{i+9}/by/1" for i in range(1, 51, 10)]
 
-ds_pressure = []
 
 # Retrieve the pressure level data in chunks because of MARS size limits
 for i, number_chunk in enumerate(number_chunks):
@@ -92,23 +91,17 @@ for i, number_chunk in enumerate(number_chunks):
         }
     )
     ds_pressure_chunk = earthkit.data.from_source("mars", request, lazily=True)
-    ds_pressure.append(ds_pressure_chunk)
-    # ds_pressure_chunk.save(
-    #     f"{args.date_time}/{args.model_name}/ifs_pressure_{i}.grib")
 
+    shortnames = list(set(ds_pressure_chunk.metadata("shortName")))
+    special_vars = ["r"]
+    normal_vars = [var for var in shortnames if var not in special_vars]
+    
+    # Convert to xarray and chunk
+    ds_normal = ds_pressure_chunk.sel(shortName=normal_vars).to_xarray(chunks=chunks)
+    ds_special = ds_pressure_chunk.sel(shortName=special_vars).to_xarray(chunks=chunks)
+    ds_combined = xr.merge([ds_normal, ds_special]).chunk(chunks).drop_vars("valid_time")
 
-shortnames = list(set(ds_pressure[0].metadata("shortName")))
-special_vars = ["r"]
-normal_vars = [var for var in shortnames if var not in special_vars]
-
-for i, ds in enumerate(ds_pressure):
-    print(f"Processing chunk {i}/{len(ds_pressure)-1}")
-    ds_normal = ds.sel(shortName=normal_vars).to_xarray(chunks=chunks)
-    ds_special = ds.sel(shortName=special_vars).to_xarray(chunks=chunks)
-    ds_combined = xr.merge([ds_normal, ds_special]).chunk(
-        chunks).drop_vars("valid_time")
-
-    print("Writing to zarr")
+    # Write to Zarr with correct append_dim
     ds_combined.to_zarr(
         f"{path}/ifs_ens.zarr",
         consolidated=True,

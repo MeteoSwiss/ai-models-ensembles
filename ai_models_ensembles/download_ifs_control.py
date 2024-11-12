@@ -59,7 +59,7 @@ request = {
 chunks = {
     "step": 1,
     "time": -1,
-    "isobaricInhPa": -1,
+    "isobaricInhPa": 1,
     "latitude": -1,
     "longitude": -1,
 }
