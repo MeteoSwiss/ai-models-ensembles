@@ -25,7 +25,6 @@ def create_plot(ax, data, var, level, step, title_prefix, lat, lon):
     Returns:
         im: Matplotlib image object
     """
-    print(data)
     plot_data = data.isel(step=step).values
 
     im = ax.pcolormesh(
@@ -250,7 +249,8 @@ def plot_static_steps(path_gif, data, var, level, lat, lon, metric_name):
     fig, axes = plt.subplots(
         2, 2, figsize=(12, 10), subplot_kw={"projection": ccrs.PlateCarree()}
     )
-    steps = [10, 20, 30, 40]
+    steps = [9, 19, 29, 39]
+
 
     # Determine the common color range
     vmin = np.min([data.isel(step=s).values.min() for s in steps])
@@ -262,7 +262,6 @@ def plot_static_steps(path_gif, data, var, level, lat, lon, metric_name):
             lon,
             lat,
             plot_data,
-            cmap="plasma",
             vmin=vmin,
             vmax=vmax,
             transform=ccrs.PlateCarree(),
@@ -274,11 +273,10 @@ def plot_static_steps(path_gif, data, var, level, lat, lon, metric_name):
 
     # Add a shared colorbar
     cb_ax = fig.add_axes([0.1, 0.05, 0.8, 0.02])  # Position of the colorbar
-    cbar = fig.colorbar(
-        im, cax=cb_ax, orientation="horizontal", label=f"{var} at {level}"
+    fig.colorbar(
+        im, cax=cb_ax, orientation="horizontal", label=f"{var} at {level}", pad=0.1, aspect=50
     )
-    cbar.ax.tick_params(size=0, width=2)  # Make the colorbar thicker
-
+    fig.subplots_adjust(wspace=0.1, hspace=0.1)
     # Add main title
     fig.suptitle(f"{var} at {level}: {metric_name.title()}", fontsize=16)
 
@@ -575,6 +573,7 @@ def main():
         args.crop_region,
     )
 
+    #TODO: make this an user input
     members_to_plot = data["forecast"].member.values[:3]
 
     for member in members_to_plot:
