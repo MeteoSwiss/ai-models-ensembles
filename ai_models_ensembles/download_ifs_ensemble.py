@@ -91,7 +91,7 @@ for i, number_chunk in enumerate(number_chunks):
             "number": number_chunk,
         }
     )
-    ds_pressure_chunk = earthkit.data.from_source("mars", request, lazily=False)
+    ds_pressure_chunk = earthkit.data.from_source("mars", request, lazily=True)
 
     shortnames = list(set(ds_pressure_chunk.metadata("shortName")))
     special_vars = ["r"]
