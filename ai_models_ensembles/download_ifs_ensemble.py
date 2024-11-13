@@ -77,6 +77,7 @@ ds_single = earthkit.data.from_source("mars", request, lazily=True)
 ds_single = ds_single.to_xarray(chunks=chunks_surface).drop_vars(
     "valid_time").chunk(chunks_surface)
 # Split the "number" dimension into chunks
+# TODO: This shouldn't be hardcoded to 50 members
 number_chunks = [f"{i}/to/{i+9}/by/1" for i in range(1, 51, 10)]
 
 
@@ -90,7 +91,7 @@ for i, number_chunk in enumerate(number_chunks):
             "number": number_chunk,
         }
     )
-    ds_pressure_chunk = earthkit.data.from_source("mars", request, lazily=True)
+    ds_pressure_chunk = earthkit.data.from_source("mars", request, lazily=False)
 
     shortnames = list(set(ds_pressure_chunk.metadata("shortName")))
     special_vars = ["r"]
