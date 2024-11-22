@@ -2,6 +2,7 @@ import argparse
 
 import dask
 import numpy as np
+import pandas as pd
 import scores
 import seaborn as sns
 import xarray as xr
@@ -48,8 +49,9 @@ def parse_args():
         "color_palette": sns.color_palette(
             ["#f75b78", "#6495ed", "#0e2d75", "#f9c740", "#45b7aa", "#353434"]
         ),
+        # TODO: make this a user INPUT
         "sample_size": 100000,
-        "selected_vars": ["msl", "t2m", "u10", "v10", "u"],
+        "selected_vars": ["t2m"],
     }
 
     return args, config
@@ -151,19 +153,6 @@ def load_and_prepare_data(
     # For plotting the easiest approach is conversion to float
     # For ground_truth, step and time have the reversed meaning
     ground_truth = ground_truth.isel(step=0)
-    if model_name == "graphcast":
-        forecast = forecast.drop_isel(step=0)
-        forecast["step"] = forecast["step"] - np.timedelta64(6, "h")
-        forecast_unperturbed = forecast_unperturbed.drop_isel(step=0)
-        forecast_unperturbed["step"] = forecast_unperturbed["step"] - np.timedelta64(
-            6, "h"
-        )
-        # XXX: this might not be required in latest version
-        forecast_unperturbed = xr.concat(
-            [ground_truth.isel(time=0), forecast_unperturbed], "step"
-        )
-        forecast = xr.concat([ground_truth.isel(time=0), forecast], "step")
-
     step_values = np.int64(forecast.step.values) / 1e9 / 3600
     ground_truth["step"] = ("time", np.arange(len(ground_truth["time"])))
     ground_truth = ground_truth.swap_dims({"time": "step"})
@@ -265,13 +254,18 @@ def calculate_stats(ground_truth, forecast, forecast_unperturbed, crop_region):
     spread_skill_ratio = spread_skill_ratio_grid.mean(dim=["latitude", "longitude"])
     ensemble_spread = ensemble_spread_grid.mean(dim=["latitude", "longitude"])
 
+    preserve_dims = (
+        ["step", "latitude", "longitude", "isobaricInhPa"]
+        if "isobaricInhPa" in forecast.dims
+        else ["step", "latitude", "longitude"]
+    )
     # Now compute CRPS
     crps = scores.probability.crps_for_ensemble(
         forecast,
         ground_truth,
         ensemble_member_dim="member",
         method="ecdf",
-        preserve_dims=["step", "latitude", "longitude", "isobaricInhPa"],
+        preserve_dims=preserve_dims,
     )
 
     # Detrending the data using the detrend function from scipy.signal to remove any
@@ -282,19 +276,11 @@ def calculate_stats(ground_truth, forecast, forecast_unperturbed, crop_region):
     # calculation to convert from wavenumber to rad/km, assuming Earth's radius of 6371
     # km.
     def calculate_energy_spectra(
-        forecast, forecast_unperturbed, ground_truth, lat_band, num_bins=50
+        forecast, forecast_unperturbed, ground_truth, lat_band
     ):
         energy_spectra_forecast = []
         energy_spectra_unperturbed = []
         energy_spectra_ground_truth = []
-
-        # Define bin edges (log-spaced)
-        min_wavenumber = 1
-        max_wavenumber = 1000  # Adjust based on your data
-        bin_edges = np.logspace(
-            np.log10(min_wavenumber), np.log10(max_wavenumber), num_bins + 1
-        )
-        bin_centers = 0.5 * (bin_edges[:-1] + bin_edges[1:])
 
         for data, energy_spectra_list in zip(
             [forecast, forecast_unperturbed, ground_truth],
@@ -355,43 +341,88 @@ def calculate_stats(ground_truth, forecast, forecast_unperturbed, crop_region):
                     power_spectrum = (np.abs(fft) ** 2) / (n * np.mean(window**2))
                     wavenumber = np.fft.rfftfreq(n, d=1.0) * n
 
-                    # Bin the power spectrum
-                    digitized = np.digitize(wavenumber, bin_edges) - 1
-                    binned_power = np.array(
-                        [
-                            power_spectrum[digitized == i].mean()
-                            if np.any(digitized == i)
-                            else 0
-                            for i in range(num_bins)
-                        ]
-                    )
+                    # Keep the first 10 wavenumbers in each plot
+                    # Smooth the rest with a window for improved visibility
+                    power_spectrum_smooth = power_spectrum.copy()
+                    if "member" not in var_data.dims:
+                        power_spectrum_smooth[100:] = (
+                            pd.Series(power_spectrum[100:])
+                            .rolling(window=10, center=True)
+                            .mean()
+                            .values
+                        )
+                    else:
+                        power_spectrum_smooth[100:] = (
+                            pd.DataFrame(power_spectrum[100:])
+                            .rolling(window=10, axis=0, center=True)
+                            .mean()
+                            .values
+                        )
 
-                    power_spectra.append(binned_power)
-
-                dims = ["wavenumber"]
-                coords = {"wavenumber": ("wavenumber", bin_centers)}
+                    power_spectra.append(power_spectrum_smooth)
 
                 if "isobaricInhPa" in var_data.dims:
-                    dims.insert(0, "isobaricInhPa")
-                    coords["isobaricInhPa"] = ("isobaricInhPa", levels)
-
-                if "member" in var_data.dims:
-                    dims.append("member")
-                    coords["member"] = ("member", data_last_step.member.values)
-
-                energy_spectra_list.append(
-                    xr.Dataset(
-                        {
-                            var: (
-                                dims,
-                                np.squeeze(np.array(power_spectra))
-                                if "member" not in var_data.dims
-                                else np.array(power_spectra),
-                            ),
-                        },
-                        coords=coords,
-                    )
-                )
+                    if "member" in var_data.dims:
+                        energy_spectra_list.append(
+                            xr.Dataset(
+                                {
+                                    var: (
+                                        ["isobaricInhPa", "wavenumber", "member"],
+                                        np.array(power_spectra),
+                                    ),
+                                },
+                                coords={
+                                    "isobaricInhPa": ("isobaricInhPa", levels),
+                                    "wavenumber": ("wavenumber", wavenumber),
+                                    "member": ("member", data_last_step.member.values),
+                                },
+                            )
+                        )
+                    else:
+                        energy_spectra_list.append(
+                            xr.Dataset(
+                                {
+                                    var: (
+                                        ["isobaricInhPa", "wavenumber"],
+                                        np.array(power_spectra),
+                                    ),
+                                },
+                                coords={
+                                    "isobaricInhPa": ("isobaricInhPa", levels),
+                                    "wavenumber": ("wavenumber", wavenumber),
+                                },
+                            )
+                        )
+                else:
+                    if "member" in var_data.dims:
+                        energy_spectra_list.append(
+                            xr.Dataset(
+                                {
+                                    var: (
+                                        ["wavenumber", "member"],
+                                        np.squeeze(np.array(power_spectra)),
+                                    ),
+                                },
+                                coords={
+                                    "wavenumber": ("wavenumber", wavenumber),
+                                    "member": ("member", data_last_step.member.values),
+                                },
+                            )
+                        )
+                    else:
+                        energy_spectra_list.append(
+                            xr.Dataset(
+                                {
+                                    var: (
+                                        ["wavenumber"],
+                                        np.squeeze(np.array(power_spectra)),
+                                    ),
+                                },
+                                coords={
+                                    "wavenumber": ("wavenumber", wavenumber),
+                                },
+                            )
+                        )
 
         energy_spectra_forecast_concat = xr.merge(energy_spectra_forecast)
         energy_spectra_unperturbed_concat = xr.merge(energy_spectra_unperturbed)
@@ -409,7 +440,6 @@ def calculate_stats(ground_truth, forecast, forecast_unperturbed, crop_region):
             forecast_unperturbed,
             ground_truth,
             lat_band=(lat_min, lat_max),
-            num_bins=50,
         )
     )
 
