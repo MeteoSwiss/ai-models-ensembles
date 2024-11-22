@@ -2,7 +2,8 @@
 #SBATCH --job-name=ai_dl
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=1
+#SBATCH --cpus-per-task=8
+#SBATCH --mem-per-cpu=8G
 #SBATCH --partition=pp-long
 #SBATCH --account=s83
 #SBATCH --output=logs/out_dl_%j.log
