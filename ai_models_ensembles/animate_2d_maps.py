@@ -247,14 +247,21 @@ def plot_static_steps(path_gif, data, var, level, lat, lon, metric_name):
     """
     # Create a figure with 2x2 subplots and a colorbar
     fig, axes = plt.subplots(
-        2, 2, figsize=(12, 10), subplot_kw={"projection": ccrs.PlateCarree()}
+        3, 2, figsize=(14, 16), subplot_kw={"projection": ccrs.PlateCarree()}
     )
-    steps = [9, 19, 29, 39]
-
+    steps = [0, 8, 16, 24, 32, 39]
 
     # Determine the common color range
     vmin = np.min([data.isel(step=s).values.min() for s in steps])
     vmax = np.max([data.isel(step=s).values.max() for s in steps])
+
+    # Set color map limits based on the metric
+    if metric_name == "Error":
+        cmap = "bwr"
+    elif metric_name == "CRPS":
+        cmap = "viridis"
+    else:
+        cmap = "plasma"
 
     for ax, step in zip(axes.flatten(), steps):
         plot_data = data.isel(step=step).values
@@ -264,6 +271,7 @@ def plot_static_steps(path_gif, data, var, level, lat, lon, metric_name):
             plot_data,
             vmin=vmin,
             vmax=vmax,
+            cmap=cmap,
             transform=ccrs.PlateCarree(),
         )
         ax.set_title(f"{(step)*6} hours")  # Only show the hour as subtitle
@@ -274,16 +282,21 @@ def plot_static_steps(path_gif, data, var, level, lat, lon, metric_name):
     # Add a shared colorbar
     cb_ax = fig.add_axes([0.1, 0.05, 0.8, 0.02])  # Position of the colorbar
     fig.colorbar(
-        im, cax=cb_ax, orientation="horizontal", label=f"{var} at {level}", pad=0.1, aspect=50
+        im,
+        cax=cb_ax,
+        orientation="horizontal",
+        label=f"{var} at {level}",
+        pad=0.1,
+        aspect=50,
     )
-    fig.subplots_adjust(wspace=0.1, hspace=0.1)
+    fig.subplots_adjust(left=0.05, right=0.95, wspace=0.03, hspace=0.03)
     # Add main title
     fig.suptitle(f"{var} at {level}: {metric_name.title()}", fontsize=16)
 
     # plt.tight_layout(
     #     rect=[0, 0.05, 1, 0.95]
     # )  # Adjust layout to accommodate colorbar and main title
-    plt.savefig(f"{path_gif}/{metric_name}_{var}_4fig.png")
+    plt.savefig(f"{path_gif}/{metric_name}_{var}_6fig.png")
     plt.close(fig)
 
 
@@ -573,8 +586,8 @@ def main():
         args.crop_region,
     )
 
-    #TODO: make this an user input
-    members_to_plot = data["forecast"].member.values[:3]
+    # TODO: make this an user input
+    members_to_plot = [0, 1]
 
     for member in members_to_plot:
         process_member(
