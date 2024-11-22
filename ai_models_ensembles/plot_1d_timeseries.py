@@ -210,7 +210,8 @@ def plot_error_map(errors_mean, errors_unperturbed, errors_members, path_out, le
         [errors_members, errors_mean, errors_unperturbed]
     )
 
-    for mem_i in errors_comb.member.values:
+    # TODO this should not be hardcoded and match the animation selection
+    for mem_i in errors_comb.member.values[0:2]:
         if "isobaricInhPa" in errors_comb.dims:
             errors = errors_comb.sel(member=mem_i, isobaricInhPa=level)
         else:
@@ -410,7 +411,7 @@ def plot_energy_spectra(
             energy_spectra_forecast_lev.sel(member=member).wavenumber,
             energy_spectra_forecast_lev.sel(member=member).values,
             color=color_palette[1],
-            alpha=alpha_value,
+            alpha=alpha_value / 2,  # Plot becomes very busy
             label=f"{model_name} Member" if member == 0 else None,
         )
 
@@ -420,6 +421,7 @@ def plot_energy_spectra(
         mean_energy_spectra.wavenumber,
         mean_energy_spectra.values,
         color=color_palette[2],
+        alpha=0.9,
         label=f"{model_name} Mean",
     )
 
@@ -428,6 +430,7 @@ def plot_energy_spectra(
         energy_spectra_unperturbed_lev.wavenumber,
         energy_spectra_unperturbed_lev.values,
         color=color_palette[3],
+        alpha=0.9,
         label=f"{model_name} Unperturbed",
         linestyle="--",
     )
@@ -435,6 +438,7 @@ def plot_energy_spectra(
         energy_spectra_ground_truth_lev.wavenumber,
         energy_spectra_ground_truth_lev.values,
         color=color_palette[0],
+        alpha=0.9,
         label="Ground Truth: ERA5",
         linestyle=":",
     )
@@ -470,8 +474,8 @@ def plot_energy_spectra(
     # wavenumbers) where the flow behaves more like three - dimensional isotropic
     # turbulence.
     k_range = np.logspace(np.log10(wavenumber_min), np.log10(wavenumber_max), 100)
-    ax.loglog(k_range, k_range ** (-3), "k--", alpha=0.5, label="k⁻³")
-    ax.loglog(k_range, k_range ** (-5 / 3), "k:", alpha=0.5, label="k⁻⁵ᐟ³")
+    ax.loglog(k_range, 100 * k_range ** (-3), "k--", alpha=0.5, label="k⁻³")
+    ax.loglog(k_range, 100 * k_range ** (-5 / 3), "k:", alpha=0.5, label="k⁻⁵ᐟ³")
 
     # Update legend
     ax.legend(loc="lower left")
@@ -884,6 +888,7 @@ if __name__ == "__main__":
         default_stats,
         ifs_stats,
     )
+    print("y_lims calculated", flush=True)
 
     default_plot_args = prepare_plot_args(
         data,
@@ -932,21 +937,3 @@ if __name__ == "__main__":
         args_dict["model_names"] = [args_dict.pop("model_name"), "IFS ENS"]
 
         plot_spread_skill_ratio(**args_dict)
-
-        import matplotlib.pyplot as plt
-        import numpy as np
-
-        # Sample data
-        x = np.linspace(0, 10, 100)
-        y = np.sin(x)
-
-        # Create a simple plot
-        plt.figure(figsize=(10, 6))
-        plt.plot(x, y, label="Sine Wave")
-        plt.xlabel("X-axis")
-        plt.ylabel("Y-axis")
-        plt.title("Simple Sine Wave Plot")
-        plt.legend()
-        plt.grid(True)
-        plt.savefig(os.path.join(path_out, "simple_sine_wave_plot.png"))
-        plt.close()

@@ -159,7 +159,7 @@ def main():
         debug_mode=args.debug,
     )
 
-    members_to_plot = data["forecast"].member.values[:3]
+    members_to_plot = [0, 1]
 
     for member in members_to_plot:
         process_member(
