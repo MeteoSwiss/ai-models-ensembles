@@ -32,21 +32,25 @@ area = ast.literal_eval(lines[1].split(": ")[1].strip())
 pressure_levels = ast.literal_eval(lines[3].split(": ")[1].strip())
 pressure_level_params = ast.literal_eval(lines[4].split(": ")[1].strip())
 single_level_params = ast.literal_eval(lines[6].split(": ")[1].strip())
+single_level_params_notp = [param for param in single_level_params if param != "tp"]
 
 start_date = datetime.strptime(args.start_date, "%Y%m%d%H%M")
 end_date = datetime.strptime(args.end_date, "%Y%m%d%H%M")
 
 if args.model_name == "graphcast":
     print("Downloading data for GraphCast model...", flush=True)
+    date = int(start_date.strftime("%Y%m%d"))
+    time = int(start_date.strftime("%H%M"))
     start_date_prev = start_date - timedelta(hours=6)
-    current_date = start_date_prev
     date_prev = int(start_date_prev.strftime("%Y%m%d"))
     time_prev = int(start_date_prev.strftime("%H%M"))
 else:
     print("Downloading data for FCN model...", flush=True)
-    current_date = start_date
+    date = int(start_date.strftime("%Y%m%d"))
+    time = int(start_date.strftime("%H%M"))
 
 analysis_times = []
+current_date = start_date
 while current_date <= end_date:
     analysis_times.extend(
         [current_date + timedelta(hours=h) for h in range(0, 24, args.interval)]
@@ -55,13 +59,67 @@ while current_date <= end_date:
 
 dates = sorted(list({t.strftime("%Y-%m-%d") for t in analysis_times}))
 times = sorted(list({t.strftime("%H:%M") for t in set(analysis_times)}))
-date_now = int(start_date.strftime("%Y%m%d"))
-time_now = int(start_date.strftime("%H%M"))
+
+ds_single_init = earthkit.data.from_source(
+    "cds",
+    "reanalysis-era5-single-levels",
+    variable=single_level_params,
+    product_type="reanalysis",
+    area=area,
+    grid=grid,
+    date=date,
+    time=time,
+)
+
+if args.model_name == "graphcast":
+    ds_single_prev = earthkit.data.from_source(
+        "cds",
+        "reanalysis-era5-single-levels",
+        variable=single_level_params,
+        product_type="reanalysis",
+        area=area,
+        grid=grid,
+        date=date_prev,
+        time=time_prev,
+    )
+
+ds_pressure_init = earthkit.data.from_source(
+    "cds",
+    "reanalysis-era5-pressure-levels",
+    variable=pressure_level_params,
+    product_type="reanalysis",
+    area=area,
+    grid=grid,
+    date=date,
+    time=time,
+    levels=pressure_levels,
+)
+
+if args.model_name == "graphcast":
+    ds_pressure_prev = earthkit.data.from_source(
+        "cds",
+        "reanalysis-era5-pressure-levels",
+        variable=pressure_level_params,
+        product_type="reanalysis",
+        area=area,
+        grid=grid,
+        date=date_prev,
+        time=time_prev,
+        levels=pressure_levels,
+    )
+
+if args.model_name == "graphcast":
+    ds_combined = ds_single_init + ds_pressure_init + ds_single_prev + ds_pressure_prev
+else:
+    ds_combined = ds_single_init + ds_pressure_init
+
+print("Saving initial conditions to grib...")
+ds_combined.save(f"{path}/era5_init.grib")
 
 ds_single = earthkit.data.from_source(
     "cds",
     "reanalysis-era5-single-levels",
-    variable=single_level_params,
+    variable=single_level_params_notp,
     product_type="reanalysis",
     area=area,
     grid=grid,
@@ -80,45 +138,16 @@ ds_pressure = earthkit.data.from_source(
     time=times,
     levels=pressure_levels,
 )
-
-ds_single = ds_single.sel(stepRange=["11-12", "0"])
-
-# TP times have to be shifted to match expected 12-hourly time steps
 if args.model_name == "graphcast":
-    ds_tp = ds_single.sel({"shortName": "tp"})
-    ds_rest = ds_single.sel({"shortName": ["lsm", "2t", "msl", "10u", "10v", "z"]})
-    ds_tp_prev = ds_tp.isel(date=1, time=1)
-    ds_rest_prev = ds_rest.sel(date=date_prev, time=time_prev)
-    ds_tp_now = ds_tp.isel(date=2, time=1)
-    ds_rest_now = ds_rest.sel(date=date_now, time=time_now)
-    ds_pressure_prev = ds_pressure.sel(date=date_prev, time=time_prev)
-    ds_pressure_now = ds_pressure.sel(date=date_now, time=time_now)
-    ds_combined = (
-        ds_tp_prev
-        + ds_tp_now
-        + ds_rest_prev
-        + ds_rest_now
-        + ds_pressure_prev
-        + ds_pressure_now
-    )
-else:
-    ds_combined = ds_single + ds_pressure
-    ds_combined = ds_combined.isel(date=0, time=0)
-
-print("Saving initial conditions to grib...")
-ds_combined.save(f"{path}/era5_init.grib")
-
-if args.model_name == "graphcast":
-    ds_rest = ds_rest.to_xarray().drop_vars(["z"])
-    ds_rest["surface_z"] = ds_single.sel({"shortName": "z"}).to_xarray()["z"]
-    ds_combined_xr = xr.merge([ds_tp.to_xarray(), ds_rest, ds_pressure.to_xarray()])
+    ds_single_xr = ds_single.to_xarray().drop_vars(["z"])
+    ds_single_xr["surface_z"] = ds_single.sel({"shortName": "z"}).to_xarray()["z"]
+    ds_combined_xr = xr.merge([ds_single_xr, ds_pressure.to_xarray()])
 else:
     ds_combined_xr = xr.merge([ds_single.to_xarray(), ds_pressure.to_xarray()])
 
 ds_combined_xr = ds_combined_xr.sel(
     time=slice(start_date, end_date + timedelta(hours=1))
 )
-
 chunks = {"latitude": -1, "longitude": -1, "time": 1, "isobaricInhPa": -1}
 print("Saving ground truth to zarr...")
 ds_combined_xr.chunk(chunks=chunks).drop_vars(["valid_time"]).to_zarr(
