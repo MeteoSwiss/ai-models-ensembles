@@ -36,11 +36,7 @@ export -f proceed_if_not_exists
 export NUM_DAYS=10
 export END_DATE_TIME=$(date -d "${DATE_TIME:0:8} + $((NUM_DAYS)) days" +%Y%m%d)0000
 export INTERVAL=6
-if [ "$MODEL_NAME" = "graphcast" ]; then
-    export LEAD_TIME=246
-else
-    export LEAD_TIME=240
-fi
+export LEAD_TIME=240
 
 # if conda env ai-models does not exist then create it
 if ! conda env list | grep -q ai_models_ens; then
