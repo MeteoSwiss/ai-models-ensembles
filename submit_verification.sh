@@ -14,9 +14,9 @@ source ./config.sh
 
 export job='create_dir_if_not_exists "$REGION_DIR"
 if ! test -d "${REGION_DIR}/png_${MODEL_NAME}"; then
-    # echo "Evaluating model and creating 0-dimensional figures"
-    # python -u -m ai_models_ensembles.plot_0d_distributions "$OUTPUT_DIR" "$DATE_TIME" "$MODEL_NAME" "$PERTURBATION_INIT" \
-    #     "$PERTURBATION_LATENT" "$LAYER" "$NUM_MEMBERS" "$CROP_REGION"
+    echo "Evaluating model and creating 0-dimensional figures"
+    python -u -m ai_models_ensembles.plot_0d_distributions "$OUTPUT_DIR" "$DATE_TIME" "$MODEL_NAME" "$PERTURBATION_INIT" \
+        "$PERTURBATION_LATENT" "$LAYER" "$NUM_MEMBERS" "$CROP_REGION"
     echo "Creating 1-dimensional figures (lineplots)"
     python -u -m ai_models_ensembles.plot_1d_timeseries "$OUTPUT_DIR" "$DATE_TIME" "$MODEL_NAME" "$PERTURBATION_INIT" \
         "$PERTURBATION_LATENT" "$LAYER" "$NUM_MEMBERS" "$CROP_REGION"
