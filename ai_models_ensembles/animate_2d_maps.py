@@ -166,8 +166,8 @@ def create_plot_metric(ax, metric_data, var, level, step, title_prefix, lat, lon
         lat,
         plot_data,
         cmap=cmap,
-        vmin=vmin,
-        vmax=vmax,
+        vmin=vmin if title_prefix != "Error" else None,
+        vmax=vmax if title_prefix != "Error" else None,
         norm=divnorm if title_prefix == "Error" else None,
         transform=ccrs.PlateCarree(),
         animated=True,
@@ -250,7 +250,7 @@ def plot_static_steps(path_gif, data, var, level, lat, lon, metric_name):
     """
     # Create a figure with 2x2 subplots and a colorbar
     fig, axes = plt.subplots(
-        3, 2, figsize=(14, 16), subplot_kw={"projection": ccrs.PlateCarree()}
+        3, 2, figsize=(14, 15), subplot_kw={"projection": ccrs.PlateCarree()}
     )
     steps = [0, 8, 16, 24, 32, 39]
 
@@ -274,8 +274,6 @@ def plot_static_steps(path_gif, data, var, level, lat, lon, metric_name):
             lon,
             lat,
             plot_data,
-            vmin=vmin,
-            vmax=vmax,
             cmap=cmap,
             norm=divnorm if metric_name == "Error" else None,
             transform=ccrs.PlateCarree(),
@@ -379,7 +377,6 @@ def process_member(
 
                 # Retrieve RMSE data (root of squared error)
                 rmse_data = np.sqrt(error_data**2)
-                # 2. RMSE
                 fig, updatefig = plot_metric(
                     rmse_data, var, level, lat, lon, metric_name="RMSE"
                 )

@@ -411,7 +411,7 @@ def plot_energy_spectra(
             energy_spectra_forecast_lev.sel(member=member).wavenumber,
             energy_spectra_forecast_lev.sel(member=member).values,
             color=color_palette[1],
-            alpha=alpha_value / 2,  # Plot becomes very busy
+            alpha=alpha_value / 3,  # Plot becomes very busy
             label=f"{model_name} Member" if member == 0 else None,
         )
 
@@ -421,7 +421,7 @@ def plot_energy_spectra(
         mean_energy_spectra.wavenumber,
         mean_energy_spectra.values,
         color=color_palette[2],
-        alpha=0.9,
+        alpha=0.8,
         label=f"{model_name} Mean",
     )
 
@@ -430,7 +430,7 @@ def plot_energy_spectra(
         energy_spectra_unperturbed_lev.wavenumber,
         energy_spectra_unperturbed_lev.values,
         color=color_palette[3],
-        alpha=0.9,
+        alpha=0.8,
         label=f"{model_name} Unperturbed",
         linestyle="--",
     )
@@ -438,7 +438,7 @@ def plot_energy_spectra(
         energy_spectra_ground_truth_lev.wavenumber,
         energy_spectra_ground_truth_lev.values,
         color=color_palette[0],
-        alpha=0.9,
+        alpha=0.8,
         label="Ground Truth: ERA5",
         linestyle=":",
     )

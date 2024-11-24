@@ -2,7 +2,6 @@ import argparse
 
 import dask
 import numpy as np
-import pandas as pd
 import scores
 import seaborn as sns
 import xarray as xr
@@ -233,23 +232,23 @@ def calculate_stats(ground_truth, forecast, forecast_unperturbed, crop_region):
     diff = forecast - ground_truth
     squared_diff = diff**2
     squared_diff_mean = (forecast.mean(dim="member") - ground_truth) ** 2
-    rmse_grid = np.sqrt(squared_diff.mean(dim="member")).drop_isel(step=0)
-    rmse = np.sqrt(squared_diff.mean(dim=["latitude", "longitude"])).drop_isel(step=0)
+    rmse_grid = np.sqrt(squared_diff.mean(dim="member"))
+    rmse = np.sqrt(squared_diff.mean(dim=["latitude", "longitude"]))
     rmse_mean = np.sqrt(
         squared_diff_mean.mean(dim=["latitude", "longitude"])
-    ).drop_isel(step=0)
+    )
 
     squared_diff_unperturbed = (forecast_unperturbed - ground_truth) ** 2
     rmse_unperturbed = np.sqrt(
         squared_diff_unperturbed.mean(dim=["latitude", "longitude"])
-    ).drop_isel(step=0)
+    )
 
     if crop_region == "europe":
         lat_min, lat_max = 25, 80
     else:
         lat_min, lat_max = ground_truth.latitude.isel(latitude=[0, -1])
 
-    ensemble_spread_grid = forecast.std(dim="member").drop_isel(step=0)
+    ensemble_spread_grid = forecast.std(dim="member")
     spread_skill_ratio_grid = ensemble_spread_grid / rmse_grid
     spread_skill_ratio = spread_skill_ratio_grid.mean(dim=["latitude", "longitude"])
     ensemble_spread = ensemble_spread_grid.mean(dim=["latitude", "longitude"])
@@ -341,37 +340,7 @@ def calculate_stats(ground_truth, forecast, forecast_unperturbed, crop_region):
                     power_spectrum = (np.abs(fft) ** 2) / (n * np.mean(window**2))
                     wavenumber = np.fft.rfftfreq(n, d=1.0) * n
 
-                    # Keep the first 10 wavenumbers in each plot
-                    # Smooth the rest with a window for improved visibility
-                    power_spectrum_smooth = power_spectrum.copy()
-                    if "member" not in var_data.dims:
-                        power_spectrum_smooth[10:101] = (
-                            pd.Series(power_spectrum[10:101])
-                            .rolling(window=10, center=False)
-                            .mean()
-                            .values
-                        )
-                        power_spectrum_smooth[101:] = (
-                            pd.Series(power_spectrum[101:])
-                            .rolling(window=100, center=False)
-                            .mean()
-                            .values
-                        )
-                    else:
-                        power_spectrum_smooth[10:101] = (
-                            pd.DataFrame(power_spectrum[10:101])
-                            .rolling(window=10, center=False)
-                            .mean()
-                            .values
-                        )
-                        power_spectrum_smooth[101:] = (
-                            pd.DataFrame(power_spectrum[101:])
-                            .rolling(window=100, center=False)
-                            .mean()
-                            .values
-                        )
-
-                    power_spectra.append(power_spectrum_smooth)
+                    power_spectra.append(power_spectrum)
 
                 if "isobaricInhPa" in var_data.dims:
                     if "member" in var_data.dims:
