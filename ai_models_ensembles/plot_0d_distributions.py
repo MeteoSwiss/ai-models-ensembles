@@ -290,7 +290,7 @@ def main():
         args.model_name,
         args.crop_region,
         args.date_time,
-        max_samples=1000,
+        max_samples=config["sample_size"],
         combined=False,
     )
 
@@ -308,7 +308,7 @@ def main():
         args.model_name,
         args.crop_region,
         args.date_time,
-        max_samples=1000,
+        max_samples=config["sample_size"],
         max_variables=5,
         combined=True,
     )
