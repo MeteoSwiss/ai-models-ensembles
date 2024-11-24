@@ -345,16 +345,28 @@ def calculate_stats(ground_truth, forecast, forecast_unperturbed, crop_region):
                     # Smooth the rest with a window for improved visibility
                     power_spectrum_smooth = power_spectrum.copy()
                     if "member" not in var_data.dims:
-                        power_spectrum_smooth[100:] = (
-                            pd.Series(power_spectrum[100:])
-                            .rolling(window=10, center=True)
+                        power_spectrum_smooth[10:101] = (
+                            pd.Series(power_spectrum[10:101])
+                            .rolling(window=10, center=False)
+                            .mean()
+                            .values
+                        )
+                        power_spectrum_smooth[101:] = (
+                            pd.Series(power_spectrum[101:])
+                            .rolling(window=100, center=False)
                             .mean()
                             .values
                         )
                     else:
-                        power_spectrum_smooth[100:] = (
-                            pd.DataFrame(power_spectrum[100:])
-                            .rolling(window=10, axis=0, center=True)
+                        power_spectrum_smooth[10:101] = (
+                            pd.DataFrame(power_spectrum[10:101])
+                            .rolling(window=10, center=False)
+                            .mean()
+                            .values
+                        )
+                        power_spectrum_smooth[101:] = (
+                            pd.DataFrame(power_spectrum[101:])
+                            .rolling(window=100, center=False)
                             .mean()
                             .values
                         )
