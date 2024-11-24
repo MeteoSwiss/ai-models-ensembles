@@ -4,6 +4,7 @@ import cartopy.crs as ccrs
 import matplotlib.animation as animation
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.colors import TwoSlopeNorm
 
 from .preprocess_data import calculate_stats, load_and_prepare_data, parse_args
 
@@ -145,11 +146,12 @@ def create_plot_metric(ax, metric_data, var, level, step, title_prefix, lat, lon
     """
     plot_data = metric_data.isel(step=step).values
 
-    # Set color map limits based on the metric
     if title_prefix == "Error":
         vmax = np.nanmax(np.abs(metric_data.values))
         vmin = -vmax
         cmap = "bwr"
+        cmap_center = 0
+        divnorm = TwoSlopeNorm(vmin=vmin, vcenter=cmap_center, vmax=vmax)
     elif title_prefix == "CRPS":
         vmin = 0
         vmax = np.nanmax(metric_data.values)
@@ -166,6 +168,7 @@ def create_plot_metric(ax, metric_data, var, level, step, title_prefix, lat, lon
         cmap=cmap,
         vmin=vmin,
         vmax=vmax,
+        norm=divnorm if title_prefix == "Error" else None,
         transform=ccrs.PlateCarree(),
         animated=True,
     )
@@ -258,6 +261,8 @@ def plot_static_steps(path_gif, data, var, level, lat, lon, metric_name):
     # Set color map limits based on the metric
     if metric_name == "Error":
         cmap = "bwr"
+        cmap_center = 0
+        divnorm = TwoSlopeNorm(vmin=vmin, vcenter=cmap_center, vmax=vmax)
     elif metric_name == "CRPS":
         cmap = "viridis"
     else:
@@ -272,6 +277,7 @@ def plot_static_steps(path_gif, data, var, level, lat, lon, metric_name):
             vmin=vmin,
             vmax=vmax,
             cmap=cmap,
+            norm=divnorm if metric_name == "Error" else None,
             transform=ccrs.PlateCarree(),
         )
         ax.set_title(f"{(step)*6} hours")  # Only show the hour as subtitle
