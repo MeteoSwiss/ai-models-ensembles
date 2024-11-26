@@ -19,7 +19,7 @@ perturbation $PERTURBATION_INIT, latent perturbation $PERTURBATION_LATENT"
 echo "This will generate roughly $((NUM_MEMBERS * 7))GB of data"
 
 proceed_if_not_exists "${MODEL_DIR}/${MODEL_NAME}.grib" "pushd ${MODEL_DIR} && \
-    ai-models --input file --file era5_init.grib --lead-time ${LEAD_TIME} \
+    ai-models --input file --file init_field.grib --lead-time ${LEAD_TIME} \
     --download-assets $MODEL_NAME && popd"'
 
 export job2='create_dir_if_not_exists "$PERTURBATION_DIR"
@@ -28,11 +28,11 @@ for MEMBER in $(seq 0 $((NUM_MEMBERS - 1))); do
     MEMBER_DIR="${PERTURBATION_DIR}/${MEMBER}"
     create_dir_if_not_exists "$MEMBER_DIR"
     if [ "$(echo "$PERTURBATION_INIT > 0.0" | bc -l)" -eq 1 ]; then
-        proceed_if_not_exists "${MEMBER_DIR}/era5_init.grib" \
+        proceed_if_not_exists "${MEMBER_DIR}/init_field.grib" \
             "python -u -m ai_models_ensembles.perturb_era5 $OUTPUT_DIR $DATE_TIME $MODEL_NAME \
             $PERTURBATION_INIT $PERTURBATION_LATENT $MEMBER"
     else
-        ln -sf "${MODEL_DIR}/era5_init.grib" "${MEMBER_DIR}/era5_init.grib"
+        ln -sf "${MODEL_DIR}/init_field.grib" "${MEMBER_DIR}/init_field.grib"
     fi
 
     if [ "$(echo "$PERTURBATION_LATENT > 0.0" | bc -l)" -eq 1 ]; then
@@ -62,7 +62,7 @@ for MEMBER in $(seq 0 $((NUM_MEMBERS - 1))); do
     # Run the model from a local GRIB-file
     proceed_if_not_exists "${PERTURBATION_DIR}/forecast.zarr/member/${MEMBER}" \
             "pushd ${MEMBER_DIR} &&  ai-models --input file --file \
-    ${MEMBER_DIR}/era5_init.grib --lead-time ${LEAD_TIME} $MODEL_NAME && popd"
+    ${MEMBER_DIR}/init_field.grib --lead-time ${LEAD_TIME} $MODEL_NAME && popd"
 done
 echo "*****DONE*****"'
 

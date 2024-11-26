@@ -14,7 +14,7 @@
 source ./config.sh
 
 srun bash -c '
-echo "Downloading ERA5 and IFS for $MODEL_NAME and $DATE_TIME with 51 members"
+echo "Downloading (Re)Analysis and IFS for $MODEL_NAME and $DATE_TIME with 51 members"
 echo "This will generate ~350 GB of data"
 
 create_dir_if_not_exists "$OUTPUT_DIR/source_files"
@@ -25,8 +25,8 @@ create_dir_if_not_exists "$MODEL_DIR"
 
 proceed_if_not_exists "${MODEL_DIR}/fields.txt" "ai-models --fields $MODEL_NAME > ${MODEL_DIR}/fields.txt"
 
-proceed_if_not_exists "${MODEL_DIR}/era5_init.grib" "python -m \
-    ai_models_ensembles.download_era5 $OUTPUT_DIR $DATE_TIME $END_DATE_TIME $INTERVAL $MODEL_NAME"
+proceed_if_not_exists "${MODEL_DIR}/init_field.grib" "python -m \
+    ai_models_ensembles.download_re_analysis $OUTPUT_DIR $DATE_TIME $END_DATE_TIME $INTERVAL $MODEL_NAME"
 proceed_if_not_exists "${MODEL_DIR}/ifs_ens.zarr/.zmetadata" "python -m \
     ai_models_ensembles.download_ifs_ensemble $OUTPUT_DIR $DATE_TIME $INTERVAL $NUM_DAYS $MODEL_NAME"
 proceed_if_not_exists "${MODEL_DIR}/ifs_control.zarr/.zmetadata" "python -m \
