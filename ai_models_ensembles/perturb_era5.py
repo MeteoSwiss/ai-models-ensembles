@@ -29,7 +29,7 @@ args = parser.parse_args()
 
 # Open the GRIB file
 f = open(
-    args.out_dir + "/" + args.date_time + "/" + args.model_name + "/era5_init.grib",
+    args.out_dir + "/" + args.date_time + "/" + args.model_name + "/init_field.grib",
     "rb",
 )
 
@@ -40,7 +40,7 @@ path_out = os.path.join(
     args.model_name,
     f"init_{args.perturbation_init}_latent_{args.perturbation_latent}_layer_{args.layer}",
     str(args.member),
-    "era5_init.grib",
+    "init_field.grib",
 )
 print("Starting from: ", path_out)
 
