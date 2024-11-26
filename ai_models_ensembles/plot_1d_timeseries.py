@@ -245,7 +245,6 @@ def plot_error_map(errors_mean, errors_unperturbed, errors_members, path_out, le
             vmax=1.0,
             interpolation="none",
             aspect="auto",
-            alpha=0.8,
         )
 
         # Add error values to the heatmap cells, rotated 90 degrees
@@ -411,7 +410,7 @@ def plot_energy_spectra(
             energy_spectra_forecast_lev.sel(member=member).wavenumber,
             energy_spectra_forecast_lev.sel(member=member).values,
             color=color_palette[1],
-            alpha=alpha_value / 3,  # Plot becomes very busy
+            alpha=alpha_value / 2,  # Plot becomes very busy
             label=f"{model_name} Member" if member == 0 else None,
         )
 
@@ -421,7 +420,6 @@ def plot_energy_spectra(
         mean_energy_spectra.wavenumber,
         mean_energy_spectra.values,
         color=color_palette[2],
-        alpha=0.8,
         label=f"{model_name} Mean",
     )
 
@@ -430,7 +428,6 @@ def plot_energy_spectra(
         energy_spectra_unperturbed_lev.wavenumber,
         energy_spectra_unperturbed_lev.values,
         color=color_palette[3],
-        alpha=0.8,
         label=f"{model_name} Unperturbed",
         linestyle="--",
     )
@@ -438,13 +435,12 @@ def plot_energy_spectra(
         energy_spectra_ground_truth_lev.wavenumber,
         energy_spectra_ground_truth_lev.values,
         color=color_palette[0],
-        alpha=0.8,
         label="Ground Truth: ERA5",
         linestyle=":",
     )
 
-    ax.set_xlabel("Wavenumber (rad/km)")
-    ax.set_ylabel("Power")
+    ax.set_xlabel("Wavenumber (num wave cycles around the globe)")
+    ax.set_ylabel("Energy Density")
     ax.set_title(
         f"Energy Spectra for {variable} on level {level}\nRegion: {region},"
         f"Init Date: {date_time}, Model: {model_name}"
@@ -457,25 +453,25 @@ def plot_energy_spectra(
 
     # Add grid lines
     ax.grid(True, which="both", ls="-", alpha=0.2)
+    k_min, k_max = ax.get_xlim()
+    _, y_max = ax.get_ylim()
 
-    # Get the minimum and maximum values of the wavenumber from the data
-    wavenumber_min, wavenumber_max = ax.get_xlim()
+    # k ^ (-3) slope: This slope is associated with the theory of two -
+    # dimensional turbulence and is often referred to as the enstrophy cascade.
+    # It was proposed by Robert Kraichnan in the 1960s. In the atmosphere, this
+    # slope is typically observed at larger scales(low wavenumbers) and is
+    # associated with quasi - two - dimensional, rotational dynamics dominated
+    # by the Earth's rotation and stratification.
+    # k ^ (-5 / 3) slope: This slope is associated with the theory of three -
+    # dimensional turbulence and is often referred to as the energy cascade or
+    # Kolmogorov spectrum. It was first proposed by Andrey Kolmogorov in the
+    # 1940s. In the atmosphere, this slope is typically observed at smaller
+    # scales(high wavenumbers) where the flow behaves more like three -
+    # dimensional isotropic turbulence.
+    k_range = np.logspace(np.log10(k_min + 1e-6), np.log10(k_max), 10)
 
-    # k ^ (-3) slope: This slope is associated with the theory of two - dimensional
-    # turbulence and is often referred to as the enstrophy cascade. It was proposed by
-    # Robert Kraichnan in the 1960s. In the atmosphere, this slope is typically observed
-    # at larger scales(low wavenumbers) and is associated with quasi - two -
-    # dimensional, rotational dynamics dominated by the Earth's rotation and
-    # stratification.
-    # k ^ (-5 / 3) slope: This slope is associated with the theory of
-    # three - dimensional turbulence and is often referred to as the energy cascade or
-    # Kolmogorov spectrum. It was first proposed by Andrey Kolmogorov in the 1940s. In
-    # the atmosphere, this slope is typically observed at smaller scales(high
-    # wavenumbers) where the flow behaves more like three - dimensional isotropic
-    # turbulence.
-    k_range = np.logspace(np.log10(wavenumber_min), np.log10(wavenumber_max), 100)
-    ax.loglog(k_range, 100 * k_range ** (-3), "k--", alpha=0.5, label="k⁻³")
-    ax.loglog(k_range, 100 * k_range ** (-5 / 3), "k:", alpha=0.5, label="k⁻⁵ᐟ³")
+    ax.loglog(k_range, y_max * k_range ** (-3), "k--", alpha=0.5, label="k⁻³")
+    ax.loglog(k_range, y_max * k_range ** (-5 / 3), "k:", alpha=0.5, label="k⁻⁵ᐟ³")
 
     # Update legend
     ax.legend(loc="lower left")
