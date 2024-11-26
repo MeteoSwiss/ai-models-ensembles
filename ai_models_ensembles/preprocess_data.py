@@ -5,7 +5,6 @@ import numpy as np
 import scores
 import seaborn as sns
 import xarray as xr
-from scipy import signal
 
 dask.config.set(**{"array.slicing.split_large_chunks": True})
 
@@ -50,7 +49,7 @@ def parse_args():
         ),
         # TODO: make this a user INPUT
         "sample_size": 100000,
-        "selected_vars": ["t2m"],
+        "selected_vars": ["u10"],
     }
 
     return args, config
@@ -105,26 +104,24 @@ def load_and_prepare_data(
     if crop_region == "europe":
         lat_min, lat_max = 25, 80
         lon_min, lon_max = 340, 50
-
         # Use modulo arithmetic to ensure longitudes are in 0-360 range
         lon_min = lon_min % 360
         lon_max = lon_max % 360
-
         # Create a list of longitudes that wraps around 0/360
         lats = list(range(lat_min, lat_max + 1))
         lons = list(range(lon_min, 360)) + list(range(0, lon_max + 1))
-
-        # Crop all datasets to the European lat-lon box
-        ground_truth = ground_truth.sel(latitude=lats, longitude=lons)
-        forecast = forecast.sel(latitude=lats, longitude=lons)
-        forecast_unperturbed = forecast_unperturbed.sel(latitude=lats, longitude=lons)
-        forecast_ifs = forecast_ifs.sel(latitude=lats, longitude=lons)
-        forecast_ifs_unperturbed = forecast_ifs_unperturbed.sel(
-            latitude=lats, longitude=lons
-        )
     else:
-        lat_min, lat_max = ground_truth.latitude.isel(latitude=[0, -1])
-        lon_min, lon_max = ground_truth.longitude.isel(longitude=[0, -1])
+        lats = ground_truth.latitude.isel(latitude=slice(1, -1)).values
+        lons = ground_truth.longitude.isel(longitude=slice(1, -1)).values
+
+    # Crop all datasets to the lat-lon box
+    ground_truth = ground_truth.sel(latitude=lats, longitude=lons)
+    forecast = forecast.sel(latitude=lats, longitude=lons)
+    forecast_unperturbed = forecast_unperturbed.sel(latitude=lats, longitude=lons)
+    forecast_ifs = forecast_ifs.sel(latitude=lats, longitude=lons)
+    forecast_ifs_unperturbed = forecast_ifs_unperturbed.sel(
+        latitude=lats, longitude=lons
+    )
 
     # align ifs forecast with forecast dimensions
     forecast_ifs = (
@@ -234,9 +231,7 @@ def calculate_stats(ground_truth, forecast, forecast_unperturbed, crop_region):
     squared_diff_mean = (forecast.mean(dim="member") - ground_truth) ** 2
     rmse_grid = np.sqrt(squared_diff.mean(dim="member"))
     rmse = np.sqrt(squared_diff.mean(dim=["latitude", "longitude"]))
-    rmse_mean = np.sqrt(
-        squared_diff_mean.mean(dim=["latitude", "longitude"])
-    )
+    rmse_mean = np.sqrt(squared_diff_mean.mean(dim=["latitude", "longitude"]))
 
     squared_diff_unperturbed = (forecast_unperturbed - ground_truth) ** 2
     rmse_unperturbed = np.sqrt(
@@ -246,12 +241,17 @@ def calculate_stats(ground_truth, forecast, forecast_unperturbed, crop_region):
     if crop_region == "europe":
         lat_min, lat_max = 25, 80
     else:
-        lat_min, lat_max = ground_truth.latitude.isel(latitude=[0, -1])
+        lat_min, lat_max = ground_truth.latitude.isel(latitude=[0, -1]).values
 
     ensemble_spread_grid = forecast.std(dim="member")
-    spread_skill_ratio_grid = ensemble_spread_grid / rmse_grid
+    # Prevent division by zero
+    spread_skill_ratio_grid = ensemble_spread_grid / (rmse_grid + 1e-6)
     spread_skill_ratio = spread_skill_ratio_grid.mean(dim=["latitude", "longitude"])
     ensemble_spread = ensemble_spread_grid.mean(dim=["latitude", "longitude"])
+
+    # TODO remove this again after init from oper analysis
+    spread_skill_ratio = spread_skill_ratio.isel(step=slice(1, None))
+    ensemble_spread = ensemble_spread.isel(step=slice(1, None))
 
     preserve_dims = (
         ["step", "latitude", "longitude", "isobaricInhPa"]
@@ -277,6 +277,7 @@ def calculate_stats(ground_truth, forecast, forecast_unperturbed, crop_region):
     def calculate_energy_spectra(
         forecast, forecast_unperturbed, ground_truth, lat_band
     ):
+        EARTH_RADIUS_KM = 6371.0  # Earth's radius in kilometers
         energy_spectra_forecast = []
         energy_spectra_unperturbed = []
         energy_spectra_ground_truth = []
@@ -305,6 +306,8 @@ def calculate_stats(ground_truth, forecast, forecast_unperturbed, crop_region):
                     levels = [0]
 
                 power_spectra = []
+                wavenumbers_list = []
+                wavenumbers_earth_list = []
                 for level in levels:
                     # Select data for the current level
                     data_level = (
@@ -314,33 +317,48 @@ def calculate_stats(ground_truth, forecast, forecast_unperturbed, crop_region):
                     )
 
                     # Calculate mean over latitude band
-                    data_mean = data_level.mean(dim="latitude")
-                    longitude_index = data_mean.get_axis_num("longitude")
+                    latitudes = np.deg2rad(data_level.latitude.values)
+                    cos_latitudes = np.cos(latitudes)
 
-                    # Remove mean (instead of detrending)
-                    data_detrended = data_mean.values - np.mean(
-                        data_mean.values, axis=longitude_index, keepdims=True
-                    )
+                    # Get the index of the longitude axis
+                    n = data_level.longitude.size
 
-                    # Apply window function (Hann window)
-                    window = signal.windows.hann(
-                        data_detrended.shape[longitude_index], sym=False
-                    )
-                    data_windowed = (
-                        data_detrended * window[:, np.newaxis]
-                        if data_detrended.ndim > 1
-                        else data_detrended * window
-                    )
+                    # Initialize an array to accumulate the weighted power spectra
+                    summed_power_spectrum = None
 
-                    # Calculate FFT along longitude
-                    fft = np.fft.rfft(data_windowed, axis=longitude_index)
-                    n = data_mean.longitude.size
+                    for i, lat in enumerate(latitudes):
+                        # Extract data for the current latitude
+                        data_lat = data_level.isel(latitude=i)
+                        longitude_index = data_lat.get_axis_num("longitude")
 
-                    # Calculate power spectrum (with adjusted normalization)
-                    power_spectrum = (np.abs(fft) ** 2) / (n * np.mean(window**2))
-                    wavenumber = np.fft.rfftfreq(n, d=1.0) * n
+                        # Calculate FFT along longitude
+                        fft = np.fft.rfft(data_lat, axis=longitude_index)
 
-                    power_spectra.append(power_spectrum)
+                        # Calculate the circumference at this latitude (in km)
+                        circumference = 2 * np.pi * EARTH_RADIUS_KM * cos_latitudes[i]
+                        # Calculate the physical distance between longitude points (in km)
+                        dx = circumference / n  # km between longitude points
+                        wavenumber = np.fft.rfftfreq(n, d=dx) * dx * n  # in cycles/latitude band (around the earth)
+                        wavenumbers_list.append(wavenumber)
+
+                        # Calculate power spectrum (mathematical "Energy")
+                        power_spectrum = np.abs(fft) ** 2
+
+                        # Weight the power spectrum by cosine of latitude
+                        weighted_power_spectrum = power_spectrum * cos_latitudes[i]
+
+                        # Sum the weighted power spectra
+                        if summed_power_spectrum is None:
+                            summed_power_spectrum = weighted_power_spectrum
+                        else:
+                            summed_power_spectrum += weighted_power_spectrum
+
+                    summed_power_spectrum /= np.sum(cos_latitudes)
+                    power_spectra.append(summed_power_spectrum)
+                    # Since wavenumbers vary with latitude, calculate an average
+                    # wavenumber weighted by cos(lat) Convert the list of
+                    # wavenumbers to a 2D array ([latitudes, wavenumbers])
+                    average_wavenumber = np.average(np.array(wavenumbers_list), axis=0)
 
                 if "isobaricInhPa" in var_data.dims:
                     if "member" in var_data.dims:
@@ -354,7 +372,7 @@ def calculate_stats(ground_truth, forecast, forecast_unperturbed, crop_region):
                                 },
                                 coords={
                                     "isobaricInhPa": ("isobaricInhPa", levels),
-                                    "wavenumber": ("wavenumber", wavenumber),
+                                    "wavenumber": ("wavenumber", average_wavenumber),
                                     "member": ("member", data_last_step.member.values),
                                 },
                             )
@@ -370,7 +388,7 @@ def calculate_stats(ground_truth, forecast, forecast_unperturbed, crop_region):
                                 },
                                 coords={
                                     "isobaricInhPa": ("isobaricInhPa", levels),
-                                    "wavenumber": ("wavenumber", wavenumber),
+                                    "wavenumber": ("wavenumber", average_wavenumber),
                                 },
                             )
                         )
@@ -385,7 +403,7 @@ def calculate_stats(ground_truth, forecast, forecast_unperturbed, crop_region):
                                     ),
                                 },
                                 coords={
-                                    "wavenumber": ("wavenumber", wavenumber),
+                                    "wavenumber": ("wavenumber", average_wavenumber),
                                     "member": ("member", data_last_step.member.values),
                                 },
                             )
@@ -400,7 +418,7 @@ def calculate_stats(ground_truth, forecast, forecast_unperturbed, crop_region):
                                     ),
                                 },
                                 coords={
-                                    "wavenumber": ("wavenumber", wavenumber),
+                                    "wavenumber": ("wavenumber", average_wavenumber),
                                 },
                             )
                         )
@@ -410,18 +428,20 @@ def calculate_stats(ground_truth, forecast, forecast_unperturbed, crop_region):
         energy_spectra_ground_truth_concat = xr.merge(energy_spectra_ground_truth)
 
         return (
-            energy_spectra_forecast_concat,
-            energy_spectra_unperturbed_concat,
-            energy_spectra_ground_truth_concat,
+            energy_spectra_forecast_concat.drop_isel(wavenumber=0),
+            energy_spectra_unperturbed_concat.drop_isel(wavenumber=0),
+            energy_spectra_ground_truth_concat.drop_isel(wavenumber=0),
         )
 
-    energy_spectra_forecast, energy_spectra_unperturbed, energy_spectra_ground_truth = (
-        calculate_energy_spectra(
-            forecast,
-            forecast_unperturbed,
-            ground_truth,
-            lat_band=(lat_min, lat_max),
-        )
+    (
+        energy_spectra_forecast,
+        energy_spectra_unperturbed,
+        energy_spectra_ground_truth,
+    ) = calculate_energy_spectra(
+        forecast,
+        forecast_unperturbed,
+        ground_truth,
+        lat_band=(lat_min, lat_max),
     )
 
     return {
