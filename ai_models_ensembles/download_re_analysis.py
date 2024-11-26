@@ -114,7 +114,7 @@ else:
     ds_combined = ds_single_init + ds_pressure_init
 
 print("Saving initial conditions to grib...")
-ds_combined.save(f"{path}/era5_init.grib")
+ds_combined.save(f"{path}/init_field.grib")
 
 ds_single = earthkit.data.from_source(
     "cds",
