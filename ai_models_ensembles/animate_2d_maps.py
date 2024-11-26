@@ -9,34 +9,176 @@ from matplotlib.colors import TwoSlopeNorm
 from .preprocess_data import calculate_stats, load_and_prepare_data, parse_args
 
 
-def create_plot(ax, data, var, level, step, title_prefix, lat, lon):
+def create_plot(ax, data, var, level, step, title_prefix, lat, lon, vmin, vmax):
     """
     Create a plot for a given variable, level, and time step.
 
     Args:
         ax: Matplotlib axis object
-        data: xarray dataset
+        data: xarray DataArray
         var: Variable to plot
         level: Level to plot
         step: Time step to plot
         title_prefix: Prefix for the title
         lat: Latitude values
         lon: Longitude values
+        vmin: Minimum value for color scale
+        vmax: Maximum value for color scale
 
     Returns:
-        im: Matplotlib image object
+        im: Matplotlib QuadMesh object
     """
     plot_data = data.isel(step=step).values
 
     im = ax.pcolormesh(
-        lon, lat, plot_data, cmap="plasma", transform=ccrs.PlateCarree(), animated=True
+        lon,
+        lat,
+        plot_data,
+        cmap="plasma",
+        vmin=vmin,
+        vmax=vmax,
+        transform=ccrs.PlateCarree(),
+        animated=True,
     )
 
-    ax.set_title(f"{title_prefix} {var} at {level}, {(step+1)*6} hours")
+    ax.set_title(f"{title_prefix} {var} at {level}, {(step + 1) * 6} hours")
     ax.coastlines()
     ax.set_xticks([])
     ax.set_yticks([])
+
     return im
+
+
+def plot_variable(forecast, ground_truth, var, level, lat, lon):
+    """
+    Plot a variable for a given forecast and ground truth data.
+
+    Args:
+        forecast: Forecast xarray DataArray
+        ground_truth: Ground truth xarray DataArray
+        var: Variable to plot
+        level: Level to plot
+        lat: Latitude values
+        lon: Longitude values
+
+    Returns:
+        fig: Matplotlib Figure object
+        updatefig: Update function for the animation
+    """
+    # Calculate global vmin and vmax
+    vmin = np.nanmin([forecast.values.min(), ground_truth.values.min()])
+    vmax = np.nanmax([forecast.values.max(), ground_truth.values.max()])
+
+    fig, axes = plt.subplots(
+        2, figsize=(10, 15), subplot_kw={"projection": ccrs.PlateCarree()}
+    )
+    image1 = create_plot(
+        axes[0], forecast, var, level, 0, "Forecast", lat, lon, vmin, vmax
+    )
+    image2 = create_plot(
+        axes[1], ground_truth, var, level, 0, "Ground Truth", lat, lon, vmin, vmax
+    )
+
+    # Add colorbars
+    fig.colorbar(image1, ax=axes[0], orientation="horizontal", pad=0.05)
+    fig.colorbar(image2, ax=axes[1], orientation="horizontal", pad=0.05)
+
+    updatefig = create_update_function(
+        forecast, ground_truth, var, level, image1, image2, axes, lat, lon
+    )
+    return fig, updatefig
+
+
+def create_plot_metric(
+    ax, metric_data, var, level, step, title_prefix, lat, lon, vmin, vmax
+):
+    """
+    Create a plot for a given metric, level, and time step.
+
+    Args:
+        ax: Matplotlib axis object
+        metric_data: xarray DataArray
+        var: Variable to plot
+        level: Level to plot
+        step: Time step to plot
+        title_prefix: Prefix for the title
+        lat: Latitude values
+        lon: Longitude values
+        vmin: Minimum value for color scale
+        vmax: Maximum value for color scale
+
+    Returns:
+        im: Matplotlib QuadMesh object
+    """
+    plot_data = metric_data.isel(step=step).values
+
+    if title_prefix == "Error":
+        cmap = "bwr"
+        cmap_center = 0
+        divnorm = TwoSlopeNorm(vmin=vmin, vcenter=cmap_center, vmax=vmax)
+    elif title_prefix == "CRPS":
+        cmap = "viridis"
+    else:
+        cmap = "plasma"
+
+    im = ax.pcolormesh(
+        lon,
+        lat,
+        plot_data,
+        cmap=cmap,
+        vmin=vmin if title_prefix != "Error" else None,
+        vmax=vmax if title_prefix != "Error" else None,
+        norm=divnorm if title_prefix == "Error" else None,
+        transform=ccrs.PlateCarree(),
+        animated=True,
+    )
+
+    ax.set_title(f"{title_prefix} of {var} at {level}, {(step + 1) * 6} hours")
+    ax.coastlines()
+    ax.set_xticks([])
+    ax.set_yticks([])
+
+    return im
+
+
+def plot_metric(metric_data, var, level, lat, lon, metric_name):
+    """
+    Plot a metric for a given dataset.
+
+    Args:
+        metric_data: Metric xarray DataArray
+        var: Variable to plot
+        level: Level to plot
+        lat: Latitude values
+        lon: Longitude values
+        metric_name: Name of the metric
+
+    Returns:
+        fig: Matplotlib Figure object
+        updatefig: Update function for the animation
+    """
+    # Calculate global vmin and vmax
+    if metric_name == "Error":
+        vmax = np.nanmax(np.abs(metric_data.values))
+        vmin = -vmax
+    else:
+        vmin = np.nanmin(metric_data.values)
+        vmax = np.nanmax(metric_data.values)
+
+    fig, ax = plt.subplots(
+        figsize=(10, 5), subplot_kw={"projection": ccrs.PlateCarree()}
+    )
+    image = create_plot_metric(
+        ax, metric_data, var, level, 0, metric_name, lat, lon, vmin, vmax
+    )
+
+    # Add colorbar
+    fig.colorbar(image, ax=ax, orientation="horizontal", pad=0.05)
+
+    updatefig = create_update_function_metric(
+        metric_data, var, level, image, ax, lat, lon, metric_name
+    )
+    return fig, updatefig
 
 
 def create_update_function(
@@ -78,33 +220,6 @@ def create_update_function(
     return updatefig
 
 
-def plot_variable(forecast, ground_truth, var, level, lat, lon):
-    """
-    Plot a variable for a given forecast and ground truth data.
-
-    Args:
-        forecast: Forecast data
-        ground_truth: Ground truth data
-        var: Variable to plot
-        level: Level to plot
-        lat: Latitude values
-        lon: Longitude values
-
-    Returns:
-        fig: Matplotlib figure object
-        updatefig: Update function for the animation
-    """
-    fig, axes = plt.subplots(
-        2, figsize=(10, 15), subplot_kw={"projection": ccrs.PlateCarree()}
-    )
-    image1 = create_plot(axes[0], forecast, var, level, 0, "Forecast", lat, lon)
-    image2 = create_plot(axes[1], ground_truth, var, level, 0, "Ground Truth", lat, lon)
-    updatefig = create_update_function(
-        forecast, ground_truth, var, level, image1, image2, axes, lat, lon
-    )
-    return fig, updatefig
-
-
 def create_and_save_animation(
     path, data, var, level, fig, updatefig, metric_name="comparison"
 ):
@@ -125,59 +240,6 @@ def create_and_save_animation(
     )
     ani.save(f"{path}/{metric_name}_{var}_{level}.gif", writer="imagemagick")
     plt.close()
-
-
-def create_plot_metric(ax, metric_data, var, level, step, title_prefix, lat, lon):
-    """
-    Create a plot for a given metric, level, and time step.
-
-    Args:
-        ax: Matplotlib axis object
-        metric_data: xarray dataset
-        var: Variable to plot
-        level: Level to plot
-        step: Time step to plot
-        title_prefix: Prefix for the title
-        lat: Latitude values
-        lon: Longitude values
-
-    Returns:
-        im: Matplotlib image object
-    """
-    plot_data = metric_data.isel(step=step).values
-
-    if title_prefix == "Error":
-        vmax = np.nanmax(np.abs(metric_data.values))
-        vmin = -vmax
-        cmap = "bwr"
-        cmap_center = 0
-        divnorm = TwoSlopeNorm(vmin=vmin, vcenter=cmap_center, vmax=vmax)
-    elif title_prefix == "CRPS":
-        vmin = 0
-        vmax = np.nanmax(metric_data.values)
-        cmap = "viridis"
-    else:
-        vmin = 0
-        vmax = np.nanmax(metric_data.values)
-        cmap = "plasma"
-
-    im = ax.pcolormesh(
-        lon,
-        lat,
-        plot_data,
-        cmap=cmap,
-        vmin=vmin if title_prefix != "Error" else None,
-        vmax=vmax if title_prefix != "Error" else None,
-        norm=divnorm if title_prefix == "Error" else None,
-        transform=ccrs.PlateCarree(),
-        animated=True,
-    )
-
-    ax.set_title(f"{title_prefix} of {var} at {level}, {(step+1)*6} hours")
-    ax.coastlines()
-    ax.set_xticks([])
-    ax.set_yticks([])
-    return im
 
 
 def create_update_function_metric(
@@ -207,32 +269,6 @@ def create_update_function_metric(
         return (image,)
 
     return updatefig
-
-
-def plot_metric(metric_data, var, level, lat, lon, metric_name):
-    """
-    Plot a metric for a given dataset.
-
-    Args:
-        metric_data: Metric data
-        var: Variable to plot
-        level: Level to plot
-        lat: Latitude values
-        lon: Longitude values
-        metric_name: Name of the metric
-
-    Returns:
-        fig: Matplotlib figure object
-        updatefig: Update function for the animation
-    """
-    fig, ax = plt.subplots(
-        figsize=(10, 5), subplot_kw={"projection": ccrs.PlateCarree()}
-    )
-    image = create_plot_metric(ax, metric_data, var, level, 0, metric_name, lat, lon)
-    updatefig = create_update_function_metric(
-        metric_data, var, level, image, ax, lat, lon, metric_name
-    )
-    return fig, updatefig
 
 
 def plot_static_steps(path_gif, data, var, level, lat, lon, metric_name):
