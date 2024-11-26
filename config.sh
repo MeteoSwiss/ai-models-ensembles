@@ -5,7 +5,7 @@ export LAYER=13 #0-13 for graphcast, 0-11 for fourcastnetv2-small
 export PERTURBATION_INIT=0.0
 export PERTURBATION_LATENT=0.01
 export NUM_MEMBERS=50
-export CROP_REGION=global # Crop to a specific region
+export CROP_REGION=europe # Crop to a specific region (europe/global)
 export OUTPUT_DIR=/scratch/mch/sadamov/pyprojects_data/ai-models-ensembles
 
 # These paths are used in the pipeline
