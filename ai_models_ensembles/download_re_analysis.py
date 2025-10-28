@@ -9,19 +9,18 @@ from earthkit.data import settings
 
 parser = argparse.ArgumentParser(description="Download ERA5 data.")
 parser.add_argument("out_dir", type=str, help="The output directory")
-parser.add_argument(
-    "start_date", type=str, help="Start date in the format YYYYMMDDHHMM"
-)
+parser.add_argument("start_date", type=str, help="Start date in the format YYYYMMDDHHMM")
 parser.add_argument("end_date", type=str, help="End date in the format YYYYMMDDHHMM")
-parser.add_argument(
-    "interval", type=int, help="The time step in hours between each analysis time"
-)
+parser.add_argument("interval", type=int, help="The time step in hours between each analysis time")
 parser.add_argument("model_name", type=str, help="The ai-model name")
 
 args = parser.parse_args()
 
 settings.set("cache-policy", "user")
-settings.set("user-cache-directory", "/scratch/mch/sadamov/temp/earthkit-cache")
+# Optional Earthkit cache directory via environment variable
+cache_dir = os.environ.get("EARTHKIT_CACHE_DIR")
+if cache_dir:
+    settings.set("user-cache-directory", cache_dir)
 
 path = os.path.join(args.out_dir, args.start_date, args.model_name)
 with open(path + "/fields.txt", "r") as f:
@@ -52,9 +51,7 @@ else:
 analysis_times = []
 current_date = start_date
 while current_date <= end_date:
-    analysis_times.extend(
-        [current_date + timedelta(hours=h) for h in range(0, 24, args.interval)]
-    )
+    analysis_times.extend([current_date + timedelta(hours=h) for h in range(0, 24, args.interval)])
     current_date += timedelta(days=1)
 
 dates = sorted(list({t.strftime("%Y-%m-%d") for t in analysis_times}))
@@ -145,9 +142,7 @@ if args.model_name == "graphcast":
 else:
     ds_combined_xr = xr.merge([ds_single.to_xarray(), ds_pressure.to_xarray()])
 
-ds_combined_xr = ds_combined_xr.sel(
-    time=slice(start_date, end_date + timedelta(hours=1))
-)
+ds_combined_xr = ds_combined_xr.sel(time=slice(start_date, end_date + timedelta(hours=1)))
 chunks = {"latitude": -1, "longitude": -1, "time": 1, "isobaricInhPa": -1}
 print("Saving ground truth to zarr...")
 ds_combined_xr.chunk(chunks=chunks).drop_vars(["valid_time"]).to_zarr(

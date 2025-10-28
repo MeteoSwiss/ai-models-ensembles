@@ -9,18 +9,17 @@ from earthkit.data import settings
 
 parser = argparse.ArgumentParser(description="Download IFS data.")
 parser.add_argument("out_dir", type=str, help="The output directory")
-parser.add_argument(
-    "date_time", type=str, help="Date and time in the format YYYYMMDDHHMM"
-)
-parser.add_argument(
-    "interval", type=int, help="The time step in hours between each analysis time"
-)
+parser.add_argument("date_time", type=str, help="Date and time in the format YYYYMMDDHHMM")
+parser.add_argument("interval", type=int, help="The time step in hours between each analysis time")
 parser.add_argument("num_days", type=int, help="Number of days to download")
 parser.add_argument("model_name", type=str, help="The ai-model name")
 
 args = parser.parse_args()
 
-settings.set("user-cache-directory", "/scratch/mch/sadamov/temp/earthkit-cache")
+# Optional Earthkit cache directory via environment variable
+cache_dir = os.environ.get("EARTHKIT_CACHE_DIR")
+if cache_dir:
+    settings.set("user-cache-directory", cache_dir)
 
 # Read parameters from fields.txt
 path = os.path.join(args.out_dir, args.date_time, args.model_name)
@@ -69,20 +68,14 @@ chunks_surface["surface"] = chunks_surface.pop("isobaricInhPa")
 # Retrieve the single level data
 ds_single = earthkit.data.from_source("mars", request, lazily=True)
 
-ds_single = (
-    ds_single.to_xarray(chunks=chunks_surface)
-    .drop_vars("valid_time")
-    .chunk(chunks_surface)
-)
+ds_single = ds_single.to_xarray(chunks=chunks_surface).drop_vars("valid_time").chunk(chunks_surface)
 
 # Retrieve the pressure level data in chunks because of MARS size limits
-request.update(
-    {
-        "levtype": "pl",
-        "levelist": pressure_levels,
-        "param": pressure_level_params,
-    }
-)
+request.update({
+    "levtype": "pl",
+    "levelist": pressure_levels,
+    "param": pressure_level_params,
+})
 ds_pressure = earthkit.data.from_source("mars", request, lazily=True)
 
 shortnames = list(set(ds_pressure.metadata("shortName")))

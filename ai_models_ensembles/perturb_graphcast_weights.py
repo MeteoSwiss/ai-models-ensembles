@@ -47,10 +47,21 @@ def perturb_weights(params, perturbation_strength):
 
 
 def main():
-    name = "params/GraphCast_operational - ERA5-HRES 1979-2021 - resolution 0.25 - pressure levels 13 - mesh 2to6 - precipitation output only.npz"
-    checkpoint_path = os.path.join(
-        args.out_dir, str(args.date_time), args.model_name, name
-    )
+    # Determine params file path
+    # Priority: env var GRAPHCAST_PARAMS_FILE -> first *.npz in params/ -> error
+    params_rel = os.environ.get("GRAPHCAST_PARAMS_FILE")
+    if params_rel is None:
+        params_dir = os.path.join(args.out_dir, str(args.date_time), args.model_name, "params")
+        if os.path.isdir(params_dir):
+            npz_files = [f for f in os.listdir(params_dir) if f.endswith(".npz")]
+            if npz_files:
+                params_rel = os.path.join("params", npz_files[0])
+    if params_rel is None:
+        raise FileNotFoundError(
+            "GraphCast params file not found. Set GRAPHCAST_PARAMS_FILE or place a .npz under params/."
+        )
+
+    checkpoint_path = os.path.join(args.out_dir, str(args.date_time), args.model_name, params_rel)
     params = dict(np.load(checkpoint_path))
 
     np.random.seed(args.member)
@@ -68,7 +79,7 @@ def main():
         args.model_name,
         f"init_{args.perturbation_init}_latent_{args.perturbation_latent}_layer_{args.layer}",
         str(args.member),
-        name,
+        os.path.basename(checkpoint_path),
     )
 
     os.makedirs(os.path.dirname(path_out), exist_ok=True)

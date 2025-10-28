@@ -9,18 +9,17 @@ from earthkit.data import settings
 
 parser = argparse.ArgumentParser(description="Download IFS data.")
 parser.add_argument("out_dir", type=str, help="The output directory")
-parser.add_argument(
-    "date_time", type=str, help="Date and time in the format YYYYMMDDHHMM"
-)
-parser.add_argument(
-    "interval", type=int, help="The time step in hours between each analysis time"
-)
+parser.add_argument("date_time", type=str, help="Date and time in the format YYYYMMDDHHMM")
+parser.add_argument("interval", type=int, help="The time step in hours between each analysis time")
 parser.add_argument("num_days", type=int, help="Number of days to download")
 parser.add_argument("model_name", type=str, help="The ai-model name")
 
 args = parser.parse_args()
 
-settings.set("user-cache-directory", "/scratch/mch/sadamov/temp/earthkit-cache")
+# Optional Earthkit cache directory via environment variable
+cache_dir = os.environ.get("EARTHKIT_CACHE_DIR")
+if cache_dir:
+    settings.set("user-cache-directory", cache_dir)
 
 # Read parameters from fields.txt
 path = os.path.join(args.out_dir, args.date_time, args.model_name)
@@ -72,26 +71,20 @@ chunks_surface["surface"] = chunks_surface.pop("isobaricInhPa")
 ds_single = earthkit.data.from_source("mars", request, lazily=True)
 # ds_single.save(f"{args.date_time}/{args.model_name}/ifs_single.grib")
 
-ds_single = (
-    ds_single.to_xarray(chunks=chunks_surface)
-    .drop_vars("valid_time")
-    .chunk(chunks_surface)
-)
+ds_single = ds_single.to_xarray(chunks=chunks_surface).drop_vars("valid_time").chunk(chunks_surface)
 # Split the "number" dimension into chunks
 # TODO: This shouldn't be hardcoded to 50 members
-number_chunks = [f"{i}/to/{i+9}/by/1" for i in range(1, 51, 10)]
+number_chunks = [f"{i}/to/{i + 9}/by/1" for i in range(1, 51, 10)]
 
 
 # Retrieve the pressure level data in chunks because of MARS size limits
 for i, number_chunk in enumerate(number_chunks):
-    request.update(
-        {
-            "levtype": "pl",
-            "levelist": pressure_levels,
-            "param": pressure_level_params,
-            "number": number_chunk,
-        }
-    )
+    request.update({
+        "levtype": "pl",
+        "levelist": pressure_levels,
+        "param": pressure_level_params,
+        "number": number_chunk,
+    })
     ds_pressure_chunk = earthkit.data.from_source("mars", request, lazily=True)
 
     shortnames = list(set(ds_pressure_chunk.metadata("shortName")))
@@ -101,9 +94,7 @@ for i, number_chunk in enumerate(number_chunks):
     # Convert to xarray and chunk
     ds_normal = ds_pressure_chunk.sel(shortName=normal_vars).to_xarray(chunks=chunks)
     ds_special = ds_pressure_chunk.sel(shortName=special_vars).to_xarray(chunks=chunks)
-    ds_combined = (
-        xr.merge([ds_normal, ds_special]).chunk(chunks).drop_vars("valid_time")
-    )
+    ds_combined = xr.merge([ds_normal, ds_special]).chunk(chunks).drop_vars("valid_time")
 
     # Write to Zarr with correct append_dim
     ds_combined.to_zarr(
@@ -112,7 +103,7 @@ for i, number_chunk in enumerate(number_chunks):
         mode="w" if i == 0 else "a",
         append_dim="number" if i > 0 else None,
     )
-    print(f"Added chunk {i+1}/{len(number_chunks)}")
+    print(f"Added chunk {i + 1}/{len(number_chunks)}")
 
 print("Adding Surface data")
 ds_single.drop_vars(["z"] if "z" in ds_single.variables else []).to_zarr(
