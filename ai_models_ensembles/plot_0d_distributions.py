@@ -8,7 +8,12 @@ import seaborn as sns
 import xarray as xr
 from scipy.stats import gaussian_kde, wasserstein_distance
 
-from .preprocess_data import load_and_prepare_data, parse_args
+__all__ = [
+    "subsample_da",
+    "plot_density_distribution",
+    "plot_combined_density_distribution",
+    "prepare_density_distribution_args",
+]
 
 
 def subsample_da(data_da: xr.DataArray, max_samples: int) -> xr.DataArray:
@@ -35,10 +40,8 @@ def plot_density_distribution(
     region: str = "",
     date_time: str = "",
     max_samples: int = 100000,
-):
-    print(
-        f"Creating density distribution plot for variable: {variable}, level: {level}"
-    )
+) -> None:
+    print(f"Creating density distribution plot for variable: {variable}, level: {level}")
 
     if level is not None:
         forecast_var = forecast[variable].sel(isobaricInhPa=level)
@@ -71,12 +74,8 @@ def plot_density_distribution(
     data_range = combined_max - combined_min
     if data_range != 0:
         ensemble_values_norm = (ensemble_values_sampled - combined_min) / data_range
-        ground_truth_values_norm = (
-            ground_truth_values_sampled - combined_min
-        ) / data_range
-        w_distance_normalized = wasserstein_distance(
-            ensemble_values_norm, ground_truth_values_norm
-        )
+        ground_truth_values_norm = (ground_truth_values_sampled - combined_min) / data_range
+        w_distance_normalized = wasserstein_distance(ensemble_values_norm, ground_truth_values_norm)
     else:
         w_distance_normalized = 0
 
@@ -92,7 +91,7 @@ def plot_density_distribution(
         f"{' at level ' + str(level) + ' hPa' if level else ''}\n"
         f"Region: {region}, Init Date: {date_time}, Model: {model_name}"
     )
-    plt.xlabel(f'Value in {ground_truth_var.attrs.get("units", "unknown units")}')
+    plt.xlabel(f"Value in {ground_truth_var.attrs.get('units', 'unknown units')}")
     plt.ylabel("Density")
     plt.legend()
 
@@ -129,7 +128,7 @@ def plot_combined_density_distribution(
     region: str = "",
     date_time: str = "",
     max_samples: int = 100000,
-):
+) -> None:
     print(
         f"Creating combined density distribution plot for variable-level pairs: {variable_level_pairs}"
     )
@@ -228,95 +227,15 @@ def prepare_density_distribution_args(
         # Limit to max_variables combinations
         variable_level_pairs = variable_level_pairs[:max_variables]
 
-        args_list.append(
-            {
-                **base_args,
-                "variable_level_pairs": variable_level_pairs,
-            }
-        )
+        args_list.append({
+            **base_args,
+            "variable_level_pairs": variable_level_pairs,
+        })
     else:
         # Prepare arguments for individual density distribution plots
-        args_list.extend(
-            [{**base_args, "variable": var, "level": None} for var in vars_2d]
-        )
+        args_list.extend([{**base_args, "variable": var, "level": None} for var in vars_2d])
         for var in vars_3d:
             levels = forecast[var].coords["isobaricInhPa"].values
-            args_list.extend(
-                [{**base_args, "variable": var, "level": level} for level in levels]
-            )
+            args_list.extend([{**base_args, "variable": var, "level": level} for level in levels])
 
     return args_list
-
-
-def main():
-    args, config = parse_args()
-    data = load_and_prepare_data(
-        os.path.join(args.out_dir, str(args.date_time), args.model_name),
-        config["selected_vars"],
-        args.crop_region,
-        args.model_name,
-        args.perturbation_init,
-        args.perturbation_latent,
-        args.layer,
-        args.members,
-        debug_mode=args.debug,
-    )
-
-    path_out = os.path.join(
-        args.out_dir,
-        str(args.date_time),
-        args.model_name,
-        f"init_{args.perturbation_init}_latent_{args.perturbation_latent}_layer_{args.layer}",
-        args.crop_region,
-        f"png_{args.model_name}",
-    )
-    os.makedirs(path_out, exist_ok=True)
-
-    variables = list(data["forecast"].data_vars)
-    vars_3d = [
-        var for var in variables if "isobaricInhPa" in data["forecast"][var].dims
-    ]
-    vars_2d = [
-        var for var in variables if "isobaricInhPa" not in data["forecast"][var].dims
-    ]
-
-    # Prepare arguments for individual density distribution plots
-    individual_plot_args = prepare_density_distribution_args(
-        data,
-        vars_3d,
-        vars_2d,
-        config,
-        path_out,
-        args.model_name,
-        args.crop_region,
-        args.date_time,
-        max_samples=config["sample_size"],
-        combined=False,
-    )
-
-    # Plot individual density distributions
-    for plot_arg in individual_plot_args:
-        plot_density_distribution(**plot_arg)
-
-    # Prepare arguments for combined density distribution plots
-    combined_plot_args = prepare_density_distribution_args(
-        data,
-        vars_3d,
-        vars_2d,
-        config,
-        path_out,
-        args.model_name,
-        args.crop_region,
-        args.date_time,
-        max_samples=config["sample_size"],
-        max_variables=5,
-        combined=True,
-    )
-
-    # Plot combined density distributions
-    for plot_arg in combined_plot_args:
-        plot_combined_density_distribution(**plot_arg)
-
-
-if __name__ == "__main__":
-    main()

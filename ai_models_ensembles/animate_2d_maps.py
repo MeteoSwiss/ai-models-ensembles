@@ -1,4 +1,5 @@
 import os
+from typing import Any, Dict
 
 import cartopy.crs as ccrs
 import matplotlib.animation as animation
@@ -6,10 +7,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.colors import TwoSlopeNorm
 
-from .preprocess_data import calculate_stats, load_and_prepare_data, parse_args
 
-
-def create_plot(ax, data, var, level, step, title_prefix, lat, lon, vmin, vmax):
+def create_plot(
+    ax, data, var: str, level, step: int, title_prefix: str, lat, lon, vmin: float, vmax: float
+):
     """
     Create a plot for a given variable, level, and time step.
 
@@ -49,7 +50,7 @@ def create_plot(ax, data, var, level, step, title_prefix, lat, lon, vmin, vmax):
     return im
 
 
-def plot_variable(forecast, ground_truth, var, level, lat, lon):
+def plot_variable(forecast, ground_truth, var: str, level, lat, lon):
     """
     Plot a variable for a given forecast and ground truth data.
 
@@ -69,15 +70,9 @@ def plot_variable(forecast, ground_truth, var, level, lat, lon):
     vmin = np.nanmin([forecast.values.min(), ground_truth.values.min()])
     vmax = np.nanmax([forecast.values.max(), ground_truth.values.max()])
 
-    fig, axes = plt.subplots(
-        2, figsize=(10, 15), subplot_kw={"projection": ccrs.PlateCarree()}
-    )
-    image1 = create_plot(
-        axes[0], forecast, var, level, 0, "Forecast", lat, lon, vmin, vmax
-    )
-    image2 = create_plot(
-        axes[1], ground_truth, var, level, 0, "Ground Truth", lat, lon, vmin, vmax
-    )
+    fig, axes = plt.subplots(2, figsize=(10, 15), subplot_kw={"projection": ccrs.PlateCarree()})
+    image1 = create_plot(axes[0], forecast, var, level, 0, "Forecast", lat, lon, vmin, vmax)
+    image2 = create_plot(axes[1], ground_truth, var, level, 0, "Ground Truth", lat, lon, vmin, vmax)
 
     # Add colorbars
     fig.colorbar(image1, ax=axes[0], orientation="horizontal", pad=0.05)
@@ -90,7 +85,16 @@ def plot_variable(forecast, ground_truth, var, level, lat, lon):
 
 
 def create_plot_metric(
-    ax, metric_data, var, level, step, title_prefix, lat, lon, vmin, vmax
+    ax,
+    metric_data,
+    var: str,
+    level,
+    step: int,
+    title_prefix: str,
+    lat,
+    lon,
+    vmin: float,
+    vmax: float,
 ):
     """
     Create a plot for a given metric, level, and time step.
@@ -141,7 +145,7 @@ def create_plot_metric(
     return im
 
 
-def plot_metric(metric_data, var, level, lat, lon, metric_name):
+def plot_metric(metric_data, var: str, level, lat, lon, metric_name: str):
     """
     Plot a metric for a given dataset.
 
@@ -165,12 +169,8 @@ def plot_metric(metric_data, var, level, lat, lon, metric_name):
         vmin = np.nanmin(metric_data.values)
         vmax = np.nanmax(metric_data.values)
 
-    fig, ax = plt.subplots(
-        figsize=(10, 5), subplot_kw={"projection": ccrs.PlateCarree()}
-    )
-    image = create_plot_metric(
-        ax, metric_data, var, level, 0, metric_name, lat, lon, vmin, vmax
-    )
+    fig, ax = plt.subplots(figsize=(10, 5), subplot_kw={"projection": ccrs.PlateCarree()})
+    image = create_plot_metric(ax, metric_data, var, level, 0, metric_name, lat, lon, vmin, vmax)
 
     # Add colorbar
     fig.colorbar(image, ax=ax, orientation="horizontal", pad=0.05)
@@ -181,9 +181,7 @@ def plot_metric(metric_data, var, level, lat, lon, metric_name):
     return fig, updatefig
 
 
-def create_update_function(
-    forecast, ground_truth, var, level, image1, image2, axes, lat, lon
-):
+def create_update_function(forecast, ground_truth, var: str, level, image1, image2, axes, lat, lon):
     """
     Create an update function for the animation.
 
@@ -211,7 +209,7 @@ def create_update_function(
         ):
             plot_data = data.isel(step=i).values
             image.set_array(plot_data.ravel())
-            ax.set_title(f"{title_prefix} {var} at {level}, {(i+1)*6} hours")
+            ax.set_title(f"{title_prefix} {var} at {level}, {(i + 1) * 6} hours")
         return (
             image1,
             image2,
@@ -221,7 +219,7 @@ def create_update_function(
 
 
 def create_and_save_animation(
-    path, data, var, level, fig, updatefig, metric_name="comparison"
+    path: str, data, var: str, level, fig, updatefig, metric_name: str = "comparison"
 ):
     """
     Create and save an animation for a given dataset.
@@ -235,15 +233,13 @@ def create_and_save_animation(
         updatefig: Update function for the animation
         metric_name: Name of the metric to plot
     """
-    ani = animation.FuncAnimation(
-        fig, updatefig, frames=data.step.size, interval=200, blit=True
-    )
+    ani = animation.FuncAnimation(fig, updatefig, frames=data.step.size, interval=200, blit=True)
     ani.save(f"{path}/{metric_name}_{var}_{level}.gif", writer="imagemagick")
     plt.close()
 
 
 def create_update_function_metric(
-    metric_data, var, level, image, ax, lat, lon, metric_name
+    metric_data, var: str, level, image, ax, lat, lon, metric_name: str
 ):
     """
     Create an update function for the animation.
@@ -265,13 +261,13 @@ def create_update_function_metric(
     def updatefig(i):
         plot_data = metric_data.isel(step=i).values
         image.set_array(plot_data.ravel())
-        ax.set_title(f"{metric_name} of {var} at {level}, {(i+1)*6} hours")
+        ax.set_title(f"{metric_name} of {var} at {level}, {(i + 1) * 6} hours")
         return (image,)
 
     return updatefig
 
 
-def plot_static_steps(path_gif, data, var, level, lat, lon, metric_name):
+def plot_static_steps(path_gif: str, data, var: str, level, lat, lon, metric_name: str):
     """
     Create static plots for a given dataset with a shared colorbar.
 
@@ -285,9 +281,7 @@ def plot_static_steps(path_gif, data, var, level, lat, lon, metric_name):
         metric_name: Name of the metric
     """
     # Create a figure with 2x2 subplots and a colorbar
-    fig, axes = plt.subplots(
-        3, 2, figsize=(14, 15), subplot_kw={"projection": ccrs.PlateCarree()}
-    )
+    fig, axes = plt.subplots(3, 2, figsize=(14, 15), subplot_kw={"projection": ccrs.PlateCarree()})
     steps = [0, 8, 16, 24, 32, 39]
 
     # Determine the common color range
@@ -314,7 +308,7 @@ def plot_static_steps(path_gif, data, var, level, lat, lon, metric_name):
             norm=divnorm if metric_name == "Error" else None,
             transform=ccrs.PlateCarree(),
         )
-        ax.set_title(f"{(step)*6} hours")  # Only show the hour as subtitle
+        ax.set_title(f"{(step) * 6} hours")  # Only show the hour as subtitle
         ax.coastlines()
         ax.set_xticks([])
         ax.set_yticks([])
@@ -341,8 +335,15 @@ def plot_static_steps(path_gif, data, var, level, lat, lon, metric_name):
 
 
 def process_member(
-    member, forecast, ground_truth, stats, path_forecast, lat, lon, args
-):
+    member: int,
+    forecast,
+    ground_truth,
+    stats: Dict[str, Any],
+    path_forecast: str,
+    lat,
+    lon,
+    args: Any,
+) -> None:
     """
     Process a single ensemble member.
 
@@ -371,9 +372,7 @@ def process_member(
                 # Existing forecast and ground truth animation
                 forecast_var = forecast[var].sel(member=member, isobaricInhPa=level)
                 ground_truth_var = ground_truth[var].sel(isobaricInhPa=level)
-                fig, updatefig = plot_variable(
-                    forecast_var, ground_truth_var, var, level, lat, lon
-                )
+                fig, updatefig = plot_variable(forecast_var, ground_truth_var, var, level, lat, lon)
                 create_and_save_animation(
                     path_gif,
                     forecast_var,
@@ -393,9 +392,7 @@ def process_member(
                 error_data = stats["diff"][var].sel(member=member, isobaricInhPa=level)
 
                 # 1. Error
-                fig, updatefig = plot_metric(
-                    error_data, var, level, lat, lon, metric_name="Error"
-                )
+                fig, updatefig = plot_metric(error_data, var, level, lat, lon, metric_name="Error")
                 create_and_save_animation(
                     path_gif,
                     error_data,
@@ -407,32 +404,24 @@ def process_member(
                 )
 
                 # Create static plot for error
-                plot_static_steps(
-                    path_gif, error_data, var, level, lat, lon, metric_name="Error"
-                )
+                plot_static_steps(path_gif, error_data, var, level, lat, lon, metric_name="Error")
 
                 # Retrieve RMSE data (root of squared error)
                 rmse_data = np.sqrt(error_data**2)
-                fig, updatefig = plot_metric(
-                    rmse_data, var, level, lat, lon, metric_name="RMSE"
-                )
+                fig, updatefig = plot_metric(rmse_data, var, level, lat, lon, metric_name="RMSE")
                 create_and_save_animation(
                     path_gif, rmse_data, var, level, fig, updatefig, metric_name="RMSE"
                 )
 
                 # Create static plot for RMSE
-                plot_static_steps(
-                    path_gif, rmse_data, var, level, lat, lon, metric_name="RMSE"
-                )
+                plot_static_steps(path_gif, rmse_data, var, level, lat, lon, metric_name="RMSE")
 
         else:
             level = "surface"
             # Existing forecast and ground truth animation
             forecast_var = forecast[var].sel(member=member)
             ground_truth_var = ground_truth[var]
-            fig, updatefig = plot_variable(
-                forecast_var, ground_truth_var, var, level, lat, lon
-            )
+            fig, updatefig = plot_variable(forecast_var, ground_truth_var, var, level, lat, lon)
             create_and_save_animation(
                 path_gif,
                 forecast_var,
@@ -444,43 +433,33 @@ def process_member(
             )
 
             # Create static plot
-            plot_static_steps(
-                path_gif, forecast_var, var, level, lat, lon, metric_name="Forecast"
-            )
+            plot_static_steps(path_gif, forecast_var, var, level, lat, lon, metric_name="Forecast")
 
             # Retrieve error data
             error_data = stats["diff"][var].sel(member=member)
             # 1. Error
-            fig, updatefig = plot_metric(
-                error_data, var, level, lat, lon, metric_name="Error"
-            )
+            fig, updatefig = plot_metric(error_data, var, level, lat, lon, metric_name="Error")
             create_and_save_animation(
                 path_gif, error_data, var, level, fig, updatefig, metric_name="Error"
             )
 
             # Create static plot for error
-            plot_static_steps(
-                path_gif, error_data, var, level, lat, lon, metric_name="Error"
-            )
+            plot_static_steps(path_gif, error_data, var, level, lat, lon, metric_name="Error")
 
             # Retrieve RMSE data
             rmse_data = np.sqrt(error_data**2)
-            fig, updatefig = plot_metric(
-                rmse_data, var, level, lat, lon, metric_name="RMSE"
-            )
+            fig, updatefig = plot_metric(rmse_data, var, level, lat, lon, metric_name="RMSE")
             create_and_save_animation(
                 path_gif, rmse_data, var, level, fig, updatefig, metric_name="RMSE"
             )
 
             # Create static plot for RMSE
-            plot_static_steps(
-                path_gif, rmse_data, var, level, lat, lon, metric_name="RMSE"
-            )
+            plot_static_steps(path_gif, rmse_data, var, level, lat, lon, metric_name="RMSE")
 
 
 def process_ensemble_metrics(
-    forecast, ground_truth, stats, path_forecast, lat, lon, args
-):
+    forecast, ground_truth, stats: Dict[str, Any], path_forecast: str, lat, lon, args: Any
+) -> None:
     """
     Process ensemble metrics.
 
@@ -497,31 +476,23 @@ def process_ensemble_metrics(
     os.makedirs(path_gif, exist_ok=True)
     variables = forecast.data_vars
     for var in variables:
-        print(
-            "Creating ensemble metrics animations and static plots for variable:", var
-        )
+        print("Creating ensemble metrics animations and static plots for variable:", var)
         if "isobaricInhPa" in forecast[var].dims:
             for level in forecast.isobaricInhPa.values:
                 # 3. CRPS between ensemble members and ground_truth
                 crps_data = stats["crps"][var].sel(isobaricInhPa=level)
 
                 # Plot and save the animations
-                fig, updatefig = plot_metric(
-                    crps_data, var, level, lat, lon, metric_name="CRPS"
-                )
+                fig, updatefig = plot_metric(crps_data, var, level, lat, lon, metric_name="CRPS")
                 create_and_save_animation(
                     path_gif, crps_data, var, level, fig, updatefig, metric_name="CRPS"
                 )
 
                 # Create static plot for CRPS
-                plot_static_steps(
-                    path_gif, crps_data, var, level, lat, lon, metric_name="CRPS"
-                )
+                plot_static_steps(path_gif, crps_data, var, level, lat, lon, metric_name="CRPS")
 
                 # 4. Standard deviations across ensemble members
-                ensemble_std = stats["ensemble_spread_grid"][var].sel(
-                    isobaricInhPa=level
-                )
+                ensemble_std = stats["ensemble_spread_grid"][var].sel(isobaricInhPa=level)
 
                 # Plot and save the animations
                 fig, updatefig = plot_metric(
@@ -552,17 +523,13 @@ def process_ensemble_metrics(
             # 3. CRPS
             crps_data = stats["crps"][var]
             # Plot and save the animations
-            fig, updatefig = plot_metric(
-                crps_data, var, level, lat, lon, metric_name="CRPS"
-            )
+            fig, updatefig = plot_metric(crps_data, var, level, lat, lon, metric_name="CRPS")
             create_and_save_animation(
                 path_gif, crps_data, var, level, fig, updatefig, metric_name="CRPS"
             )
 
             # Create static plot for CRPS
-            plot_static_steps(
-                path_gif, crps_data, var, level, lat, lon, metric_name="CRPS"
-            )
+            plot_static_steps(path_gif, crps_data, var, level, lat, lon, metric_name="CRPS")
 
             # 4. Ensemble standard deviation
             ensemble_std = stats["ensemble_spread_grid"][var]
@@ -592,59 +559,7 @@ def process_ensemble_metrics(
             )
 
 
-def main():
-    args, config = parse_args()
-    path_in = os.path.join(args.out_dir, str(args.date_time), args.model_name)
-    path_forecast = os.path.join(
-        args.out_dir,
-        str(args.date_time),
-        args.model_name,
-        f"init_{args.perturbation_init}_latent_{args.perturbation_latent}_layer_{args.layer}",
-    )
-
-    data = load_and_prepare_data(
-        path_in,
-        config["selected_vars"],
-        args.crop_region,
-        args.model_name,
-        args.perturbation_init,
-        args.perturbation_latent,
-        args.layer,
-        args.members,
-        debug_mode=args.debug,
-    )
-
-    lat = data["ground_truth"].latitude.values
-    lon = data["ground_truth"].longitude.values
-
-    # Compute the statistics
-    stats = calculate_stats(
-        data["ground_truth"],
-        data["forecast"],
-        data["forecast_unperturbed"],
-        args.crop_region,
-    )
-
-    # TODO: make this an user input
-    members_to_plot = [0, 1]
-
-    for member in members_to_plot:
-        process_member(
-            member,
-            data["forecast"],
-            data["ground_truth"],
-            stats,
-            path_forecast,
-            lat,
-            lon,
-            args,
-        )
-
-    # Process ensemble metrics
-    process_ensemble_metrics(
-        data["forecast"], data["ground_truth"], stats, path_forecast, lat, lon, args
-    )
-
-
-if __name__ == "__main__":
-    main()
+__all__ = [
+    "process_member",
+    "process_ensemble_metrics",
+]

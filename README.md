@@ -7,6 +7,13 @@ Run GraphCast and FourCastNetV2 ensembles, convert outputs to Zarr, and verify a
 1. Configure `config.sh`
    - Set `OUTPUT_DIR`, `DATE_TIME`, `MODEL_NAME`, `NUM_MEMBERS`, perturbation values, and region.
    - Optional: set `EARTHKIT_CACHE_DIR` to a writable path for Earthkit cache.
+
+```bash
+bash ./validate.sh
+```
+
+This checks your Python env and packages, `ai-models`, GRIB tools (`eccodes/cfgrib`), ImageMagick, ECMWF credentials (`~/.cdsapirc`), `OUTPUT_DIR` writability, and more. Fix any warnings/errors before submitting jobs.
+
 1. Create env and activate
 
 ```bash
@@ -16,66 +23,81 @@ conda activate ai_models_ens
 
 1. Submit jobs (Slurm)
    - Download ERA5 + IFS: `submit_download_data.sh`
-   - ML inference: `submit_ml_inference.sh`
+   - ML inference (array-ready): `submit_ml_inference.sh`
    - Convert to Zarr: `submit_convert_zarr.sh`
    - Verify + plots: `submit_verification.sh`
 
 Logs are written to `logs/`. Adjust `config.sh` to tailor runs.
 
-## Requirements (short)
+### Centralized Slurm settings
+
+All `#SBATCH` settings are defined in `config.sh` so you don't need to edit the submit scripts. Defaults match the current headers.
+
+- Download (`submit_download_data.sh`): `DL_JOB_NAME`, `DL_NODES`, `DL_NTASKS`, `DL_CPUS_PER_TASK`, `DL_MEM_PER_CPU`, `DL_PARTITION`, `DL_ACCOUNT`, `DL_TIME`
+- Inference (`submit_ml_inference.sh`): `INF_JOB_NAME`, `INF_NODES_SB`, `INF_NTASKS_SB`, `INF_CPUS_PER_TASK_SB`, `INF_MEM_PER_CPU_SB`, `INF_PARTITION_SB`, `INF_GRES_SB`, `INF_ACCOUNT_SB`, `INF_TIME_SB`
+- Convert (`submit_convert_zarr.sh`): `ZARR_JOB_NAME`, `ZARR_NODES_SB`, `ZARR_NTASKS_SB`, `ZARR_CPUS_PER_TASK_SB`, `ZARR_MEM_PER_CPU_SB`, `ZARR_PARTITION_SB`, `ZARR_ACCOUNT_SB`, `ZARR_TIME_SB`
+- Verify (`submit_verification.sh`): `VERIF_JOB_NAME`, `VERIF_NODES_SB`, `VERIF_NTASKS_SB`, `VERIF_PARTITION_SB`, `VERIF_ACCOUNT_SB`, `VERIF_TIME_SB`, `VERIF_EXCLUSIVE`
+
+Example override (edit `config.sh`):
+
+```bash
+export INF_PARTITION_SB=normal
+export INF_GRES_SB=gpu:2
+export INF_TIME_SB=12:00:00
+```
+
+## Requirements
 
 - Linux. Slurm recommended for the provided submit scripts.
 - ECMWF credentials for ERA5/IFS (configure `~/.cdsapirc`; MARS if needed).
-- GPU (CUDA 12.2) for model inference; CPU is fine for plotting/conversion.
+- GPU (CUDA 12.X) for model inference; CPU is fine for plotting/conversion.
 - GRIB readers: `cfgrib` + `ecCodes` (install via conda-forge if missing).
 
-## Configuration
+## CLI usage (Typer)
 
-Edit `config.sh`:
-
-- `DATE_TIME`, `MODEL_NAME`, `LAYER`, `PERTURBATION_INIT`, `PERTURBATION_LATENT`, `NUM_MEMBERS`, `CROP_REGION`, `OUTPUT_DIR`
-- Optional: set an Earthkit cache directory before running (applies to downloads):
+You can run individual steps via the Typer CLI. After activating the environment, either use the module or the `ai-ens` console command:
 
 ```bash
-export EARTHKIT_CACHE_DIR=/your/writable/cache
+# Module form
+python -m ai_models_ensembles.cli --help
+
+# Console script form
+ai-ens --help
 ```
 
-## Manual usage (advanced)
+Examples:
+
+```bash
+# Download fields
+ai-ens download-reanalysis --out-dir "$OUTPUT_DIR" --start "$DATE_TIME" --end "$END_DATE_TIME" \
+   --interval "$INTERVAL" --model "$MODEL_NAME"
+ai-ens download-ifs-ensemble --out-dir "$OUTPUT_DIR" --date-time "$DATE_TIME" \
+   --interval "$INTERVAL" --num-days "$NUM_DAYS" --model "$MODEL_NAME"
+ai-ens download-ifs-control --out-dir "$OUTPUT_DIR" --date-time "$DATE_TIME" \
+   --interval "$INTERVAL" --num-days "$NUM_DAYS" --model "$MODEL_NAME"
+
+# Convert GRIB to Zarr
+ai-ens convert --path "$OUTPUT_DIR/$DATE_TIME/$MODEL_NAME"
+ai-ens convert --path "$OUTPUT_DIR/$DATE_TIME/$MODEL_NAME/init_${PERTURBATION_INIT}_latent_${PERTURBATION_LATENT}_layer_${LAYER}" \
+   --subdir-search
+
+# Inference
+ai-ens infer                 # run full member loop using env from config.sh
+ai-ens infer --member 7      # run a single member (array mode)
+
+# Verification
+ai-ens verify
+```
+
+### Notes
+
+- The CLI uses Typer with Rich for colorful help and readable tracebacks; the same output goes to the Slurm logs under `LOG_DIR`.
+- Show help any time: `ai-ens --help` or `python -m ai_models_ensembles.cli --help`.
 
 Generate fields file:
 
 ```bash
 ai-models --fields graphcast > $OUTPUT_DIR/$DATE_TIME/graphcast/fields.txt
-```
-
-Downloads:
-
-```bash
-python -m ai_models_ensembles.download_re_analysis $OUTPUT_DIR $DATE_TIME $END_DATE_TIME $INTERVAL $MODEL_NAME
-python -m ai_models_ensembles.download_ifs_ensemble $OUTPUT_DIR $DATE_TIME $INTERVAL $NUM_DAYS $MODEL_NAME
-python -m ai_models_ensembles.download_ifs_control $OUTPUT_DIR $DATE_TIME $INTERVAL $NUM_DAYS $MODEL_NAME
-```
-
-Perturbations and inference:
-
-```bash
-python -m ai_models_ensembles.perturb_fourcastnet_weights $OUTPUT_DIR $DATE_TIME $MODEL_NAME $PERTURBATION_INIT $PERTURBATION_LATENT $MEMBER $LAYER
-python -m ai_models_ensembles.perturb_graphcast_weights $OUTPUT_DIR $DATE_TIME $MODEL_NAME $PERTURBATION_INIT $PERTURBATION_LATENT $MEMBER $LAYER
-python -m ai_models_ensembles.perturb_era5 $OUTPUT_DIR $DATE_TIME $MODEL_NAME $PERTURBATION_INIT $PERTURBATION_LATENT $MEMBER
-
-# inside $OUTPUT_DIR/$DATE_TIME/$MODEL_NAME
-ai-models --input file --file init_field.grib --lead-time 240 --download-assets $MODEL_NAME
-```
-
-Convert and verify:
-
-```bash
-python -m ai_models_ensembles.convert_grib_to_zarr "$OUTPUT_DIR/$DATE_TIME/$MODEL_NAME"
-python -m ai_models_ensembles.convert_grib_to_zarr "$OUTPUT_DIR/$DATE_TIME/$MODEL_NAME/init_${PERTURBATION_INIT}_latent_${PERTURBATION_LATENT}_layer_${LAYER}" --subdir_search True
-python -m ai_models_ensembles.plot_0d_distributions "$OUTPUT_DIR" "$DATE_TIME" "$MODEL_NAME" "$PERTURBATION_INIT" "$PERTURBATION_LATENT" "$LAYER" "$NUM_MEMBERS" "$CROP_REGION"
-python -m ai_models_ensembles.plot_1d_timeseries "$OUTPUT_DIR" "$DATE_TIME" "$MODEL_NAME" "$PERTURBATION_INIT" "$PERTURBATION_LATENT" "$LAYER" "$NUM_MEMBERS" "$CROP_REGION"
-python -m ai_models_ensembles.animate_2d_maps "$OUTPUT_DIR" "$DATE_TIME" "$MODEL_NAME" "$PERTURBATION_INIT" "$PERTURBATION_LATENT" "$LAYER" "$NUM_MEMBERS" "$CROP_REGION"
-python -m ai_models_ensembles.animate_3d_grids "$OUTPUT_DIR" "$DATE_TIME" "$MODEL_NAME" "$PERTURBATION_INIT" "$PERTURBATION_LATENT" "$LAYER" "$NUM_MEMBERS" "$CROP_REGION"
 ```
 
 ## Outputs
@@ -102,7 +124,7 @@ $OUTPUT_DIR/
 
 - Install GRIB readers if missing: `conda install -c conda-forge cfgrib eccodes`
 - Ensure `~/.cdsapirc` (and MARS) credentials are valid for ERA5/IFS access
-- For GPU inference, match CUDA 12.2 drivers/toolkit to the environment
+- For GPU inference, match CUDA 12.X drivers/toolkit to the environment
 - If GraphCast local repo is missing and env install fails, clone `../ai-models-graphcast` or update `environment.yml`
 
 ## License

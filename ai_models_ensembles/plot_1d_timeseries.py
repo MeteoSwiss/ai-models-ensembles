@@ -1,4 +1,5 @@
 import os
+from typing import Any, Dict, List, Mapping, Tuple
 
 import cartopy.crs as ccrs
 import matplotlib
@@ -9,13 +10,6 @@ from cartopy.mpl.geoaxes import GeoAxes
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from scipy.stats import gaussian_kde
-
-from .preprocess_data import (
-    calculate_stats,
-    calculate_y_lims,
-    load_and_prepare_data,
-    parse_args,
-)
 
 matplotlib.use("Agg")
 matplotlib.rcParams.update({"font.size": 15})
@@ -28,21 +22,23 @@ def _set_xticks(ax, data):
 
 
 def prepare_plot_args(
-    data,
-    stats,
-    vars_3d,
-    vars_2d,
-    config,
-    y_lims_rmse,
-    y_lims_spread_skill_ratio,
-    y_lims_timeseries,
-    y_lims_energy_spectra,
-    use_ifs=False,
-    path_out=".",
-    model_name="",
-    region="",
-    date_time="",
-):
+    data: Dict[str, xr.Dataset],
+    stats: Mapping[str, xr.Dataset | xr.DataArray],
+    vars_3d: List[str],
+    vars_2d: List[str],
+    config: Mapping[str, Any],
+    y_lims_rmse: Mapping[Tuple[str, Any], Tuple[float, float]],
+    y_lims_spread_skill_ratio: Mapping[
+        Tuple[str, Any], Tuple[Tuple[float, float], Tuple[float, float]]
+    ],
+    y_lims_timeseries: Mapping[Tuple[str, Any], Tuple[float, float]],
+    y_lims_energy_spectra: Mapping[Tuple[str, Any], Tuple[float, float]],
+    use_ifs: bool = False,
+    path_out: str = ".",
+    model_name: str = "",
+    region: str = "",
+    date_time: str = "",
+) -> Dict[str, List[Dict[str, Any]]]:
     """
     Prepare the arguments for the plotting functions.
 
@@ -74,105 +70,88 @@ def prepare_plot_args(
     timeseries_fc_gt_args = []
 
     variables = [
-        (vars_3d, data[forecast_key][var].coords["isobaricInhPa"].values, True)
-        for var in vars_3d
+        (vars_3d, data[forecast_key][var].coords["isobaricInhPa"].values, True) for var in vars_3d
     ] + [(vars_2d, [None], False)]
     for variable, levels, is_3d in variables:
         for var in variable:
             for level in levels:
-                error_map_args.append(
-                    {
-                        "errors_mean": stats["rmse_mean"],
-                        "errors_unperturbed": stats["rmse_unperturbed"],
-                        "errors_members": stats["rmse"],
-                        "path_out": path_out,
-                        "level": level,
-                    }
-                )
-                rank_histogram_args.append(
-                    {
-                        "variable": var,
-                        "forecast": data[forecast_key],
-                        "ground_truth": data["ground_truth"],
-                        "path_out": path_out,
-                        "color_palette": config["color_palette"],
-                        "model_name": model_name,
-                        "level": level,
-                        "region": region,
-                        "date_time": date_time,
-                        "sample_size": config["sample_size"],
-                    }
-                )
-                energy_spectra_args.append(
-                    {
-                        "variable": var,
-                        "energy_spectra_forecast": stats["energy_spectra_forecast"],
-                        "energy_spectra_unperturbed": stats[
-                            "energy_spectra_unperturbed"
-                        ],
-                        "energy_spectra_ground_truth": stats[
-                            "energy_spectra_ground_truth"
-                        ],
-                        "alpha_value": alpha_value,
-                        "path_out": path_out,
-                        "color_palette": config["color_palette"],
-                        "model_name": model_name,
-                        "level": level,
-                        "y_lims": y_lims_energy_spectra[(var, level)]
-                        if is_3d
-                        else y_lims_energy_spectra[(var, None)],
-                        "region": region,
-                        "date_time": date_time,
-                    }
-                )
-                rmse_args.append(
-                    {
-                        "variable": var,
-                        "rmse": stats["rmse"],
-                        "rmse_mean": stats["rmse_mean"],
-                        "rmse_unperturbed": stats["rmse_unperturbed"],
-                        "alpha_value": alpha_value,
-                        "path_out": path_out,
-                        "color_palette": config["color_palette"],
-                        "model_name": model_name,
-                        "level": level,
-                        "y_lims": y_lims_rmse[(var, level)],
-                        "region": region,
-                        "date_time": date_time,
-                    }
-                )
-                spread_skill_ratio_args.append(
-                    {
-                        "variable": var,
-                        "sr_spread_skill_ratio": stats["sr_spread_skill_ratio"],
-                        "sr_ensemble_spread": stats["sr_ensemble_spread"],
-                        "path_out": path_out,
-                        "color_palette": config["color_palette"],
-                        "model_name": model_name,
-                        "level": level,
-                        "y_lims1": y_lims_spread_skill_ratio[(var, level)][0],
-                        "y_lims2": y_lims_spread_skill_ratio[(var, level)][1],
-                        "region": region,
-                        "date_time": date_time,
-                    }
-                )
-                timeseries_fc_gt_args.append(
-                    {
-                        "variable": var,
-                        "gt_mean": stats["ts_gt_mean"],
-                        "fc_mean": stats["ts_fc_mean"],
-                        "fc_mean_unperturbed": stats["ts_fc_mean_unperturbed"],
-                        "ground_truth": data["ground_truth"],
-                        "alpha_value": alpha_value,
-                        "path_out": path_out,
-                        "color_palette": config["color_palette"],
-                        "model_name": model_name,
-                        "level": level,
-                        "y_lims": y_lims_timeseries[(var, level)],
-                        "region": region,
-                        "date_time": date_time,
-                    }
-                )
+                error_map_args.append({
+                    "errors_mean": stats["rmse_mean"],
+                    "errors_unperturbed": stats["rmse_unperturbed"],
+                    "errors_members": stats["rmse"],
+                    "path_out": path_out,
+                    "level": level,
+                })
+                rank_histogram_args.append({
+                    "variable": var,
+                    "forecast": data[forecast_key],
+                    "ground_truth": data["ground_truth"],
+                    "path_out": path_out,
+                    "color_palette": config["color_palette"],
+                    "model_name": model_name,
+                    "level": level,
+                    "region": region,
+                    "date_time": date_time,
+                    "sample_size": config["sample_size"],
+                })
+                energy_spectra_args.append({
+                    "variable": var,
+                    "energy_spectra_forecast": stats["energy_spectra_forecast"],
+                    "energy_spectra_unperturbed": stats["energy_spectra_unperturbed"],
+                    "energy_spectra_ground_truth": stats["energy_spectra_ground_truth"],
+                    "alpha_value": alpha_value,
+                    "path_out": path_out,
+                    "color_palette": config["color_palette"],
+                    "model_name": model_name,
+                    "level": level,
+                    "y_lims": y_lims_energy_spectra[(var, level)]
+                    if is_3d
+                    else y_lims_energy_spectra[(var, None)],
+                    "region": region,
+                    "date_time": date_time,
+                })
+                rmse_args.append({
+                    "variable": var,
+                    "rmse": stats["rmse"],
+                    "rmse_mean": stats["rmse_mean"],
+                    "rmse_unperturbed": stats["rmse_unperturbed"],
+                    "alpha_value": alpha_value,
+                    "path_out": path_out,
+                    "color_palette": config["color_palette"],
+                    "model_name": model_name,
+                    "level": level,
+                    "y_lims": y_lims_rmse[(var, level)],
+                    "region": region,
+                    "date_time": date_time,
+                })
+                spread_skill_ratio_args.append({
+                    "variable": var,
+                    "sr_spread_skill_ratio": stats["sr_spread_skill_ratio"],
+                    "sr_ensemble_spread": stats["sr_ensemble_spread"],
+                    "path_out": path_out,
+                    "color_palette": config["color_palette"],
+                    "model_name": model_name,
+                    "level": level,
+                    "y_lims1": y_lims_spread_skill_ratio[(var, level)][0],
+                    "y_lims2": y_lims_spread_skill_ratio[(var, level)][1],
+                    "region": region,
+                    "date_time": date_time,
+                })
+                timeseries_fc_gt_args.append({
+                    "variable": var,
+                    "gt_mean": stats["ts_gt_mean"],
+                    "fc_mean": stats["ts_fc_mean"],
+                    "fc_mean_unperturbed": stats["ts_fc_mean_unperturbed"],
+                    "ground_truth": data["ground_truth"],
+                    "alpha_value": alpha_value,
+                    "path_out": path_out,
+                    "color_palette": config["color_palette"],
+                    "model_name": model_name,
+                    "level": level,
+                    "y_lims": y_lims_timeseries[(var, level)],
+                    "region": region,
+                    "date_time": date_time,
+                })
 
     print("Plotting arguments prepared")
 
@@ -186,7 +165,13 @@ def prepare_plot_args(
     }
 
 
-def plot_error_map(errors_mean, errors_unperturbed, errors_members, path_out, level):
+def plot_error_map(
+    errors_mean: xr.Dataset | xr.DataArray,
+    errors_unperturbed: xr.Dataset | xr.DataArray,
+    errors_members: xr.Dataset | xr.DataArray,
+    path_out: str,
+    level: int | str | None,
+) -> None:
     """
     Plot a heatmap of errors of all forecast variables
 
@@ -202,13 +187,9 @@ def plot_error_map(errors_mean, errors_unperturbed, errors_members, path_out, le
     print("Creating scorecards")
 
     errors_mean = errors_mean.expand_dims("member").assign_coords(member=[9998])
-    errors_unperturbed = errors_unperturbed.expand_dims("member").assign_coords(
-        member=[9999]
-    )
+    errors_unperturbed = errors_unperturbed.expand_dims("member").assign_coords(member=[9999])
     errors_members = errors_members.sortby("member", ascending=True)
-    errors_comb = xr.combine_by_coords(
-        [errors_members, errors_mean, errors_unperturbed]
-    )
+    errors_comb = xr.combine_by_coords([errors_members, errors_mean, errors_unperturbed])
 
     # TODO this should not be hardcoded and match the animation selection
     for mem_i in errors_comb.member.values[0:2]:
@@ -216,13 +197,7 @@ def plot_error_map(errors_mean, errors_unperturbed, errors_members, path_out, le
             errors = errors_comb.sel(member=mem_i, isobaricInhPa=level)
         else:
             errors = errors_comb.sel(member=mem_i)
-        member = (
-            "mean"
-            if mem_i == 9998
-            else "unperturbed"
-            if mem_i == 9999
-            else f"member {mem_i}"
-        )
+        member = "mean" if mem_i == 9998 else "unperturbed" if mem_i == 9999 else f"member {mem_i}"
         # Normalize all errors to [0,1] for color map
         max_errors = errors.max()
         min_errors = errors.min()
@@ -283,17 +258,17 @@ def plot_error_map(errors_mean, errors_unperturbed, errors_members, path_out, le
 
 
 def plot_rank_histogram(
-    variable,
-    forecast,
-    ground_truth,
-    path_out,
-    color_palette,
-    model_name,
-    level=None,
-    region="",
-    date_time="",
-    sample_size=10,
-):
+    variable: str,
+    forecast: xr.Dataset,
+    ground_truth: xr.Dataset,
+    path_out: str,
+    color_palette: List[str],
+    model_name: str,
+    level: int | float | str | None = None,
+    region: str = "",
+    date_time: str = "",
+    sample_size: int = 10,
+) -> None:
     """
     Plot the rank histogram.
 
@@ -334,9 +309,7 @@ def plot_rank_histogram(
     # Create a random subsample
     combined_stacked = combined.stack(z=("step", "latitude", "longitude"))
     sample_size = min(sample_size, combined_stacked.z.size)
-    indices = np.sort(
-        np.random.choice(combined_stacked.z.size, size=sample_size, replace=False)
-    )
+    indices = np.sort(np.random.choice(combined_stacked.z.size, size=sample_size, replace=False))
     combined_sample = combined_stacked.isel(z=indices)
 
     ranks = combined_sample.chunk(dict(member=-1)).rank("member")
@@ -370,19 +343,19 @@ def plot_rank_histogram(
 
 
 def plot_energy_spectra(
-    variable,
-    energy_spectra_forecast,
-    energy_spectra_unperturbed,
-    energy_spectra_ground_truth,
-    alpha_value,
-    path_out,
-    color_palette,
-    model_name,
-    level=None,
-    y_lims=None,
-    region="",
-    date_time="",
-):
+    variable: str,
+    energy_spectra_forecast: xr.Dataset,
+    energy_spectra_unperturbed: xr.Dataset,
+    energy_spectra_ground_truth: xr.Dataset,
+    alpha_value: float,
+    path_out: str,
+    color_palette: List[str],
+    model_name: str,
+    level: int | float | str | None = None,
+    y_lims: Tuple[float, float] | None = None,
+    region: str = "",
+    date_time: str = "",
+) -> None:
     """
     Plot the energy spectra for each member and the mean of all members using wavenumber on a log-log scale.
     """
@@ -390,9 +363,7 @@ def plot_energy_spectra(
     fig, ax = plt.subplots(figsize=(12, 9))
 
     if level is not None:
-        energy_spectra_forecast_lev = energy_spectra_forecast[variable].sel(
-            isobaricInhPa=level
-        )
+        energy_spectra_forecast_lev = energy_spectra_forecast[variable].sel(isobaricInhPa=level)
         energy_spectra_unperturbed_lev = energy_spectra_unperturbed[variable].sel(
             isobaricInhPa=level
         )
@@ -487,19 +458,19 @@ def plot_energy_spectra(
 
 
 def plot_rmse(
-    variable,
-    rmse,
-    rmse_mean,
-    rmse_unperturbed,
-    alpha_value,
-    path_out,
-    color_palette,
-    model_name,
-    level=None,
-    y_lims=None,
-    region="",
-    date_time="",
-):
+    variable: str,
+    rmse: xr.Dataset,
+    rmse_mean: xr.Dataset,
+    rmse_unperturbed: xr.Dataset,
+    alpha_value: float,
+    path_out: str,
+    color_palette: List[str],
+    model_name: str,
+    level: int | float | str | None = None,
+    y_lims: Tuple[float, float] | None = None,
+    region: str = "",
+    date_time: str = "",
+) -> None:
     """
     Plot the RMSE.
 
@@ -565,20 +536,20 @@ def plot_rmse(
 
 
 def plot_spread_skill_ratio(
-    variable,
-    sr_spread_skill_ratio,
-    sr_ensemble_spread,
-    sr_spread_skill_ratio_ifs,
-    sr_ensemble_spread_ifs,
-    path_out,
-    color_palette,
-    model_names,
-    level=None,
-    y_lims1=None,
-    y_lims2=None,
-    region="",
-    date_time="",
-):
+    variable: str,
+    sr_spread_skill_ratio: xr.Dataset | xr.DataArray,
+    sr_ensemble_spread: xr.Dataset | xr.DataArray,
+    sr_spread_skill_ratio_ifs: xr.Dataset | xr.DataArray,
+    sr_ensemble_spread_ifs: xr.Dataset | xr.DataArray,
+    path_out: str,
+    color_palette: List[str],
+    model_names: List[str],
+    level: int | float | str | None = None,
+    y_lims1: Tuple[float, float] | None = None,
+    y_lims2: Tuple[float, float] | None = None,
+    region: str = "",
+    date_time: str = "",
+) -> None:
     """
     Plot the spread-skill ratio for both models on the same plot.
 
@@ -597,9 +568,7 @@ def plot_spread_skill_ratio(
         region (str): The region name.
         date_time (str): The date and time string.
     """
-    print(
-        f"Creating combined spread-skill ratio plots for variable: {variable}, level: {level}"
-    )
+    print(f"Creating combined spread-skill ratio plots for variable: {variable}, level: {level}")
 
     fig, ax = plt.subplots(figsize=(12, 9))
 
@@ -615,9 +584,7 @@ def plot_spread_skill_ratio(
         ensemble_spread_ifs = sr_ensemble_spread_ifs
 
     # Plot spread-skill ratio for both models
-    spread_skill_ratio[variable].plot(
-        ax=ax, color=color_palette[5], label=f"{model_names[0]} SSR"
-    )
+    spread_skill_ratio[variable].plot(ax=ax, color=color_palette[5], label=f"{model_names[0]} SSR")
     spread_skill_ratio_ifs[variable].plot(
         ax=ax, color=color_palette[0], label=f"{model_names[1]} SSR"
     )
@@ -672,20 +639,20 @@ def plot_spread_skill_ratio(
 
 
 def plot_timeseries_fc_gt(
-    variable,
-    gt_mean,
-    fc_mean,
-    fc_mean_unperturbed,
-    ground_truth,
-    alpha_value,
-    path_out,
-    color_palette,
-    model_name,
-    level=None,
-    y_lims=None,
-    region="",
-    date_time="",
-):
+    variable: str,
+    gt_mean: xr.Dataset | xr.DataArray,
+    fc_mean: xr.Dataset,
+    fc_mean_unperturbed: xr.Dataset | xr.DataArray,
+    ground_truth: xr.Dataset,
+    alpha_value: float,
+    path_out: str,
+    color_palette: List[str],
+    model_name: str,
+    level: int | float | str | None = None,
+    y_lims: Tuple[float, float] | None = None,
+    region: str = "",
+    date_time: str = "",
+) -> None:
     def _plot_map(ground_truth_var, ax):
         lat = ground_truth.latitude.values
         lon = ground_truth.longitude.values
@@ -707,14 +674,10 @@ def plot_timeseries_fc_gt(
 
     # Select the level if provided
     gt_mean_var = (
-        gt_mean[variable].sel(isobaricInhPa=level)
-        if level is not None
-        else gt_mean[variable]
+        gt_mean[variable].sel(isobaricInhPa=level) if level is not None else gt_mean[variable]
     )
     fc_mean_var = (
-        fc_mean[variable].sel(isobaricInhPa=level)
-        if level is not None
-        else fc_mean[variable]
+        fc_mean[variable].sel(isobaricInhPa=level) if level is not None else fc_mean[variable]
     )
     fc_mean_unperturbed_var = (
         fc_mean_unperturbed[variable].sel(isobaricInhPa=level)
@@ -741,19 +704,13 @@ def plot_timeseries_fc_gt(
         else:
             fc_mean_member.plot(ax=ax, color=color_palette[1], alpha=alpha_value)
 
-    fc_mean_var.mean(dim="member").plot(
-        ax=ax, color=color_palette[2], label=f"{model_name} Mean"
-    )
-    fc_mean_unperturbed_var.plot(
-        ax=ax, color=color_palette[3], label=f"{model_name} Unperturbed"
-    )
+    fc_mean_var.mean(dim="member").plot(ax=ax, color=color_palette[2], label=f"{model_name} Mean")
+    fc_mean_unperturbed_var.plot(ax=ax, color=color_palette[3], label=f"{model_name} Unperturbed")
 
     if y_lims is not None:
         (ymin, ymax) = y_lims
         extent = ymax - ymin
-        ax.set_ylim(
-            ymin.item() - 0.1 * extent.item(), ymax.item() + 0.1 * extent.item()
-        )
+        ax.set_ylim(ymin.item() - 0.1 * extent.item(), ymax.item() + 0.1 * extent.item())
 
     # Arbitrary number to make sure the density curves look decent
     if fc_mean.member.size >= 20:
@@ -815,121 +772,15 @@ def plot_timeseries_fc_gt(
     plt.close(fig)
 
 
-if __name__ == "__main__":
-    args, config = parse_args()
-    path_in = os.path.join(args.out_dir, str(args.date_time), args.model_name)
+__all__ = [
+    "prepare_plot_args",
+    "plot_error_map",
+    "plot_rank_histogram",
+    "plot_energy_spectra",
+    "plot_rmse",
+    "plot_spread_skill_ratio",
+    "plot_timeseries_fc_gt",
+]
 
-    data = load_and_prepare_data(
-        path_in,
-        config["selected_vars"],
-        args.crop_region,
-        args.model_name,
-        args.perturbation_init,
-        args.perturbation_latent,
-        args.layer,
-        args.members,
-        debug_mode=args.debug,
-    )
-
-    assert (
-        args.members <= 50
-    ), "The number of ensemble members must be less than or equal to 50 to plot IFS ENS"
-    path_out = os.path.join(
-        path_in,
-        f"init_{args.perturbation_init}_latent_{args.perturbation_latent}_layer_{args.layer}",
-        args.crop_region,
-        f"png_{args.model_name}",
-    )
-    path_out_ifs = os.path.join(
-        path_in,
-        f"init_{args.perturbation_init}_latent_{args.perturbation_latent}_layer_{args.layer}",
-        args.crop_region,
-        "png_ifs",
-    )
-    os.makedirs(path_out, exist_ok=True)
-    os.makedirs(path_out_ifs, exist_ok=True)
-    os.makedirs(os.path.join(path_out, "scorecards"), exist_ok=True)
-    os.makedirs(os.path.join(path_out_ifs, "scorecards"), exist_ok=True)
-
-    print("data loaded", flush=True)
-    default_stats = calculate_stats(
-        data["ground_truth"],
-        data["forecast"],
-        data["forecast_unperturbed"],
-        args.crop_region,
-    )
-    print("stats calculated", flush=True)
-    ifs_stats = calculate_stats(
-        data["ground_truth"],
-        data["forecast_ifs"],
-        data["forecast_ifs_unperturbed"],
-        args.crop_region,
-    )
-    print("ifs stats calculated", flush=True)
-
-    alpha_value = 1 / data["forecast"].member.size ** (5 / 8)
-    variables = list(data["forecast"].data_vars)
-    vars_3d = [
-        var for var in variables if "isobaricInhPa" in data["forecast"][var].dims
-    ]
-    vars_2d = [
-        var for var in variables if "isobaricInhPa" not in data["forecast"][var].dims
-    ]
-
-    y_lims = calculate_y_lims(
-        vars_3d,
-        vars_2d,
-        data["forecast"],
-        data["forecast_ifs"],
-        default_stats,
-        ifs_stats,
-    )
-    print("y_lims calculated", flush=True)
-
-    default_plot_args = prepare_plot_args(
-        data,
-        default_stats,
-        vars_3d,
-        vars_2d,
-        config,
-        **y_lims,
-        use_ifs=False,
-        path_out=path_out,
-        model_name=args.model_name.title(),
-        region=args.crop_region.title(),
-        date_time=args.date_time,
-    )
-
-    ifs_plot_args = prepare_plot_args(
-        data,
-        ifs_stats,
-        vars_3d,
-        vars_2d,
-        config,
-        **y_lims,
-        use_ifs=True,
-        path_out=path_out_ifs,
-        model_name="IFS ENS",
-        region=args.crop_region.title(),
-        date_time=args.date_time,
-    )
-
-    # Individual plots evaluated vs. ERA5
-    for plot_args in [default_plot_args, ifs_plot_args]:
-        for args_i in plot_args["energy_spectra"]:
-            plot_energy_spectra(**args_i)
-        for args_i in plot_args["rank_histogram"]:
-            plot_rank_histogram(**args_i)
-        for args_i in plot_args["rmse"]:
-            plot_rmse(**args_i)
-        for args_i in plot_args["timeseries_fc_gt"]:
-            plot_timeseries_fc_gt(**args_i)
-        plot_error_map(**plot_args["error_map"][0])
-
-    # Combined plots using both IFS and MODEL in combination
-    for args_dict in default_plot_args["spread_skill_ratio"]:
-        args_dict["sr_spread_skill_ratio_ifs"] = ifs_stats["sr_spread_skill_ratio"]
-        args_dict["sr_ensemble_spread_ifs"] = ifs_stats["sr_ensemble_spread"]
-        args_dict["model_names"] = [args_dict.pop("model_name"), "IFS ENS"]
-
-        plot_spread_skill_ratio(**args_dict)
+# Alpha used by plotting functions; can be overridden by callers (e.g., CLI)
+alpha_value: float = 0.5

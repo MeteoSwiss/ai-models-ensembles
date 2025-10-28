@@ -3,7 +3,7 @@ channels:
   - nvidia
   - pytorch
 dependencies:
-  - cuda-toolkit=12.2
+  - cuda-toolkit=12.4 # Ensure this matches your local drivers
   - cudnn=8.9
   - pip
   - python=3.10
@@ -14,6 +14,7 @@ dependencies:
     # There is currently a bug with writing out TP
     - ../ai-models-graphcast
     - ai-models-fourcastnetv2
+    - typer[all]
     - jax[cuda12-pip]==0.4.20
     - "jaxlib @ https://storage.googleapis.com/jax-releases/cuda12/jaxlib-0.4.20+cuda12.cudnn89-cp310-cp310-manylinux2014_x86_64.whl"
     - git+https://github.com/deepmind/graphcast.git
