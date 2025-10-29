@@ -7,3 +7,5 @@ logs*
 _old
 rechunk.py
 ai_models_ensembles/__pycache__/
+ai_models_ensembles.egg-info/
+.venv/

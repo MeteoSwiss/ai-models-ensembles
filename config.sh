@@ -2,6 +2,8 @@
 set -euo pipefail
 IFS=$'\n\t'
 
+export EARTHKIT_CACHE_DIR=$SCRATCH/earthkit_cache
+
 # Logs
 export LOG_DIR=${LOG_DIR:-logs}
 export DRY_RUN=${DRY_RUN:-}
@@ -12,7 +14,7 @@ export PERTURBATION_INIT=0.0
 export PERTURBATION_LATENT=0.01
 export NUM_MEMBERS=50
 export CROP_REGION=europe # Crop to a specific region (europe/global)
-export OUTPUT_DIR=/scratch/mch/sadamov/pyprojects_data/ai-models-ensembles
+export OUTPUT_DIR=$STORE/sadamov/ai-models-ensembles
 
 # These paths are used in the pipeline
 export SRC_DIR=$PWD
@@ -24,6 +26,31 @@ export REGION_DIR="${PERTURBATION_DIR}/${CROP_REGION}"
 
 # Optional sweep values (space-separated) for perturbation latents
 export PERTURBATION_LATENTS=${PERTURBATION_LATENTS:-"0.0 0.002 0.004 0.006 0.008 0.01 0.02 0.03 0.04 0.05 0.06 0.07 0.08 0.09 0.1"}
+
+# ecCodes library setup (required by earthkit/eccodes)
+# Try to auto-detect an existing ecCodes installation (e.g., in Miniforge/Conda 'apps' env)
+if [ -z "${ECCODES_DIR:-}" ]; then
+    for CAND in \
+        "$HOME/miniforge3/envs/apps" \
+        "$HOME/miniconda3/envs/apps" \
+        "/users/$USER/miniforge3/envs/apps" \
+        "/users/$USER/miniconda3/envs/apps"; do
+        if [ -f "$CAND/lib/libeccodes.so" ]; then
+            export ECCODES_DIR="$CAND"
+            break
+        fi
+    done
+fi
+
+if [ -n "${ECCODES_DIR:-}" ]; then
+    export LD_LIBRARY_PATH="${ECCODES_DIR}/lib:${LD_LIBRARY_PATH:-}"
+    if [ -d "${ECCODES_DIR}/share/eccodes/definitions" ]; then
+        export ECCODES_DEFINITION_PATH="${ECCODES_DIR}/share/eccodes/definitions"
+    fi
+    if [ -d "${ECCODES_DIR}/share/eccodes/samples" ]; then
+        export ECCODES_SAMPLES_PATH="${ECCODES_DIR}/share/eccodes/samples"
+    fi
+fi
 
 # Slurm resource knobs (override per cluster)
 export ZARR_CPUS=${ZARR_CPUS:-32}
@@ -103,32 +130,6 @@ require_cmd() {
 }
 export -f require_cmd
 
-validate_config() {
-    mkdir -p "$LOG_DIR"
-    [[ -d "$OUTPUT_DIR" ]] || mkdir -p "$OUTPUT_DIR"
-    [[ -w "$OUTPUT_DIR" ]] || { echo "OUTPUT_DIR is not writable: $OUTPUT_DIR" >&2; exit 1; }
-    [[ "$DATE_TIME" =~ ^[0-9]{12}$ ]] || { echo "DATE_TIME must be YYYYMMDDHHMM" >&2; exit 1; }
-    case "$MODEL_NAME" in
-        graphcast|fourcastnetv2-small) : ;;
-        *) echo "Unknown MODEL_NAME: $MODEL_NAME" >&2; exit 1 ;;
-    esac
-    # NUM_MEMBERS sanity
-    if [[ "${NUM_MEMBERS}" -gt 50 ]]; then
-        echo "NUM_MEMBERS=${NUM_MEMBERS} exceeds 50 (IFS ensemble limit). Reduce to <= 50." >&2
-        exit 1
-    fi
-    # External tools
-    require_cmd ai-models
-    require_cmd bc
-    if command -v grib_ls >/dev/null 2>&1; then :; else echo "Warning: eccodes (grib_ls) not found; GRIB ops may fail" >&2; fi
-    if command -v convert >/dev/null 2>&1 || command -v magick >/dev/null 2>&1; then :; else echo "Warning: ImageMagick not found; GIF creation may fail" >&2; fi
-    # ECMWF credentials
-    if [[ ! -f "$HOME/.cdsapirc" ]]; then
-        echo "Warning: ECMWF CDS credentials not found at ~/.cdsapirc; downloads will fail." >&2
-    fi
-}
-export -f validate_config
-
 ##################THIS IS CURRENTLY HARDCODED IN THE EXPERIMENTS##################
 # All AI-models produce 10 days of forecasts with 6-hourly intervals
 export NUM_DAYS=10
@@ -136,8 +137,10 @@ export END_DATE_TIME=$(date -d "${DATE_TIME:0:8} + $((NUM_DAYS)) days" +%Y%m%d)0
 export INTERVAL=6
 export LEAD_TIME=240
 
-# if conda env ai-models does not exist then create it
-if ! conda env list | grep -q ai_models_ens; then
-    mamba env create -n ai_models_ens -f "$SRC_DIR/environment.yml"
+# Activate local virtual environment if present (uv + venv)
+if [[ -d "$SRC_DIR/.venv" ]]; then
+    # shellcheck disable=SC1091
+    source "$SRC_DIR/.venv/bin/activate"
+else
+    echo "Warning: .venv not found in $SRC_DIR. Run scripts/setup_uv.sh to create the environment." >&2
 fi
-conda activate ai_models_ens

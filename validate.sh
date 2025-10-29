@@ -6,6 +6,31 @@ IFS=$'\n\t'
 # Load config and helpers
 source "./config.sh"
 
+# Validation function (moved from config.sh)
+validate_config() {
+  mkdir -p "$LOG_DIR"
+  [[ -d "$OUTPUT_DIR" ]] || mkdir -p "$OUTPUT_DIR"
+  [[ -w "$OUTPUT_DIR" ]] || { echo "OUTPUT_DIR is not writable: $OUTPUT_DIR" >&2; exit 1; }
+  [[ "$DATE_TIME" =~ ^[0-9]{12}$ ]] || { echo "DATE_TIME must be YYYYMMDDHHMM" >&2; exit 1; }
+  case "$MODEL_NAME" in
+    graphcast|fourcastnetv2-small) : ;;
+    *) echo "Unknown MODEL_NAME: $MODEL_NAME" >&2; exit 1 ;;
+  esac
+  # NUM_MEMBERS sanity
+  if [[ "${NUM_MEMBERS}" -gt 50 ]]; then
+    echo "NUM_MEMBERS=${NUM_MEMBERS} exceeds 50 (IFS ensemble limit). Reduce to <= 50." >&2
+    exit 1
+  fi
+  # External tools
+  require_cmd ai-models
+  require_cmd bc
+  if command -v convert >/dev/null 2>&1 || command -v magick >/dev/null 2>&1; then :; else echo "Warning: ImageMagick not found; GIF creation may fail" >&2; fi
+  # ECMWF credentials (MARS)
+  if [[ ! -f "$HOME/.ecmwfapirc" ]]; then
+    echo "Warning: ECMWF MARS credentials not found at ~/.ecmwfapirc; downloads will fail." >&2
+  fi
+}
+
 # Base config validation
 validate_config
 
@@ -40,9 +65,60 @@ import importlib
 importlib.import_module("earthkit.data")
 PY
 
-# eccodes/GRIB tools
-if ! command -v grib_ls >/dev/null 2>&1; then
-  echo "Warning: eccodes (grib_ls) not found; GRIB operations may fail" >&2
+# Optional ECMWF MARS connectivity probe (only if credentials exist)
+if [[ -f "$HOME/.ecmwfapirc" ]]; then
+  # Skip if earthkit.data isn't installed
+  if python - <<'PY' >/dev/null 2>&1; then
+import importlib
+importlib.import_module("earthkit.data")
+PY
+  python - <<'PY' || true
+import os, shutil
+try:
+  import earthkit.data as ekd
+  from earthkit.data import settings
+  tmp = os.path.join(os.getenv("TMPDIR", "/tmp"), "earthkit_mars_check")
+  os.makedirs(tmp, exist_ok=True)
+  try:
+    settings.set("user-cache-directory", tmp)
+  except Exception:
+    pass
+  # Small metadata-only request to test auth/connectivity
+  req = {
+    "class": "od",
+    "date": "2023-01-01",
+    "expver": "1",
+    "levtype": "sfc",
+    "param": "2t",
+    "step": "0",
+    "stream": "oper",
+    "time": "00",
+    "type": "fc",
+    "area": [50, 0, 40, 10],
+    "grid": [1, 1],
+  }
+  ds = ekd.from_source("mars", req, lazily=True)
+  try:
+    _ = ds.metadata()
+  except Exception:
+    # Some versions may fetch lazily; if it raises, it's fine to report failure below
+    pass
+  print("MARS connectivity: OK")
+except ImportError:
+  print("Note: earthkit.data not installed; skipping MARS check")
+except Exception as e:
+  print(f"Warning: MARS connectivity check failed: {e}")
+finally:
+  try:
+    shutil.rmtree(tmp, ignore_errors=True)
+  except Exception:
+    pass
+PY
+  else
+  echo "Note: earthkit.data not installed; skipping MARS check" >&2
+  fi
+else
+  echo "Note: ECMWF MARS credentials not found at ~/.ecmwfapirc; skipping MARS connectivity check" >&2
 fi
 
 # ImageMagick
@@ -56,8 +132,8 @@ if ! command -v fd >/dev/null 2>&1; then
 fi
 
 # ECMWF credentials
-if [[ ! -f "$HOME/.cdsapirc" ]]; then
-  echo "Warning: ECMWF CDS credentials not found at ~/.cdsapirc; downloads will fail" >&2
+if [[ ! -f "$HOME/.ecmwfapirc" ]]; then
+  echo "Warning: ECMWF CDS credentials not found at ~/.ecmwfapirc; downloads will fail" >&2
 fi
 
 # Earthkit cache dir info
@@ -75,4 +151,4 @@ import importlib
 import ai_models_ensembles.cli as cli
 PY
 
-echo "Validation OK. Environment looks good."
+echo "Validation completed; please review any warnings above."

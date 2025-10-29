@@ -3,6 +3,24 @@ name = "ai-models-ensembles"
 version = "0.1.0"
 description = "Ensemble forecasting with AI models and weight perturbations"
 authors = [{ name = "Simon Adamov", email = "simon.adamov@meteoswiss.ch" }]
+requires-python = ">=3.10"
+
+dependencies = [
+    "typer>=0.12",
+    "rich>=13.0",
+    "numcodecs",
+    "scores",
+    "seaborn",
+    "zarr",
+    "xarray",
+    "dask",
+    "cartopy",
+    "matplotlib",
+    "numpy",
+    "ai-models",
+    "ai-models-graphcast",
+    "ai-models-fourcastnetv2",
+]
 
 [project.scripts]
 ai-ens = "ai_models_ensembles.cli:app"

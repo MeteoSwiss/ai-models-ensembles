@@ -2,23 +2,20 @@
 
 Run GraphCast and FourCastNetV2 ensembles, convert outputs to Zarr, and verify against IFS/ERA5 with ready-made plots and animations.
 
-## Quickstart
+## Quickstart (uv + venv)
 
-1. Configure `config.sh`
-   - Set `OUTPUT_DIR`, `DATE_TIME`, `MODEL_NAME`, `NUM_MEMBERS`, perturbation values, and region.
-   - Optional: set `EARTHKIT_CACHE_DIR` to a writable path for Earthkit cache.
+1. Create a Python 3.10 virtual env with uv and install deps
 
 ```bash
-bash ./validate.sh
+bash scripts/setup_uv.sh
+source .venv/bin/activate
 ```
 
-This checks your Python env and packages, `ai-models`, GRIB tools (`eccodes/cfgrib`), ImageMagick, ECMWF credentials (`~/.cdsapirc`), `OUTPUT_DIR` writability, and more. Fix any warnings/errors before submitting jobs.
-
-1. Create env and activate
+1. Validate the environment and GPU availability
 
 ```bash
-mamba env create -f environment.yml
-conda activate ai_models_ens
+python scripts/check_gpu.py
+bash ./validate.sh
 ```
 
 1. Submit jobs (Slurm)
@@ -28,6 +25,22 @@ conda activate ai_models_ens
    - Verify + plots: `submit_verification.sh`
 
 Logs are written to `logs/`. Adjust `config.sh` to tailor runs.
+
+## Configure `config.sh`
+
+- Set `OUTPUT_DIR`, `DATE_TIME`, `MODEL_NAME`, `NUM_MEMBERS`, perturbation values, and region.
+- Optional: set `EARTHKIT_CACHE_DIR` to a writable path for Earthkit cache.
+
+```bash
+bash ./validate.sh
+```
+
+This checks your Python env and packages, `ai-models`, GRIB tools (`eccodes/cfgrib`), ImageMagick, ECMWF credentials (`~/.cdsapirc`), `OUTPUT_DIR` writability, and more. Fix any warnings/errors before submitting jobs.
+
+Notes:
+
+- On Linux aarch64 with NVIDIA GPUs, `scripts/setup_uv.sh` installs JAX GPU wheels via `pip install "jax[cuda12]"` (no source build) and PyTorch from NVIDIA's aarch64 index.
+- On x86_64 with NVIDIA GPUs, PyTorch is installed targeting CUDA 12.4 wheels; JAX defaults to CPU unless you add `JAX_OVERRIDE=cuda` and adapt.
 
 ### Centralized Slurm settings
 
@@ -50,8 +63,8 @@ export INF_TIME_SB=12:00:00
 
 - Linux. Slurm recommended for the provided submit scripts.
 - ECMWF credentials for ERA5/IFS (configure `~/.cdsapirc`; MARS if needed).
-- GPU (CUDA 12.X) for model inference; CPU is fine for plotting/conversion.
-- GRIB readers: `cfgrib` + `ecCodes` (install via conda-forge if missing).
+- GPU (CUDA 12.x) for model inference; CPU is fine for plotting/conversion. On ARM (linux-aarch64), PyTorch GPU comes from NVIDIA's pip index; JAX GPU is installed from prebuilt wheels with `jax[cuda12]`.
+- GRIB readers: `cfgrib` + `ecCodes`. Install ecCodes via your OS package manager (e.g., `apt install eccodes`) and `pip install cfgrib`.
 
 ## CLI usage (Typer)
 
@@ -122,10 +135,11 @@ $OUTPUT_DIR/
 
 ## Troubleshooting
 
-- Install GRIB readers if missing: `conda install -c conda-forge cfgrib eccodes`
+- Install GRIB readers if missing: use OS packages for ecCodes and `pip install cfgrib`.
 - Ensure `~/.cdsapirc` (and MARS) credentials are valid for ERA5/IFS access
-- For GPU inference, match CUDA 12.X drivers/toolkit to the environment
-- If GraphCast local repo is missing and env install fails, clone `../ai-models-graphcast` or update `environment.yml`
+- For GPU inference, ensure NVIDIA drivers meet JAX/PyTorch requirements (driver >= 525 for CUDA 12). On aarch64, PyTorch GPU is installed from NVIDIA's pip wheels; JAX GPU comes from `jax[cuda12]` wheels (no local toolkit required).
+- GraphCast is installed from PyPI (`ai-models-graphcast`); no local source checkout is required.
+- If you see a message like "Loaded runtime CuDNN library: 9.1.0 but source was compiled with: 9.8.0" when importing both Torch and JAX in the same process: Import JAX before Torch (JAX preloads pip’s cuDNN 9.14, which Torch can reuse)
 
 ## License
 
