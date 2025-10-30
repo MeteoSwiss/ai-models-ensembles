@@ -1,5 +1,6 @@
 import os
-from typing import Any, Dict, List, Mapping, Tuple
+from pathlib import Path
+from typing import Any, Dict, List, Mapping, Optional, Tuple
 
 import cartopy.crs as ccrs
 import matplotlib
@@ -11,6 +12,14 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from scipy.stats import gaussian_kde
 
+from ai_models_ensembles.utils import (
+    build_output_filename,
+    ensure_dir,
+    save_dataset,
+    save_npz,
+    sanitize_token,
+)
+
 matplotlib.use("Agg")
 matplotlib.rcParams.update({"font.size": 15})
 plt.ioff()
@@ -19,6 +28,23 @@ plt.ioff()
 def _set_xticks(ax, data):
     ax.set_xticks(np.arange(0, (len(data.step) + 1) * 6, 24))
     ax.set_xticklabels(np.arange(0, (len(data.step) + 1) * 6, 24))
+
+
+def _prepare_io(
+    path_out: str,
+    artifact_root: str | Path | None,
+    metric: str,
+    output_mode: str,
+) -> tuple[Path, Optional[Path], bool, bool]:
+    mode = (output_mode or "plot").lower()
+    save_fig = mode in {"plot", "both"}
+    save_data = mode in {"both", "data", "npz"}
+    fig_dir = ensure_dir(path_out)
+    data_dir: Optional[Path] = None
+    if save_data:
+        root = Path(artifact_root) if artifact_root is not None else fig_dir / "data"
+        data_dir = ensure_dir(root / metric)
+    return fig_dir, data_dir, save_fig, save_data
 
 
 def prepare_plot_args(
@@ -38,6 +64,9 @@ def prepare_plot_args(
     model_name: str = "",
     region: str = "",
     date_time: str = "",
+    output_mode: str = "both",
+    artifact_root: str | Path | None = None,
+    ensemble: str | int | None = None,
 ) -> Dict[str, List[Dict[str, Any]]]:
     """
     Prepare the arguments for the plotting functions.
@@ -62,6 +91,10 @@ def prepare_plot_args(
         dict: A dictionary pf dictionaries containing the plotting arguments.
     """
     forecast_key = "forecast_ifs" if use_ifs else "forecast"
+    resolved_output_mode = str(config.get("output_mode", output_mode))
+    resolved_artifact_root = artifact_root if artifact_root is not None else config.get("artifact_root")
+    resolved_ensemble = ensemble if ensemble is not None else config.get("ensemble")
+
     error_map_args = []
     rank_histogram_args = []
     energy_spectra_args = []
@@ -81,6 +114,12 @@ def prepare_plot_args(
                     "errors_members": stats["rmse"],
                     "path_out": path_out,
                     "level": level,
+                    "model_name": model_name,
+                    "region": region,
+                    "date_time": date_time,
+                    "output_mode": resolved_output_mode,
+                    "artifact_root": resolved_artifact_root,
+                    "ensemble": resolved_ensemble,
                 })
                 rank_histogram_args.append({
                     "variable": var,
@@ -93,6 +132,9 @@ def prepare_plot_args(
                     "region": region,
                     "date_time": date_time,
                     "sample_size": config["sample_size"],
+                    "output_mode": resolved_output_mode,
+                    "artifact_root": resolved_artifact_root,
+                    "ensemble": resolved_ensemble,
                 })
                 energy_spectra_args.append({
                     "variable": var,
@@ -109,6 +151,9 @@ def prepare_plot_args(
                     else y_lims_energy_spectra[(var, None)],
                     "region": region,
                     "date_time": date_time,
+                    "output_mode": resolved_output_mode,
+                    "artifact_root": resolved_artifact_root,
+                    "ensemble": resolved_ensemble,
                 })
                 rmse_args.append({
                     "variable": var,
@@ -123,6 +168,9 @@ def prepare_plot_args(
                     "y_lims": y_lims_rmse[(var, level)],
                     "region": region,
                     "date_time": date_time,
+                    "output_mode": resolved_output_mode,
+                    "artifact_root": resolved_artifact_root,
+                    "ensemble": resolved_ensemble,
                 })
                 spread_skill_ratio_args.append({
                     "variable": var,
@@ -136,6 +184,9 @@ def prepare_plot_args(
                     "y_lims2": y_lims_spread_skill_ratio[(var, level)][1],
                     "region": region,
                     "date_time": date_time,
+                    "output_mode": resolved_output_mode,
+                    "artifact_root": resolved_artifact_root,
+                    "ensemble": resolved_ensemble,
                 })
                 timeseries_fc_gt_args.append({
                     "variable": var,
@@ -151,6 +202,9 @@ def prepare_plot_args(
                     "y_lims": y_lims_timeseries[(var, level)],
                     "region": region,
                     "date_time": date_time,
+                    "output_mode": resolved_output_mode,
+                    "artifact_root": resolved_artifact_root,
+                    "ensemble": resolved_ensemble,
                 })
 
     print("Plotting arguments prepared")
@@ -171,6 +225,12 @@ def plot_error_map(
     errors_members: xr.Dataset | xr.DataArray,
     path_out: str,
     level: int | str | None,
+    model_name: str,
+    region: str,
+    date_time: str,
+    output_mode: str = "both",
+    artifact_root: str | Path | None = None,
+    ensemble: str | int | None = None,
 ) -> None:
     """
     Plot a heatmap of errors of all forecast variables
@@ -185,6 +245,14 @@ def plot_error_map(
     """
 
     print("Creating scorecards")
+
+    scorecard_dir = os.path.join(path_out, "scorecards")
+    fig_dir, data_dir, save_fig, save_data = _prepare_io(
+        scorecard_dir,
+        artifact_root,
+        "scorecards",
+        output_mode,
+    )
 
     errors_mean = errors_mean.expand_dims("member").assign_coords(member=[9998])
     errors_unperturbed = errors_unperturbed.expand_dims("member").assign_coords(member=[9999])
@@ -246,14 +314,31 @@ def plot_error_map(
         ax.set_title(f"Scorecard for {member.title()}")
 
         plt.tight_layout()
-        plt.savefig(
-            os.path.join(
-                path_out,
-                "scorecards",
-                f"scorecard_member_{member}.png",
-            ),
-            dpi=300,
+        filename_args = dict(
+            metric="scorecard",
+            variable=member,
+            level=level,
+            qualifier=model_name,
+            ensemble=ensemble,
         )
+        if save_data and data_dir is not None:
+            if isinstance(errors, xr.Dataset):
+                data_payload = errors
+            else:
+                data_payload = errors.to_dataset(name="errors")
+            data_payload = data_payload.copy()
+            data_payload.attrs.update({
+                "model_name": model_name,
+                "region": region,
+                "date_time": date_time,
+                "member": member,
+            })
+            data_filename = build_output_filename(ext="nc", **filename_args)
+            save_dataset(data_payload, data_dir, data_filename)
+
+        if save_fig:
+            fig_filename = build_output_filename(ext="png", **filename_args)
+            plt.savefig(fig_dir / fig_filename, dpi=300)
         plt.close(fig)
 
 
@@ -268,6 +353,9 @@ def plot_rank_histogram(
     region: str = "",
     date_time: str = "",
     sample_size: int = 10,
+    output_mode: str = "both",
+    artifact_root: str | Path | None = None,
+    ensemble: str | int | None = None,
 ) -> None:
     """
     Plot the rank histogram.
@@ -286,6 +374,13 @@ def plot_rank_histogram(
 
     """
     print(f"Creating rank histogram for variable: {variable}, level: {level}")
+
+    fig_dir, data_dir, save_fig, save_data = _prepare_io(
+        path_out,
+        artifact_root,
+        "rank_histogram",
+        output_mode,
+    )
 
     forecast_var = (
         forecast[variable].sel(isobaricInhPa=level).drop_isel(step=0)
@@ -319,6 +414,28 @@ def plot_rank_histogram(
     unique_ranks, rank_counts = np.unique(gt_rank.values, return_counts=True)
     rank_counts = dict(zip(unique_ranks, rank_counts))
 
+    filename_args = dict(
+        metric="rank_histogram",
+        variable=variable,
+        level=level,
+        qualifier=model_name,
+        ensemble=ensemble,
+    )
+
+    if save_data and data_dir is not None:
+        payload = {
+            "ranks": np.array(list(rank_counts.keys()), dtype=int),
+            "counts": np.array(list(rank_counts.values()), dtype=int),
+            "variable": np.array([variable], dtype=object),
+            "level": np.array([level if level is not None else "surface"], dtype=object),
+            "region": np.array([region], dtype=object),
+            "date_time": np.array([date_time], dtype=object),
+            "model_name": np.array([model_name], dtype=object),
+            "sample_size": np.array([sample_size], dtype=int),
+        }
+        data_filename = build_output_filename(ext="npz", **filename_args)
+        save_npz(payload, data_dir, data_filename)
+
     # Plot the rank histogram
     fig, ax = plt.subplots(figsize=(12, 9))
     ax.bar(
@@ -332,13 +449,9 @@ def plot_rank_histogram(
     )
     ax.set_xlabel("Rank of Ground Truth After 10-Days Forecast")
     ax.set_ylabel("Frequency")
-    plt.savefig(
-        os.path.join(
-            path_out,
-            f"rank_histogram_{variable}{'_' + str(level) if level else ''}.png",
-        ),
-        dpi=300,
-    )
+    if save_fig:
+        fig_filename = build_output_filename(ext="png", **filename_args)
+        plt.savefig(fig_dir / fig_filename, dpi=300)
     plt.close(fig)
 
 
@@ -355,11 +468,20 @@ def plot_energy_spectra(
     y_lims: Tuple[float, float] | None = None,
     region: str = "",
     date_time: str = "",
+    output_mode: str = "both",
+    artifact_root: str | Path | None = None,
+    ensemble: str | int | None = None,
 ) -> None:
     """
     Plot the energy spectra for each member and the mean of all members using wavenumber on a log-log scale.
     """
     print(f"Plotting energy spectra for variable: {variable} on level {level}")
+    fig_dir, data_dir, save_fig, save_data = _prepare_io(
+        path_out,
+        artifact_root,
+        "energy_spectra",
+        output_mode,
+    )
     fig, ax = plt.subplots(figsize=(12, 9))
 
     if level is not None:
@@ -450,10 +572,32 @@ def plot_energy_spectra(
     if y_lims is not None:
         ax.set_ylim(y_lims)
 
-    plt.savefig(
-        os.path.join(path_out, f"energy_spectra_comparison_{variable}_{level}.png"),
-        dpi=300,
+    filename_args = dict(
+        metric="energy_spectra",
+        variable=variable,
+        level=level,
+        qualifier=model_name,
+        ensemble=ensemble,
     )
+
+    if save_data and data_dir is not None:
+        payload = {
+            "wavenumber": energy_spectra_forecast_lev.wavenumber.values,
+            "spectrum_prediction": energy_spectra_forecast_lev.values,
+            "spectrum_unperturbed": energy_spectra_unperturbed_lev.values,
+            "spectrum_target": energy_spectra_ground_truth_lev.values,
+            "model_name": np.array([model_name], dtype=object),
+            "variable": np.array([variable], dtype=object),
+            "level": np.array([level if level is not None else "surface"], dtype=object),
+            "region": np.array([region], dtype=object),
+            "date_time": np.array([date_time], dtype=object),
+        }
+        data_filename = build_output_filename(ext="npz", **filename_args)
+        save_npz(payload, data_dir, data_filename)
+
+    if save_fig:
+        fig_filename = build_output_filename(ext="png", **filename_args)
+        plt.savefig(fig_dir / fig_filename, dpi=300)
     plt.close(fig)
 
 
@@ -470,6 +614,9 @@ def plot_rmse(
     y_lims: Tuple[float, float] | None = None,
     region: str = "",
     date_time: str = "",
+    output_mode: str = "both",
+    artifact_root: str | Path | None = None,
+    ensemble: str | int | None = None,
 ) -> None:
     """
     Plot the RMSE.
@@ -487,6 +634,12 @@ def plot_rmse(
         y_lims (tuple): The y-limits for the plot.
     """
     print(f"Creating RMSE plots for variable: {variable}, level: {level}")
+    fig_dir, data_dir, save_fig, save_data = _prepare_io(
+        path_out,
+        artifact_root,
+        "rmse",
+        output_mode,
+    )
     fig, ax = plt.subplots(figsize=(12, 9))
 
     # Select the level if provided
@@ -525,13 +678,31 @@ def plot_rmse(
         f"Root Mean Square Error: {variable}{' at level ' + str(level) if level is not None else ''}\nRegion: {region}, Init Date: {date_time}, Model: {model_name}"
     )
     ax.legend()
-    plt.savefig(
-        os.path.join(
-            path_out,
-            f"rmse_{variable}{'_' + str(level) if level is not None else ''}.png",
-        ),
-        dpi=300,
+    filename_args = dict(
+        metric="rmse",
+        variable=variable,
+        level=level,
+        qualifier=model_name,
+        ensemble=ensemble,
     )
+
+    if save_data and data_dir is not None:
+        payload = xr.Dataset({
+            "rmse_members": rmse[variable],
+            "rmse_mean": rmse_mean[variable],
+            "rmse_unperturbed": rmse_unperturbed[variable],
+        })
+        payload.attrs.update({
+            "model_name": model_name,
+            "region": region,
+            "date_time": date_time,
+        })
+        data_filename = build_output_filename(ext="nc", **filename_args)
+        save_dataset(payload, data_dir, data_filename)
+
+    if save_fig:
+        fig_filename = build_output_filename(ext="png", **filename_args)
+        plt.savefig(fig_dir / fig_filename, dpi=300)
     plt.close(fig)
 
 
@@ -549,6 +720,9 @@ def plot_spread_skill_ratio(
     y_lims2: Tuple[float, float] | None = None,
     region: str = "",
     date_time: str = "",
+    output_mode: str = "both",
+    artifact_root: str | Path | None = None,
+    ensemble: str | int | None = None,
 ) -> None:
     """
     Plot the spread-skill ratio for both models on the same plot.
@@ -569,6 +743,13 @@ def plot_spread_skill_ratio(
         date_time (str): The date and time string.
     """
     print(f"Creating combined spread-skill ratio plots for variable: {variable}, level: {level}")
+
+    fig_dir, data_dir, save_fig, save_data = _prepare_io(
+        path_out,
+        artifact_root,
+        "spread_skill_ratio",
+        output_mode,
+    )
 
     fig, ax = plt.subplots(figsize=(12, 9))
 
@@ -628,13 +809,39 @@ def plot_spread_skill_ratio(
     lines2, labels2 = ax2.get_legend_handles_labels()
     ax2.legend(lines1 + lines2, labels1 + labels2, loc="upper right")
 
-    plt.savefig(
-        os.path.join(
-            path_out,
-            f"spread_skill_ratio_{variable}{'_' + str(level) if level is not None else ''}.png",
-        ),
-        dpi=300,
+    filename_args = dict(
+        metric="spread_skill_ratio",
+        variable=variable,
+        level=level,
+        qualifier="_vs_".join(model_names),
+        ensemble=ensemble,
     )
+
+    if save_data and data_dir is not None:
+        def _sel(source: xr.Dataset | xr.DataArray) -> xr.DataArray:
+            if isinstance(source, xr.Dataset):
+                return source[variable]
+            return source
+
+        label_a = sanitize_token(model_names[0]) if model_names else "model"
+        label_b = sanitize_token(model_names[1]) if len(model_names) > 1 else "ifs"
+        payload = xr.Dataset({
+            f"spread_skill_ratio_{label_a}": _sel(spread_skill_ratio),
+            f"ensemble_spread_{label_a}": _sel(ensemble_spread),
+            f"spread_skill_ratio_{label_b}": _sel(spread_skill_ratio_ifs),
+            f"ensemble_spread_{label_b}": _sel(ensemble_spread_ifs),
+        })
+        payload.attrs.update({
+            "region": region,
+            "date_time": date_time,
+            "models": ",".join(model_names),
+        })
+        data_filename = build_output_filename(ext="nc", **filename_args)
+        save_dataset(payload, data_dir, data_filename)
+
+    if save_fig:
+        fig_filename = build_output_filename(ext="png", **filename_args)
+        plt.savefig(fig_dir / fig_filename, dpi=300)
     plt.close(fig)
 
 
@@ -652,6 +859,9 @@ def plot_timeseries_fc_gt(
     y_lims: Tuple[float, float] | None = None,
     region: str = "",
     date_time: str = "",
+    output_mode: str = "both",
+    artifact_root: str | Path | None = None,
+    ensemble: str | int | None = None,
 ) -> None:
     def _plot_map(ground_truth_var, ax):
         lat = ground_truth.latitude.values
@@ -670,6 +880,12 @@ def plot_timeseries_fc_gt(
         ax.set_yticks([])
 
     print(f"Creating timeseries plots for variable: {variable}, level: {level}")
+    fig_dir, data_dir, save_fig, save_data = _prepare_io(
+        path_out,
+        artifact_root,
+        "timeseries",
+        output_mode,
+    )
     fig, ax = plt.subplots(figsize=(12, 9))
 
     # Select the level if provided
@@ -762,13 +978,31 @@ def plot_timeseries_fc_gt(
         f"Comparison of Forecast vs Ground-Truth: {variable}{' at level ' + str(level) if level is not None else ''}\nRegion: {region}, Init Date: {date_time}, Model: {model_name}"
     )
     ax.legend(loc="lower left")
-    plt.savefig(
-        os.path.join(
-            path_out,
-            f"timeseries_fc_gt_{variable}{'_' + str(level) if level is not None else ''}.png",
-        ),
-        dpi=300,
+    filename_args = dict(
+        metric="timeseries",
+        variable=variable,
+        level=level,
+        qualifier=model_name,
+        ensemble=ensemble,
     )
+
+    if save_data and data_dir is not None:
+        payload = xr.merge([
+            fc_mean_var.to_dataset(name="forecast_members"),
+            fc_mean_unperturbed_var.to_dataset(name="forecast_unperturbed"),
+            gt_mean_var.to_dataset(name="ground_truth"),
+        ])
+        payload.attrs.update({
+            "model_name": model_name,
+            "region": region,
+            "date_time": date_time,
+        })
+        data_filename = build_output_filename(ext="nc", **filename_args)
+        save_dataset(payload, data_dir, data_filename)
+
+    if save_fig:
+        fig_filename = build_output_filename(ext="png", **filename_args)
+        plt.savefig(fig_dir / fig_filename, dpi=300)
     plt.close(fig)
 
 

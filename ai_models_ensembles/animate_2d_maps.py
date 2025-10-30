@@ -1,4 +1,4 @@
-import os
+from pathlib import Path
 from typing import Any, Dict
 
 import cartopy.crs as ccrs
@@ -6,6 +6,33 @@ import matplotlib.animation as animation
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.colors import TwoSlopeNorm
+
+import xarray as xr
+
+from ai_models_ensembles.utils import build_output_filename, ensure_dir, save_dataset
+
+
+def _save_payload(
+    metric: str,
+    variable: str,
+    level,
+    member_token: str,
+    data: Dict[str, xr.DataArray],
+    base_dir: Path,
+    qualifier: str,
+) -> None:
+    data_dir = ensure_dir(base_dir / "data" / metric)
+    ds = xr.Dataset({key: value for key, value in data.items()})
+    ds.attrs.update({"variable": variable, "level": str(level), "member": member_token})
+    filename = build_output_filename(
+        metric=metric,
+        variable=variable,
+        level=level,
+        qualifier=qualifier,
+        ensemble=member_token,
+        ext="nc",
+    )
+    save_dataset(ds, data_dir, filename)
 
 
 def create_plot(
@@ -234,7 +261,8 @@ def create_and_save_animation(
         metric_name: Name of the metric to plot
     """
     ani = animation.FuncAnimation(fig, updatefig, frames=data.step.size, interval=200, blit=True)
-    ani.save(f"{path}/{metric_name}_{var}_{level}.gif", writer="imagemagick")
+    dest = Path(path)
+    ani.save(dest / f"{metric_name}_{var}_{level}.gif", writer="imagemagick")
     plt.close()
 
 
@@ -267,7 +295,7 @@ def create_update_function_metric(
     return updatefig
 
 
-def plot_static_steps(path_gif: str, data, var: str, level, lat, lon, metric_name: str):
+def plot_static_steps(path_gif: Path, data, var: str, level, lat, lon, metric_name: str):
     """
     Create static plots for a given dataset with a shared colorbar.
 
@@ -330,7 +358,8 @@ def plot_static_steps(path_gif: str, data, var: str, level, lat, lon, metric_nam
     # plt.tight_layout(
     #     rect=[0, 0.05, 1, 0.95]
     # )  # Adjust layout to accommodate colorbar and main title
-    plt.savefig(f"{path_gif}/{metric_name}_{var}_6fig.png")
+    path_gif = ensure_dir(Path(path_gif))
+    plt.savefig(path_gif / f"{metric_name}_{var}_6fig.png")
     plt.close(fig)
 
 
@@ -357,8 +386,10 @@ def process_member(
         lon: Longitude values
         args: Parsed command line arguments
     """
-    path_gif = f"{path_forecast}/{args.crop_region}/{member}/animations"
-    os.makedirs(path_gif, exist_ok=True)
+    path_base = Path(path_forecast) / args.crop_region / str(member)
+    path_gif = ensure_dir(path_base / "animations")
+    artifact_root = ensure_dir(Path(path_forecast) / args.crop_region / f"artifacts_{args.model_name}")
+    member_artifacts = ensure_dir(artifact_root / f"member_{member:02}")
     variables = forecast.data_vars
     for var in variables:
         print(
@@ -372,9 +403,21 @@ def process_member(
                 # Existing forecast and ground truth animation
                 forecast_var = forecast[var].sel(member=member, isobaricInhPa=level)
                 ground_truth_var = ground_truth[var].sel(isobaricInhPa=level)
+                _save_payload(
+                    "animation",
+                    var,
+                    level,
+                    f"member{member:02}",
+                    {
+                        "forecast": forecast_var,
+                        "ground_truth": ground_truth_var,
+                    },
+                    member_artifacts,
+                    qualifier="forecast_vs_ground_truth",
+                )
                 fig, updatefig = plot_variable(forecast_var, ground_truth_var, var, level, lat, lon)
                 create_and_save_animation(
-                    path_gif,
+                    str(path_gif),
                     forecast_var,
                     var,
                     level,
@@ -384,17 +427,24 @@ def process_member(
                 )
 
                 # Create static plot
-                plot_static_steps(
-                    path_gif, forecast_var, var, level, lat, lon, metric_name="Forecast"
-                )
+                plot_static_steps(path_gif, forecast_var, var, level, lat, lon, metric_name="Forecast")
 
                 # Retrieve error data from stats
                 error_data = stats["diff"][var].sel(member=member, isobaricInhPa=level)
+                _save_payload(
+                    "error",
+                    var,
+                    level,
+                    f"member{member:02}",
+                    {"error": error_data},
+                    member_artifacts,
+                    qualifier="forecast_minus_truth",
+                )
 
                 # 1. Error
                 fig, updatefig = plot_metric(error_data, var, level, lat, lon, metric_name="Error")
                 create_and_save_animation(
-                    path_gif,
+                    str(path_gif),
                     error_data,
                     var,
                     level,
@@ -408,9 +458,18 @@ def process_member(
 
                 # Retrieve RMSE data (root of squared error)
                 rmse_data = np.sqrt(error_data**2)
+                _save_payload(
+                    "rmse",
+                    var,
+                    level,
+                    f"member{member:02}",
+                    {"rmse": rmse_data},
+                    member_artifacts,
+                    qualifier="member_rmse",
+                )
                 fig, updatefig = plot_metric(rmse_data, var, level, lat, lon, metric_name="RMSE")
                 create_and_save_animation(
-                    path_gif, rmse_data, var, level, fig, updatefig, metric_name="RMSE"
+                    str(path_gif), rmse_data, var, level, fig, updatefig, metric_name="RMSE"
                 )
 
                 # Create static plot for RMSE
@@ -421,9 +480,21 @@ def process_member(
             # Existing forecast and ground truth animation
             forecast_var = forecast[var].sel(member=member)
             ground_truth_var = ground_truth[var]
+            _save_payload(
+                "animation",
+                var,
+                level,
+                f"member{member:02}",
+                {
+                    "forecast": forecast_var,
+                    "ground_truth": ground_truth_var,
+                },
+                member_artifacts,
+                qualifier="forecast_vs_ground_truth",
+            )
             fig, updatefig = plot_variable(forecast_var, ground_truth_var, var, level, lat, lon)
             create_and_save_animation(
-                path_gif,
+                str(path_gif),
                 forecast_var,
                 var,
                 level,
@@ -437,10 +508,19 @@ def process_member(
 
             # Retrieve error data
             error_data = stats["diff"][var].sel(member=member)
+            _save_payload(
+                "error",
+                var,
+                level,
+                f"member{member:02}",
+                {"error": error_data},
+                member_artifacts,
+                qualifier="forecast_minus_truth",
+            )
             # 1. Error
             fig, updatefig = plot_metric(error_data, var, level, lat, lon, metric_name="Error")
             create_and_save_animation(
-                path_gif, error_data, var, level, fig, updatefig, metric_name="Error"
+                str(path_gif), error_data, var, level, fig, updatefig, metric_name="Error"
             )
 
             # Create static plot for error
@@ -448,9 +528,18 @@ def process_member(
 
             # Retrieve RMSE data
             rmse_data = np.sqrt(error_data**2)
+            _save_payload(
+                "rmse",
+                var,
+                level,
+                f"member{member:02}",
+                {"rmse": rmse_data},
+                member_artifacts,
+                qualifier="member_rmse",
+            )
             fig, updatefig = plot_metric(rmse_data, var, level, lat, lon, metric_name="RMSE")
             create_and_save_animation(
-                path_gif, rmse_data, var, level, fig, updatefig, metric_name="RMSE"
+                str(path_gif), rmse_data, var, level, fig, updatefig, metric_name="RMSE"
             )
 
             # Create static plot for RMSE
@@ -472,8 +561,10 @@ def process_ensemble_metrics(
         lon: Longitude values
         args: Parsed command line arguments
     """
-    path_gif = f"{path_forecast}/{args.crop_region}/ensemble/animations"
-    os.makedirs(path_gif, exist_ok=True)
+    path_base = Path(path_forecast) / args.crop_region / "ensemble"
+    path_gif = ensure_dir(path_base / "animations")
+    artifact_root = ensure_dir(Path(path_forecast) / args.crop_region / f"artifacts_{args.model_name}")
+    ensemble_artifacts = ensure_dir(artifact_root / "ensemble")
     variables = forecast.data_vars
     for var in variables:
         print("Creating ensemble metrics animations and static plots for variable:", var)
@@ -481,11 +572,20 @@ def process_ensemble_metrics(
             for level in forecast.isobaricInhPa.values:
                 # 3. CRPS between ensemble members and ground_truth
                 crps_data = stats["crps"][var].sel(isobaricInhPa=level)
+                _save_payload(
+                    "crps",
+                    var,
+                    level,
+                    "ensemble",
+                    {"crps": crps_data},
+                    ensemble_artifacts,
+                    qualifier="ensemble_vs_truth",
+                )
 
                 # Plot and save the animations
                 fig, updatefig = plot_metric(crps_data, var, level, lat, lon, metric_name="CRPS")
                 create_and_save_animation(
-                    path_gif, crps_data, var, level, fig, updatefig, metric_name="CRPS"
+                    str(path_gif), crps_data, var, level, fig, updatefig, metric_name="CRPS"
                 )
 
                 # Create static plot for CRPS
@@ -493,13 +593,22 @@ def process_ensemble_metrics(
 
                 # 4. Standard deviations across ensemble members
                 ensemble_std = stats["ensemble_spread_grid"][var].sel(isobaricInhPa=level)
+                _save_payload(
+                    "ensemble_spread",
+                    var,
+                    level,
+                    "ensemble",
+                    {"ensemble_spread": ensemble_std},
+                    ensemble_artifacts,
+                    qualifier="ensemble_std",
+                )
 
                 # Plot and save the animations
                 fig, updatefig = plot_metric(
                     ensemble_std, var, level, lat, lon, metric_name="Ensemble Std Dev"
                 )
                 create_and_save_animation(
-                    path_gif,
+                    str(path_gif),
                     ensemble_std,
                     var,
                     level,
@@ -522,10 +631,19 @@ def process_ensemble_metrics(
             level = "surface"
             # 3. CRPS
             crps_data = stats["crps"][var]
+            _save_payload(
+                "crps",
+                var,
+                level,
+                "ensemble",
+                {"crps": crps_data},
+                ensemble_artifacts,
+                qualifier="ensemble_vs_truth",
+            )
             # Plot and save the animations
             fig, updatefig = plot_metric(crps_data, var, level, lat, lon, metric_name="CRPS")
             create_and_save_animation(
-                path_gif, crps_data, var, level, fig, updatefig, metric_name="CRPS"
+                str(path_gif), crps_data, var, level, fig, updatefig, metric_name="CRPS"
             )
 
             # Create static plot for CRPS
@@ -533,12 +651,21 @@ def process_ensemble_metrics(
 
             # 4. Ensemble standard deviation
             ensemble_std = stats["ensemble_spread_grid"][var]
+            _save_payload(
+                "ensemble_spread",
+                var,
+                level,
+                "ensemble",
+                {"ensemble_spread": ensemble_std},
+                ensemble_artifacts,
+                qualifier="ensemble_std",
+            )
             # Plot and save the animations
             fig, updatefig = plot_metric(
                 ensemble_std, var, level, lat, lon, metric_name="Ensemble Std Dev"
             )
             create_and_save_animation(
-                path_gif,
+                str(path_gif),
                 ensemble_std,
                 var,
                 level,

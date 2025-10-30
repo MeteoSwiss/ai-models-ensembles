@@ -1,4 +1,4 @@
-import os
+from pathlib import Path
 from typing import Any, Dict
 
 import matplotlib.animation as animation
@@ -6,6 +6,32 @@ import matplotlib.cm as cm
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.colors import TwoSlopeNorm
+
+import xarray as xr
+
+from ai_models_ensembles.utils import build_output_filename, ensure_dir, save_dataset
+
+
+def _save_payload(
+    metric: str,
+    variable: str,
+    member: int,
+    data: Dict[str, xr.DataArray],
+    base_dir: Path,
+    qualifier: str,
+) -> None:
+    data_dir = ensure_dir(base_dir / "data" / metric)
+    ds = xr.Dataset({key: value for key, value in data.items()})
+    ds.attrs.update({"variable": variable, "member": member})
+    filename = build_output_filename(
+        metric=metric,
+        variable=variable,
+        level="3d",
+        qualifier=qualifier,
+        ensemble=f"member{member:02}",
+        ext="nc",
+    )
+    save_dataset(ds, data_dir, filename)
 
 __all__ = [
     "process_member",
@@ -109,6 +135,7 @@ def update_plot(
 def create_and_save_animation(
     path: str, difference, var: str, member: int, unit: str, vmin: float, vmax: float, args: Any
 ) -> None:
+    dest = ensure_dir(Path(path))
     fig = plt.figure()
     ax = fig.add_subplot(111, projection="3d")
     mappable = cm.ScalarMappable(cmap="RdBu_r")
@@ -138,7 +165,7 @@ def create_and_save_animation(
         frames=difference.step.size,
         fargs=(difference, var, fig, ax, member, mappable, vmin, vmax, args),
     )
-    ani.save(f"{path}/{var}_difference.gif", writer="imagemagick")
+    ani.save(dest / f"{var}_difference.gif", writer="imagemagick")
     plt.close()
 
 
@@ -150,8 +177,10 @@ def process_member(
     args: Any,
     config: Dict[str, Any],
 ) -> None:
-    path_gif = os.path.join(path_forecast, args.crop_region, str(member), "animations")
-    os.makedirs(path_gif, exist_ok=True)
+    path_base = Path(path_forecast) / args.crop_region / str(member)
+    path_gif = ensure_dir(path_base / "animations")
+    artifact_root = ensure_dir(Path(path_forecast) / args.crop_region / f"artifacts_{args.model_name}")
+    member_artifacts = ensure_dir(artifact_root / f"member_{member:02}")
     variables = config["selected_vars"]
     difference = forecast.sel(member=member) - forecast_unperturbed
 
@@ -160,4 +189,12 @@ def process_member(
         unit = forecast[var].attrs["units"]
         vmin = difference[var].min().values
         vmax = difference[var].max().values
+        _save_payload(
+            "difference",
+            var,
+            member,
+            {"difference": difference[var]},
+            member_artifacts,
+            qualifier="perturbed_minus_unperturbed",
+        )
         create_and_save_animation(path_gif, difference, var, member, unit, vmin, vmax, args)

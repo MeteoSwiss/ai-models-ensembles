@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import matplotlib.pyplot as plt
@@ -7,6 +8,13 @@ import pandas as pd
 import seaborn as sns
 import xarray as xr
 from scipy.stats import gaussian_kde, wasserstein_distance
+
+from ai_models_ensembles.utils import (
+    build_output_filename,
+    ensure_dir,
+    save_dataframe,
+    save_npz,
+)
 
 __all__ = [
     "subsample_da",
@@ -40,8 +48,21 @@ def plot_density_distribution(
     region: str = "",
     date_time: str = "",
     max_samples: int = 100000,
+    artifact_root: Optional[str | Path] = None,
+    output_mode: str = "both",
+    ensemble: Optional[str | int] = None,
 ) -> None:
     print(f"Creating density distribution plot for variable: {variable}, level: {level}")
+
+    mode = (output_mode or "plot").lower()
+    save_fig = mode in {"plot", "both"}
+    save_data = mode in {"both", "data", "npz"}
+
+    figure_dir = ensure_dir(path_out)
+    data_dir: Optional[Path] = None
+    if save_data:
+        data_root = Path(artifact_root) if artifact_root is not None else figure_dir / "data"
+        data_dir = ensure_dir(data_root / "density")
 
     if level is not None:
         forecast_var = forecast[variable].sel(isobaricInhPa=level)
@@ -83,6 +104,31 @@ def plot_density_distribution(
     ensemble_pdf = ensemble_kde(x)
     ground_truth_pdf = ground_truth_kde(x)
 
+    filename_core_args = dict(
+        metric="density",
+        variable=variable,
+        level=level,
+        qualifier="pdf",
+        ensemble=ensemble,
+    )
+
+    if save_data and data_dir is not None:
+        payload = {
+            "x": x,
+            "ensemble_pdf": ensemble_pdf,
+            "ground_truth_pdf": ground_truth_pdf,
+            "ensemble_sample": ensemble_values_sampled,
+            "ground_truth_sample": ground_truth_values_sampled,
+            "wasserstein_normalized": np.array([w_distance_normalized], dtype=float),
+            "variable": np.array([variable]),
+            "level": np.array([level if level is not None else "surface"], dtype=object),
+            "region": np.array([region], dtype=object),
+            "date_time": np.array([date_time], dtype=object),
+            "model_name": np.array([model_name], dtype=object),
+        }
+        data_filename = build_output_filename(ext="npz", **filename_core_args)
+        save_npz(payload, data_dir, data_filename)
+
     plt.figure(figsize=(10, 6))
     plt.plot(x, ensemble_pdf, label="Ensemble Members", color=color_palette[1])
     plt.plot(x, ground_truth_pdf, label="Ground Truth", color=color_palette[0])
@@ -107,14 +153,9 @@ def plot_density_distribution(
         bbox=dict(facecolor="white", alpha=0.8, edgecolor="none"),
     )
 
-    plt.savefig(
-        os.path.join(
-            path_out,
-            f"density_distribution_{variable}{'_' + str(level) if level else ''}.png",
-        ),
-        dpi=300,
-        bbox_inches="tight",
-    )
+    if save_fig:
+        fig_filename = build_output_filename(ext="png", **filename_core_args)
+        plt.savefig(figure_dir / fig_filename, dpi=300, bbox_inches="tight")
     plt.close()
 
 
@@ -128,10 +169,23 @@ def plot_combined_density_distribution(
     region: str = "",
     date_time: str = "",
     max_samples: int = 100000,
+    artifact_root: str | Path | None = None,
+    output_mode: str = "both",
+    ensemble: str | int | None = None,
 ) -> None:
     print(
         f"Creating combined density distribution plot for variable-level pairs: {variable_level_pairs}"
     )
+
+    mode = (output_mode or "plot").lower()
+    save_fig = mode in {"plot", "both"}
+    save_data = mode in {"both", "data", "npz"}
+
+    figure_dir = ensure_dir(path_out)
+    data_dir: Optional[Path] = None
+    if save_data:
+        data_root = Path(artifact_root) if artifact_root is not None else figure_dir / "data"
+        data_dir = ensure_dir(data_root / "density")
 
     # Prepare data for each variable-level pair
     data_dict = {}
@@ -174,13 +228,20 @@ def plot_combined_density_distribution(
         title += f" - {date_time}"
     plt.suptitle(title, y=0.95)
 
-    filename = f"combined_density_distribution_{model_name}"
-    if region:
-        filename += f"_{region}"
-    if date_time:
-        filename += f"_{date_time}"
-    filename += ".png"
-    plt.savefig(os.path.join(path_out, filename), dpi=300, bbox_inches="tight")
+    filename_args = dict(
+        metric="density",
+        variable="combined",
+        qualifier="pairgrid",
+        ensemble=ensemble,
+    )
+
+    if save_data and data_dir is not None:
+        data_filename = build_output_filename(ext="csv", **filename_args)
+        save_dataframe(data_df, data_dir, data_filename)
+
+    if save_fig:
+        fig_filename = build_output_filename(ext="png", **filename_args)
+        plt.savefig(figure_dir / fig_filename, dpi=300, bbox_inches="tight")
     plt.close()
 
 
@@ -196,6 +257,9 @@ def prepare_density_distribution_args(
     max_samples: int = 100000,
     max_variables: int = 5,
     combined: bool = False,
+    artifact_root: str | Path | None = None,
+    output_mode: str = "both",
+    ensemble: str | int | None = None,
 ) -> List[Dict[str, Any]]:
     forecast_key = "forecast_ifs" if "forecast_ifs" in data else "forecast"
     forecast = data[forecast_key]
@@ -210,6 +274,9 @@ def prepare_density_distribution_args(
         "region": region,
         "date_time": date_time,
         "max_samples": max_samples,
+        "artifact_root": artifact_root,
+        "output_mode": output_mode,
+        "ensemble": ensemble,
     }
 
     args_list = []

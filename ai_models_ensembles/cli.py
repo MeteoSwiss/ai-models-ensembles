@@ -4,7 +4,7 @@ import os
 import re
 import shutil
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional
 
 import typer
 from rich.traceback import install as rich_traceback_install
@@ -294,6 +294,7 @@ def cli_verify() -> None:
 
     # 0D density plots
     png_dir = region_dir / f"png_{model_name}"
+    data_dir = region_dir / f"artifacts_{model_name}"
     if not png_dir.exists():
         typer.echo("Evaluating model and creating 0D and 1D figures")
         png_dir.mkdir(parents=True, exist_ok=True)
@@ -311,6 +312,8 @@ def cli_verify() -> None:
             ]),
             "sample_size": 100000,
             "selected_vars": ["u10"],
+            "output_mode": "both",
+            "artifact_root": str(data_dir),
         }
         # Individual density plots
         args_list_ind = p0.prepare_density_distribution_args(
@@ -324,6 +327,8 @@ def cli_verify() -> None:
             dt,
             max_samples=config["sample_size"],
             combined=False,
+            artifact_root=str(data_dir),
+            output_mode=config["output_mode"],
         )
         for plot_args in args_list_ind:
             p0.plot_density_distribution(**plot_args)
@@ -340,6 +345,8 @@ def cli_verify() -> None:
             max_samples=config["sample_size"],
             max_variables=5,
             combined=True,
+            artifact_root=str(data_dir),
+            output_mode=config["output_mode"],
         )
         for plot_args in args_list_comb:
             p0.plot_combined_density_distribution(**plot_args)
@@ -374,8 +381,11 @@ def cli_verify() -> None:
             model_name=model_name.title(),
             region=region.title(),
             date_time=dt,
+            output_mode=config["output_mode"],
+            artifact_root=str(data_dir),
         )
         png_dir_ifs = region_dir / "png_ifs"
+        data_dir_ifs = region_dir / "artifacts_ifs"
         png_dir_ifs.mkdir(parents=True, exist_ok=True)
         (png_dir / "scorecards").mkdir(parents=True, exist_ok=True)
         (png_dir_ifs / "scorecards").mkdir(parents=True, exist_ok=True)
@@ -391,6 +401,8 @@ def cli_verify() -> None:
             model_name="IFS ENS",
             region=region.title(),
             date_time=dt,
+            output_mode=config["output_mode"],
+            artifact_root=str(data_dir_ifs),
         )
         # Render plots
         for plot_args in [default_plot_args, ifs_plot_args]:
@@ -478,6 +490,27 @@ def cli_verify() -> None:
                 grib.unlink()
             except FileNotFoundError:
                 pass
+    typer.echo("*****DONE*****")
+
+
+@app.command("intercompare")
+def cli_intercompare(
+    model_dirs: List[str] = typer.Argument(..., help="Artifact directories produced by verify runs."),
+    labels: Optional[List[str]] = typer.Option(None, "--label", "-l", help="Display labels (repeat per model)."),
+    out_dir: str = typer.Option("intercomparison", "--out-dir", help="Directory for comparison figures."),
+    metrics: List[str] = typer.Option(
+        ["energy_spectra", "rmse", "timeseries", "rank_histogram", "density"],
+        "--metric",
+        "-m",
+        help="Metrics to compare (repeat option to select subset).",
+    ),
+) -> None:
+    labels_final = labels or [Path(m).name for m in model_dirs]
+    if len(labels_final) != len(model_dirs):
+        raise typer.BadParameter("Number of labels must match number of model directories.")
+    from .intercompare import run_intercompare
+
+    run_intercompare(model_dirs, labels_final, out_dir, metrics)
     typer.echo("*****DONE*****")
 
 

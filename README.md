@@ -22,7 +22,7 @@ bash ./validate.sh
    - Download ERA5 + IFS: `submit_download_data.sh`
    - ML inference (array-ready): `submit_ml_inference.sh`
    - Convert to Zarr: `submit_convert_zarr.sh`
-   - Verify + plots: `submit_verification.sh`
+   - Verify + plots + artefact bundles: `submit_verification.sh`
 
 Logs are written to `logs/`. Adjust `config.sh` to tailor runs.
 
@@ -98,8 +98,12 @@ ai-ens convert --path "$OUTPUT_DIR/$DATE_TIME/$MODEL_NAME/init_${PERTURBATION_IN
 ai-ens infer                 # run full member loop using env from config.sh
 ai-ens infer --member 7      # run a single member (array mode)
 
-# Verification
+# Verification & Artefacts
 ai-ens verify
+
+# Intercompare saved artefacts from multiple models
+ai-ens intercompare /path/to/artifacts_graphcast /path/to/artifacts_fourcastnet \
+   --label GraphCast --label FourCastNet --out-dir comparisons
 ```
 
 ### Notes
@@ -127,10 +131,28 @@ $OUTPUT_DIR/
         ├─ forecast.zarr/                 # unperturbed
         └─ init_{INIT}_latent_{LAT}_layer_{LAYER}/
            ├─ forecast.zarr/              # perturbed ensemble merged
+           ├─ png_*/                      # verification figures
+           ├─ png_ifs/
+           ├─ artifacts_{MODEL}/          # NetCDF bundles for plots/animations (per model)
+           │  ├─ ensemble/
+           │  │  └─ data/{metric}/
+           │  └─ member_{MEMBER}/
+           │     └─ data/{metric}/
            └─ ${MEMBER}/
               ├─ init_field.grib          # link or perturbed
               ├─ weights.tar | params/    # link or perturbed
-              └─ animations/, png_*/      # verification artifacts
+              └─ animations/              # GIFs + static PNGs
+
+```
+
+Each plot or animation is now accompanied by a data artefact saved beforehand:
+
+- Static plots store their inputs (NetCDF/NPZ/CSV) under the matching `artifacts_*` tree.
+- Animations (2D maps, 3D difference volumes) persist the xarray payloads used for each GIF.
+- Density/rank histograms, RMSE, spread-skill, timeseries, and energy spectra export comparable datasets that can be reloaded later.
+
+With these artefacts on disk you can generate bespoke visualisations or overlay multiple models using the `ai-ens intercompare` command without rerunning verification.
+
 ```
 
 ## Troubleshooting
