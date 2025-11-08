@@ -9,14 +9,10 @@ parser = argparse.ArgumentParser(
     description="Perturb the weights in the FourierNeuralOperatorBlock."
 )
 parser.add_argument("out_dir", type=str, help="The output directory")
-parser.add_argument(
-    "date_time", type=str, help="Date and time in the format YYYYMMDDHHMM"
-)
+parser.add_argument("date_time", type=str, help="Date and time in the format YYYYMMDDHHMM")
 parser.add_argument("model_name", type=str, help="The ai-model name")
 parser.add_argument("perturbation_init", type=float, help="The init perturbation size")
-parser.add_argument(
-    "perturbation_latent", type=float, help="The latent perturbation size"
-)
+parser.add_argument("perturbation_latent", type=float, help="The latent perturbation size")
 parser.add_argument(
     "member", type=int, help="The ensemble member number and seed for the perturbation."
 )
@@ -30,9 +26,7 @@ def load_model_weights(model, checkpoint_path, device):
     checkpoint = torch.load(checkpoint_path, map_location=device)
     try:
         # Try adding model weights as dictionary
-        new_state_dict = {
-            k[7:]: v for k, v in checkpoint["model_state"].items() if k[7:] != "ged"
-        }
+        new_state_dict = {k[7:]: v for k, v in checkpoint["model_state"].items() if k[7:] != "ged"}
         model.load_state_dict(new_state_dict)
     except Exception:
         model.load_state_dict(checkpoint["model_state"])

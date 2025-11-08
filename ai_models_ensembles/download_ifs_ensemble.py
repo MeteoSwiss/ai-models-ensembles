@@ -66,9 +66,7 @@ def download_ifs_ensemble(
     # Retrieve the single level data
     ds_single = earthkit.data.from_source("mars", request, lazily=True)
     ds_single = (
-        ds_single.to_xarray(chunks=chunks_surface)
-        .drop_vars("valid_time")
-        .chunk(chunks_surface)
+        ds_single.to_xarray(chunks=chunks_surface).drop_vars("valid_time").chunk(chunks_surface)
     )
     # Split the "number" dimension into chunks
     number_chunks = [f"{i}/to/{i + 9}/by/1" for i in range(1, 51, 10)]
@@ -90,15 +88,9 @@ def download_ifs_ensemble(
         normal_vars = [var for var in shortnames if var not in special_vars]
 
         # Convert to xarray and chunk
-        ds_normal = ds_pressure_chunk.sel(shortName=normal_vars).to_xarray(
-            chunks=chunks
-        )
-        ds_special = ds_pressure_chunk.sel(shortName=special_vars).to_xarray(
-            chunks=chunks
-        )
-        ds_combined = (
-            xr.merge([ds_normal, ds_special]).chunk(chunks).drop_vars("valid_time")
-        )
+        ds_normal = ds_pressure_chunk.sel(shortName=normal_vars).to_xarray(chunks=chunks)
+        ds_special = ds_pressure_chunk.sel(shortName=special_vars).to_xarray(chunks=chunks)
+        ds_combined = xr.merge([ds_normal, ds_special]).chunk(chunks).drop_vars("valid_time")
 
         # Write to Zarr with correct append_dim
         ds_combined.to_zarr(

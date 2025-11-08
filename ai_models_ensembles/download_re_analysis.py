@@ -115,9 +115,7 @@ def download_re_analysis(
         )
 
     if graphcast_like:
-        ds_combined = (
-            ds_single_init + ds_pressure_init + ds_single_prev + ds_pressure_prev
-        )
+        ds_combined = ds_single_init + ds_pressure_init + ds_single_prev + ds_pressure_prev
     else:
         ds_combined = ds_single_init + ds_pressure_init
 
@@ -153,9 +151,7 @@ def download_re_analysis(
     else:
         ds_combined_xr = xr.merge([ds_single.to_xarray(), ds_pressure.to_xarray()])
 
-    ds_combined_xr = ds_combined_xr.sel(
-        time=slice(start_dt, end_dt + timedelta(hours=1))
-    )
+    ds_combined_xr = ds_combined_xr.sel(time=slice(start_dt, end_dt + timedelta(hours=1)))
     chunks = {"latitude": -1, "longitude": -1, "time": 1, "isobaricInhPa": -1}
     print("Saving ground truth to zarr...")
     ds_combined_xr.chunk(chunks=chunks).drop_vars(["valid_time"]).to_zarr(

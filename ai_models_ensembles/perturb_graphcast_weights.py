@@ -8,14 +8,10 @@ parser = argparse.ArgumentParser(
     description="Perturb the weights in the FourierNeuralOperatorBlock."
 )
 parser.add_argument("out_dir", type=str, help="The output directory")
-parser.add_argument(
-    "date_time", type=str, help="Date and time in the format YYYYMMDDHHMM"
-)
+parser.add_argument("date_time", type=str, help="Date and time in the format YYYYMMDDHHMM")
 parser.add_argument("model_name", type=str, help="The ai-model name")
 parser.add_argument("perturbation_init", type=float, help="The init perturbation size")
-parser.add_argument(
-    "perturbation_latent", type=float, help="The latent perturbation size"
-)
+parser.add_argument("perturbation_latent", type=float, help="The latent perturbation size")
 parser.add_argument(
     "member", type=int, help="The ensemble member number and seed for the perturbation."
 )
@@ -51,9 +47,7 @@ def main():
     # Priority: env var GRAPHCAST_PARAMS_FILE -> first *.npz in params/ -> error
     params_rel = os.environ.get("GRAPHCAST_PARAMS_FILE")
     if params_rel is None:
-        params_dir = os.path.join(
-            args.out_dir, str(args.date_time), args.model_name, "params"
-        )
+        params_dir = os.path.join(args.out_dir, str(args.date_time), args.model_name, "params")
         if os.path.isdir(params_dir):
             npz_files = [f for f in os.listdir(params_dir) if f.endswith(".npz")]
             if npz_files:
@@ -63,9 +57,7 @@ def main():
             "GraphCast params file not found. Set GRAPHCAST_PARAMS_FILE or place a .npz under params/."
         )
 
-    checkpoint_path = os.path.join(
-        args.out_dir, str(args.date_time), args.model_name, params_rel
-    )
+    checkpoint_path = os.path.join(args.out_dir, str(args.date_time), args.model_name, params_rel)
     params = dict(np.load(checkpoint_path))
 
     np.random.seed(args.member)

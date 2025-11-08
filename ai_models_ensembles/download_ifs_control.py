@@ -65,9 +65,7 @@ def download_ifs_control(
     ds_single = earthkit.data.from_source("mars", request, lazily=True)
 
     ds_single = (
-        ds_single.to_xarray(chunks=chunks_surface)
-        .drop_vars("valid_time")
-        .chunk(chunks_surface)
+        ds_single.to_xarray(chunks=chunks_surface).drop_vars("valid_time").chunk(chunks_surface)
     )
 
     # Retrieve the pressure level data in chunks because of MARS size limits
@@ -86,9 +84,7 @@ def download_ifs_control(
 
     ds_normal = ds_pressure.sel(shortName=normal_vars).to_xarray(chunks=chunks)
     ds_special = ds_pressure.sel(shortName=special_vars).to_xarray(chunks=chunks)
-    ds_combined = (
-        xr.merge([ds_normal, ds_special]).chunk(chunks).drop_vars("valid_time")
-    )
+    ds_combined = xr.merge([ds_normal, ds_special]).chunk(chunks).drop_vars("valid_time")
 
     print("Writing to zarr")
     ds_combined.to_zarr(

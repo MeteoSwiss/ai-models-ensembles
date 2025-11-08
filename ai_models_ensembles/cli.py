@@ -65,21 +65,13 @@ def _symlink(src: Path, dst: Path) -> None:
 
 @app.command("download-reanalysis")
 def cli_download_reanalysis(
-    out_dir: Optional[str] = typer.Option(
-        None, help="Output dir (defaults to $OUTPUT_DIR)"
-    ),
-    start: Optional[str] = typer.Option(
-        None, help="Start (YYYYMMDDHHMM); defaults to $DATE_TIME"
-    ),
-    end: Optional[str] = typer.Option(
-        None, help="End (YYYYMMDDHHMM); defaults to $END_DATE_TIME"
-    ),
+    out_dir: Optional[str] = typer.Option(None, help="Output dir (defaults to $OUTPUT_DIR)"),
+    start: Optional[str] = typer.Option(None, help="Start (YYYYMMDDHHMM); defaults to $DATE_TIME"),
+    end: Optional[str] = typer.Option(None, help="End (YYYYMMDDHHMM); defaults to $END_DATE_TIME"),
     interval: Optional[int] = typer.Option(
         None, help="Hours between analyses; defaults to $INTERVAL"
     ),
-    model: Optional[str] = typer.Option(
-        None, help="Model name; defaults to $MODEL_NAME"
-    ),
+    model: Optional[str] = typer.Option(None, help="Model name; defaults to $MODEL_NAME"),
 ) -> None:
     _validate_basic_config()
     out = out_dir or _env("OUTPUT_DIR") or ""
@@ -92,21 +84,11 @@ def cli_download_reanalysis(
 
 @app.command("download-ifs-ensemble")
 def cli_download_ifs_ensemble(
-    out_dir: Optional[str] = typer.Option(
-        None, help="Output dir (defaults to $OUTPUT_DIR)"
-    ),
-    date_time: Optional[str] = typer.Option(
-        None, help="YYYYMMDDHHMM; defaults to $DATE_TIME"
-    ),
-    interval: Optional[int] = typer.Option(
-        None, help="Hours between steps; defaults to $INTERVAL"
-    ),
-    num_days: Optional[int] = typer.Option(
-        None, help="Days to download; defaults to $NUM_DAYS"
-    ),
-    model: Optional[str] = typer.Option(
-        None, help="Model name; defaults to $MODEL_NAME"
-    ),
+    out_dir: Optional[str] = typer.Option(None, help="Output dir (defaults to $OUTPUT_DIR)"),
+    date_time: Optional[str] = typer.Option(None, help="YYYYMMDDHHMM; defaults to $DATE_TIME"),
+    interval: Optional[int] = typer.Option(None, help="Hours between steps; defaults to $INTERVAL"),
+    num_days: Optional[int] = typer.Option(None, help="Days to download; defaults to $NUM_DAYS"),
+    model: Optional[str] = typer.Option(None, help="Model name; defaults to $MODEL_NAME"),
 ) -> None:
     _validate_basic_config()
     out = out_dir or _env("OUTPUT_DIR") or ""
@@ -119,21 +101,11 @@ def cli_download_ifs_ensemble(
 
 @app.command("download-ifs-control")
 def cli_download_ifs_control(
-    out_dir: Optional[str] = typer.Option(
-        None, help="Output dir (defaults to $OUTPUT_DIR)"
-    ),
-    date_time: Optional[str] = typer.Option(
-        None, help="YYYYMMDDHHMM; defaults to $DATE_TIME"
-    ),
-    interval: Optional[int] = typer.Option(
-        None, help="Hours between steps; defaults to $INTERVAL"
-    ),
-    num_days: Optional[int] = typer.Option(
-        None, help="Days to download; defaults to $NUM_DAYS"
-    ),
-    model: Optional[str] = typer.Option(
-        None, help="Model name; defaults to $MODEL_NAME"
-    ),
+    out_dir: Optional[str] = typer.Option(None, help="Output dir (defaults to $OUTPUT_DIR)"),
+    date_time: Optional[str] = typer.Option(None, help="YYYYMMDDHHMM; defaults to $DATE_TIME"),
+    interval: Optional[int] = typer.Option(None, help="Hours between steps; defaults to $INTERVAL"),
+    num_days: Optional[int] = typer.Option(None, help="Days to download; defaults to $NUM_DAYS"),
+    model: Optional[str] = typer.Option(None, help="Model name; defaults to $MODEL_NAME"),
 ) -> None:
     _validate_basic_config()
     out = out_dir or _env("OUTPUT_DIR") or ""
@@ -157,9 +129,7 @@ def cli_convert(
 
 @app.command("infer")
 def cli_infer(
-    member: Optional[int] = typer.Option(
-        None, help="Run only this member id (array mode)"
-    ),
+    member: Optional[int] = typer.Option(None, help="Run only this member id (array mode)"),
 ) -> None:
     _validate_basic_config()
     out_dir = Path(_env("OUTPUT_DIR", ""))
@@ -366,14 +336,8 @@ def cli_verify() -> None:
         typer.echo("Evaluating model and creating 0D and 1D figures")
         png_dir.mkdir(parents=True, exist_ok=True)
         variables = list(data["forecast"].data_vars)
-        vars_3d = [
-            var for var in variables if "isobaricInhPa" in data["forecast"][var].dims
-        ]
-        vars_2d = [
-            var
-            for var in variables
-            if "isobaricInhPa" not in data["forecast"][var].dims
-        ]
+        vars_3d = [var for var in variables if "isobaricInhPa" in data["forecast"][var].dims]
+        vars_2d = [var for var in variables if "isobaricInhPa" not in data["forecast"][var].dims]
         config = {
             "color_palette": sns.color_palette(
                 [
@@ -739,9 +703,7 @@ def cli_intercompare(
 ) -> None:
     labels_final = labels or [Path(m).name for m in model_dirs]
     if len(labels_final) != len(model_dirs):
-        raise typer.BadParameter(
-            "Number of labels must match number of model directories."
-        )
+        raise typer.BadParameter("Number of labels must match number of model directories.")
     from .intercompare import run_intercompare
 
     run_intercompare(model_dirs, labels_final, out_dir, metrics)

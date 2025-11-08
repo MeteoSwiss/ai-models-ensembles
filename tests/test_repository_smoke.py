@@ -49,9 +49,7 @@ def _synthetic_ds(has_members: bool = True, has_levels: bool = True):
         coords["isobaricInhPa"] = level
     ds_fc = xr.Dataset({"temperature": (dims, data_var)}, coords=coords)
     # Ground truth without member dim
-    gt_data = rng.standard_normal(
-        tuple(([] if level is None else [level.size]) + base_shape)
-    )
+    gt_data = rng.standard_normal(tuple(([] if level is None else [level.size]) + base_shape))
     gt_dims = ([] if level is None else ["isobaricInhPa"]) + [
         "step",
         "latitude",

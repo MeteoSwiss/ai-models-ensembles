@@ -20,18 +20,14 @@ def _as_paths(items: Iterable[str | Path]) -> list[Path]:
     return [Path(item).expanduser().resolve() for item in items]
 
 
-def _common_basenames(
-    model_dirs: Sequence[Path], subdir: str, pattern: str
-) -> list[str]:
+def _common_basenames(model_dirs: Sequence[Path], subdir: str, pattern: str) -> list[str]:
     basenames: list[set[str]] = []
     for root in model_dirs:
         folder = root / subdir
         if not folder.is_dir():
             basenames.append(set())
             continue
-        basenames.append(
-            {child.name for child in folder.glob(pattern) if child.is_file()}
-        )
+        basenames.append({child.name for child in folder.glob(pattern) if child.is_file()})
     if not basenames:
         return []
     shared = set.intersection(*basenames) if len(basenames) > 1 else basenames[0]
@@ -43,9 +39,7 @@ def _load_npz(path: Path) -> Mapping[str, np.ndarray]:
         return {key: payload[key] for key in payload.files}
 
 
-def _plot_energy_spectra(
-    models: Sequence[Path], labels: Sequence[str], out_root: Path
-) -> None:
+def _plot_energy_spectra(models: Sequence[Path], labels: Sequence[str], out_root: Path) -> None:
     basenames = _common_basenames(models, "energy_spectra", "*.npz")
     if not basenames:
         return
@@ -108,9 +102,7 @@ def _plot_rmse(models: Sequence[Path], labels: Sequence[str], out_root: Path) ->
         plt.close(fig)
 
 
-def _plot_timeseries(
-    models: Sequence[Path], labels: Sequence[str], out_root: Path
-) -> None:
+def _plot_timeseries(models: Sequence[Path], labels: Sequence[str], out_root: Path) -> None:
     basenames = _common_basenames(models, "timeseries", "*.nc")
     if not basenames:
         return
@@ -154,9 +146,7 @@ def _plot_timeseries(
         plt.close(fig)
 
 
-def _plot_rank_histogram(
-    models: Sequence[Path], labels: Sequence[str], out_root: Path
-) -> None:
+def _plot_rank_histogram(models: Sequence[Path], labels: Sequence[str], out_root: Path) -> None:
     basenames = _common_basenames(models, "rank_histogram", "*.npz")
     if not basenames:
         return
@@ -180,9 +170,7 @@ def _plot_rank_histogram(
         plt.close(fig)
 
 
-def _plot_density(
-    models: Sequence[Path], labels: Sequence[str], out_root: Path
-) -> None:
+def _plot_density(models: Sequence[Path], labels: Sequence[str], out_root: Path) -> None:
     basenames = _common_basenames(models, "density", "*.npz")
     if not basenames:
         return
@@ -217,9 +205,7 @@ _METRIC_DISPATCH = {
     "rank_histogram": _plot_rank_histogram,
     "density": _plot_density,
     # New metrics: histogram grids and KDE ridgeline evolution
-    "hist_global": lambda models, labels, out_root: _plot_histogram_grid(
-        models, labels, out_root
-    ),
+    "hist_global": lambda models, labels, out_root: _plot_histogram_grid(models, labels, out_root),
     "wd_kde_evolve": lambda models, labels, out_root: _plot_wd_kde_ridgeline(
         models, labels, out_root
     ),
@@ -243,9 +229,7 @@ def run_intercompare(
             func(model_paths, labels_list, out_path)
 
 
-def _plot_histogram_grid(
-    models: Sequence[Path], labels: Sequence[str], out_root: Path
-) -> None:
+def _plot_histogram_grid(models: Sequence[Path], labels: Sequence[str], out_root: Path) -> None:
     basenames = _common_basenames(models, "histograms", "hist_global_*grid_data*.npz")
     if not basenames:
         return
@@ -286,12 +270,8 @@ def _plot_histogram_grid(
         plt.close(fig)
 
 
-def _plot_wd_kde_ridgeline(
-    models: Sequence[Path], labels: Sequence[str], out_root: Path
-) -> None:
-    basenames = _common_basenames(
-        models, "wd_kde", "wd_kde_evolve_*ridgeline_data*.npz"
-    )
+def _plot_wd_kde_ridgeline(models: Sequence[Path], labels: Sequence[str], out_root: Path) -> None:
+    basenames = _common_basenames(models, "wd_kde", "wd_kde_evolve_*ridgeline_data*.npz")
     if not basenames:
         return
     out_dir = ensure_dir(out_root / "wd_kde")
@@ -307,9 +287,7 @@ def _plot_wd_kde_ridgeline(
         target_density = np.asarray(payloads[0].get("density_target"))
         if target_density.size:
             mean_target = np.nanmean(target_density, axis=0)
-            ax.plot(
-                y_eval, mean_target, color="black", lw=2.0, label="Ground Truth Mean"
-            )
+            ax.plot(y_eval, mean_target, color="black", lw=2.0, label="Ground Truth Mean")
         for idx, (label, payload) in enumerate(zip(labels, payloads, strict=False)):
             model_density = np.asarray(payload.get("density_model"))
             if model_density.size:

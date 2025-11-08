@@ -12,9 +12,7 @@ import xarray as xr
 def convert_grib_to_zarr(path_out: str, subdir_search: bool = False) -> None:
     grib_files: List[str] = []
 
-    search_path = (
-        os.walk(path_out) if subdir_search else [(path_out, [], os.listdir(path_out))]
-    )
+    search_path = os.walk(path_out) if subdir_search else [(path_out, [], os.listdir(path_out))]
 
     for dir_name, _, file_list in search_path:
         for file_name in file_list:
@@ -46,9 +44,7 @@ def convert_grib_to_zarr(path_out: str, subdir_search: bool = False) -> None:
     if os.path.exists(path_store):
         zarr_store = xr.open_zarr(path_store, consolidated=True)
         grib_files = [
-            grib_files[i]
-            for i in range(len(grib_files))
-            if i not in zarr_store.member.values
+            grib_files[i] for i in range(len(grib_files)) if i not in zarr_store.member.values
         ]
         num_existing_members = len(zarr_store.member.values)
         print(
@@ -61,9 +57,7 @@ def convert_grib_to_zarr(path_out: str, subdir_search: bool = False) -> None:
         print(f"Processing {grib_file}")
         with open(os.devnull, "w") as devnull:
             with contextlib.redirect_stderr(devnull):
-                for _, (shortName, filter_key) in enumerate(
-                    zip(shortNames, filter_keys)
-                ):
+                for _, (shortName, filter_key) in enumerate(zip(shortNames, filter_keys)):
                     # Open the dataset with the appropriate filter key and chunk sizes
                     if filter_key is not None:
                         ds_list.append(
@@ -87,17 +81,13 @@ def convert_grib_to_zarr(path_out: str, subdir_search: bool = False) -> None:
                 ds = ds.chunk(chunks=chunks)
                 ds_list = []
         if os.path.exists(path_store):
-            ds.to_zarr(
-                store=path_store, mode="a", append_dim="member", consolidated=True
-            )
+            ds.to_zarr(store=path_store, mode="a", append_dim="member", consolidated=True)
         else:
             ds.to_zarr(
                 store=path_store,
                 mode="w",
                 consolidated=True,
-                encoding={
-                    var: {"compressor": numcodecs.Zlib(level=1)} for var in ds.data_vars
-                },
+                encoding={var: {"compressor": numcodecs.Zlib(level=1)} for var in ds.data_vars},
             )
         print(f"Stored {i + 1}/{len(grib_files)} datasets")
         del ds

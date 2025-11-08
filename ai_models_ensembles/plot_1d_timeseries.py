@@ -105,8 +105,7 @@ def prepare_plot_args(
     timeseries_fc_gt_args = []
 
     variables = [
-        (vars_3d, data[forecast_key][var].coords["isobaricInhPa"].values, True)
-        for var in vars_3d
+        (vars_3d, data[forecast_key][var].coords["isobaricInhPa"].values, True) for var in vars_3d
     ] + [(vars_2d, [None], False)]
     for variable, levels, is_3d in variables:
         for var in variable:
@@ -147,12 +146,8 @@ def prepare_plot_args(
                     {
                         "variable": var,
                         "energy_spectra_forecast": stats["energy_spectra_forecast"],
-                        "energy_spectra_unperturbed": stats[
-                            "energy_spectra_unperturbed"
-                        ],
-                        "energy_spectra_ground_truth": stats[
-                            "energy_spectra_ground_truth"
-                        ],
+                        "energy_spectra_unperturbed": stats["energy_spectra_unperturbed"],
+                        "energy_spectra_ground_truth": stats["energy_spectra_ground_truth"],
                         "alpha_value": alpha_value,
                         "path_out": path_out,
                         "color_palette": config["color_palette"],
@@ -274,13 +269,9 @@ def plot_error_map(
     )
 
     errors_mean = errors_mean.expand_dims("member").assign_coords(member=[9998])
-    errors_unperturbed = errors_unperturbed.expand_dims("member").assign_coords(
-        member=[9999]
-    )
+    errors_unperturbed = errors_unperturbed.expand_dims("member").assign_coords(member=[9999])
     errors_members = errors_members.sortby("member", ascending=True)
-    errors_comb = xr.combine_by_coords(
-        [errors_members, errors_mean, errors_unperturbed]
-    )
+    errors_comb = xr.combine_by_coords([errors_members, errors_mean, errors_unperturbed])
 
     # TODO this should not be hardcoded and match the animation selection
     for mem_i in errors_comb.member.values[0:2]:
@@ -288,13 +279,7 @@ def plot_error_map(
             errors = errors_comb.sel(member=mem_i, isobaricInhPa=level)
         else:
             errors = errors_comb.sel(member=mem_i)
-        member = (
-            "mean"
-            if mem_i == 9998
-            else "unperturbed"
-            if mem_i == 9999
-            else f"member {mem_i}"
-        )
+        member = "mean" if mem_i == 9998 else "unperturbed" if mem_i == 9999 else f"member {mem_i}"
         # Normalize all errors to [0,1] for color map
         max_errors = errors.max()
         min_errors = errors.min()
@@ -435,9 +420,7 @@ def plot_rank_histogram(
     # Create a random subsample
     combined_stacked = combined.stack(z=("step", "latitude", "longitude"))
     sample_size = min(sample_size, combined_stacked.z.size)
-    indices = np.sort(
-        np.random.choice(combined_stacked.z.size, size=sample_size, replace=False)
-    )
+    indices = np.sort(np.random.choice(combined_stacked.z.size, size=sample_size, replace=False))
     combined_sample = combined_stacked.isel(z=indices)
 
     ranks = combined_sample.chunk(dict(member=-1)).rank("member")
@@ -460,9 +443,7 @@ def plot_rank_histogram(
             "ranks": np.array(list(rank_counts.keys()), dtype=int),
             "counts": np.array(list(rank_counts.values()), dtype=int),
             "variable": np.array([variable], dtype=object),
-            "level": np.array(
-                [level if level is not None else "surface"], dtype=object
-            ),
+            "level": np.array([level if level is not None else "surface"], dtype=object),
             "region": np.array([region], dtype=object),
             "date_time": np.array([date_time], dtype=object),
             "model_name": np.array([model_name], dtype=object),
@@ -520,9 +501,7 @@ def plot_energy_spectra(
     fig, ax = plt.subplots(figsize=(12, 9))
 
     if level is not None:
-        energy_spectra_forecast_lev = energy_spectra_forecast[variable].sel(
-            isobaricInhPa=level
-        )
+        energy_spectra_forecast_lev = energy_spectra_forecast[variable].sel(isobaricInhPa=level)
         energy_spectra_unperturbed_lev = energy_spectra_unperturbed[variable].sel(
             isobaricInhPa=level
         )
@@ -625,9 +604,7 @@ def plot_energy_spectra(
             "spectrum_target": energy_spectra_ground_truth_lev.values,
             "model_name": np.array([model_name], dtype=object),
             "variable": np.array([variable], dtype=object),
-            "level": np.array(
-                [level if level is not None else "surface"], dtype=object
-            ),
+            "level": np.array([level if level is not None else "surface"], dtype=object),
             "region": np.array([region], dtype=object),
             "date_time": np.array([date_time], dtype=object),
         }
@@ -785,9 +762,7 @@ def plot_spread_skill_ratio(
         region (str): The region name.
         date_time (str): The date and time string.
     """
-    print(
-        f"Creating combined spread-skill ratio plots for variable: {variable}, level: {level}"
-    )
+    print(f"Creating combined spread-skill ratio plots for variable: {variable}, level: {level}")
 
     fig_dir, data_dir, save_fig, save_data = _prepare_io(
         path_out,
@@ -810,9 +785,7 @@ def plot_spread_skill_ratio(
         ensemble_spread_ifs = sr_ensemble_spread_ifs
 
     # Plot spread-skill ratio for both models
-    spread_skill_ratio[variable].plot(
-        ax=ax, color=color_palette[5], label=f"{model_names[0]} SSR"
-    )
+    spread_skill_ratio[variable].plot(ax=ax, color=color_palette[5], label=f"{model_names[0]} SSR")
     spread_skill_ratio_ifs[variable].plot(
         ax=ax, color=color_palette[0], label=f"{model_names[1]} SSR"
     )
@@ -942,14 +915,10 @@ def plot_timeseries_fc_gt(
 
     # Select the level if provided
     gt_mean_var = (
-        gt_mean[variable].sel(isobaricInhPa=level)
-        if level is not None
-        else gt_mean[variable]
+        gt_mean[variable].sel(isobaricInhPa=level) if level is not None else gt_mean[variable]
     )
     fc_mean_var = (
-        fc_mean[variable].sel(isobaricInhPa=level)
-        if level is not None
-        else fc_mean[variable]
+        fc_mean[variable].sel(isobaricInhPa=level) if level is not None else fc_mean[variable]
     )
     fc_mean_unperturbed_var = (
         fc_mean_unperturbed[variable].sel(isobaricInhPa=level)
@@ -976,19 +945,13 @@ def plot_timeseries_fc_gt(
         else:
             fc_mean_member.plot(ax=ax, color=color_palette[1], alpha=alpha_value)
 
-    fc_mean_var.mean(dim="member").plot(
-        ax=ax, color=color_palette[2], label=f"{model_name} Mean"
-    )
-    fc_mean_unperturbed_var.plot(
-        ax=ax, color=color_palette[3], label=f"{model_name} Unperturbed"
-    )
+    fc_mean_var.mean(dim="member").plot(ax=ax, color=color_palette[2], label=f"{model_name} Mean")
+    fc_mean_unperturbed_var.plot(ax=ax, color=color_palette[3], label=f"{model_name} Unperturbed")
 
     if y_lims is not None:
         (ymin, ymax) = y_lims
         extent = ymax - ymin
-        ax.set_ylim(
-            ymin.item() - 0.1 * extent.item(), ymax.item() + 0.1 * extent.item()
-        )
+        ax.set_ylim(ymin.item() - 0.1 * extent.item(), ymax.item() + 0.1 * extent.item())
 
     # Arbitrary number to make sure the density curves look decent
     if fc_mean.member.size >= 20:
@@ -1125,9 +1088,7 @@ def plot_vertical_profile_metrics(
         return
     da_p_all = forecast[variable]
     da_t_all = ground_truth[variable]
-    level_dim = next(
-        (d for d in da_p_all.dims if d in ("isobaricInhPa", "level")), None
-    )
+    level_dim = next((d for d in da_p_all.dims if d in ("isobaricInhPa", "level")), None)
     if level_dim is None:
         print(f"[vprof] variable {variable} has no pressure level dimension; skipping")
         return

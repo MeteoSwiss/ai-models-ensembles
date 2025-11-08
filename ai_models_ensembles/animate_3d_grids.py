@@ -5,9 +5,8 @@ import matplotlib.animation as animation
 import matplotlib.cm as cm
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib.colors import TwoSlopeNorm
-
 import xarray as xr
+from matplotlib.colors import TwoSlopeNorm
 
 from ai_models_ensembles.utils import build_output_filename, ensure_dir, save_dataset
 
@@ -129,9 +128,7 @@ def update_plot(
     vmax: float,
     args: Any,
 ):
-    fig, ax = plot_variable_3d(
-        difference, var, member, num, fig, ax, mappable, vmin, vmax, args
-    )
+    fig, ax = plot_variable_3d(difference, var, member, num, fig, ax, mappable, vmin, vmax, args)
     return fig, ax
 
 
@@ -156,9 +153,7 @@ def create_and_save_animation(
     vmin, vmax = -max_abs, max_abs
 
     mappable.set_clim(vmin, vmax)
-    fig, ax = plot_variable_3d(
-        difference, var, member, 0, fig, ax, mappable, vmin, vmax, args
-    )
+    fig, ax = plot_variable_3d(difference, var, member, 0, fig, ax, mappable, vmin, vmax, args)
     cbar = fig.colorbar(
         mappable,
         ax=ax,
@@ -211,6 +206,4 @@ def process_member(
             member_artifacts,
             qualifier="perturbed_minus_unperturbed",
         )
-        create_and_save_animation(
-            path_gif, difference, var, member, unit, vmin, vmax, args
-        )
+        create_and_save_animation(path_gif, difference, var, member, unit, vmin, vmax, args)

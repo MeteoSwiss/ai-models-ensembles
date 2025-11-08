@@ -21,16 +21,10 @@ def parse_args():
 
     parser = argparse.ArgumentParser(description="Evaluate the NeurWP Ensemble.")
     parser.add_argument("out_dir", type=str, help="The output directory")
-    parser.add_argument(
-        "date_time", type=str, help="Date and time in the format YYYYMMDDHHMM"
-    )
+    parser.add_argument("date_time", type=str, help="Date and time in the format YYYYMMDDHHMM")
     parser.add_argument("model_name", type=str, help="The ai-model name")
-    parser.add_argument(
-        "perturbation_init", type=float, help="The init perturbation size"
-    )
-    parser.add_argument(
-        "perturbation_latent", type=float, help="The latent perturbation size"
-    )
+    parser.add_argument("perturbation_init", type=float, help="The init perturbation size")
+    parser.add_argument("perturbation_latent", type=float, help="The latent perturbation size")
     parser.add_argument("layer", type=int, help="The layer to evaluate")
     parser.add_argument("members", type=int, help="The number of ensemble members")
     parser.add_argument("crop_region", type=str, help="The region to crop the data to")
@@ -104,9 +98,7 @@ def load_and_prepare_data(
     )
     forecast_unperturbed = xr.open_zarr(f"{path_in}/forecast.zarr", consolidated=True)
     forecast_ifs = xr.open_zarr(f"{path_in}/ifs_ens.zarr", consolidated=True)
-    forecast_ifs_unperturbed = xr.open_zarr(
-        f"{path_in}/ifs_control.zarr", consolidated=True
-    )
+    forecast_ifs_unperturbed = xr.open_zarr(f"{path_in}/ifs_control.zarr", consolidated=True)
 
     if crop_region == "europe":
         lat_min, lat_max = 25, 80
@@ -126,23 +118,17 @@ def load_and_prepare_data(
     forecast = forecast.sel(latitude=lats, longitude=lons)
     forecast_unperturbed = forecast_unperturbed.sel(latitude=lats, longitude=lons)
     forecast_ifs = forecast_ifs.sel(latitude=lats, longitude=lons)
-    forecast_ifs_unperturbed = forecast_ifs_unperturbed.sel(
-        latitude=lats, longitude=lons
-    )
+    forecast_ifs_unperturbed = forecast_ifs_unperturbed.sel(latitude=lats, longitude=lons)
 
     # align ifs forecast with forecast dimensions
     forecast_ifs = (
-        forecast_ifs.rename({"number": "member"})
-        .set_index(member="member")
-        .isel(surface=0, time=0)
+        forecast_ifs.rename({"number": "member"}).set_index(member="member").isel(surface=0, time=0)
     )
 
     # Select the appropriate members in all datasets
     forecast_ifs["member"] = forecast_ifs["member"] - 1
     forecast_unperturbed = forecast_unperturbed.sel(member=0)
-    forecast_ifs_unperturbed = forecast_ifs_unperturbed.isel(
-        number=0, surface=0, time=0
-    )
+    forecast_ifs_unperturbed = forecast_ifs_unperturbed.isel(number=0, surface=0, time=0)
     indices = np.random.permutation(forecast.member.size)
     indices_ifs = np.random.permutation(forecast_ifs.member.size)
     selected_indices = indices[:num_members]
@@ -167,9 +153,7 @@ def load_and_prepare_data(
 
     # Ensure all datasets have the same isobaricInhPa coordinates
     full_levels = forecast_ifs.isobaricInhPa.where(
-        ~forecast_ifs.t.isnull()
-        .any(dim=["latitude", "longitude", "step", "member"])
-        .compute(),
+        ~forecast_ifs.t.isnull().any(dim=["latitude", "longitude", "step", "member"]).compute(),
         drop=True,
     ).values
     forecast = forecast.sel(isobaricInhPa=full_levels)
@@ -196,9 +180,7 @@ def load_and_prepare_data(
         forecast = forecast.isel(step=slice(0, max_time_steps))
         forecast_unperturbed = forecast_unperturbed.isel(step=slice(0, max_time_steps))
         forecast_ifs = forecast_ifs.isel(step=slice(0, max_time_steps))
-        forecast_ifs_unperturbed = forecast_ifs_unperturbed.isel(
-            step=slice(0, max_time_steps)
-        )
+        forecast_ifs_unperturbed = forecast_ifs_unperturbed.isel(step=slice(0, max_time_steps))
 
     for ds_name in [
         "ground_truth",
@@ -241,9 +223,7 @@ def calculate_stats(ground_truth, forecast, forecast_unperturbed, crop_region):
     rmse_mean = np.sqrt(squared_diff_mean.mean(dim=["latitude", "longitude"]))
 
     squared_diff_unperturbed = (forecast_unperturbed - ground_truth) ** 2
-    rmse_unperturbed = np.sqrt(
-        squared_diff_unperturbed.mean(dim=["latitude", "longitude"])
-    )
+    rmse_unperturbed = np.sqrt(squared_diff_unperturbed.mean(dim=["latitude", "longitude"]))
 
     if crop_region == "europe":
         lat_min, lat_max = 25, 80
@@ -281,9 +261,7 @@ def calculate_stats(ground_truth, forecast, forecast_unperturbed, crop_region):
     # account for the window function and the data size. Updating the wavenumber
     # calculation to convert from wavenumber to rad/km, assuming Earth's radius of 6371
     # km.
-    def calculate_energy_spectra(
-        forecast, forecast_unperturbed, ground_truth, lat_band
-    ):
+    def calculate_energy_spectra(forecast, forecast_unperturbed, ground_truth, lat_band):
         EARTH_RADIUS_KM = 6371.0  # Earth's radius in kilometers
         energy_spectra_forecast = []
         energy_spectra_unperturbed = []
@@ -471,9 +449,7 @@ def calculate_stats(ground_truth, forecast, forecast_unperturbed, crop_region):
     }
 
 
-def calculate_y_lims(
-    vars_3d, vars_2d, forecast, forecast_ifs, default_stats, ifs_stats
-):
+def calculate_y_lims(vars_3d, vars_2d, forecast, forecast_ifs, default_stats, ifs_stats):
     y_lims = {
         "y_lims_rmse": {},
         "y_lims_spread_skill_ratio": {},
@@ -516,9 +492,7 @@ def calculate_y_lims(
             ensemble_spread_min, ensemble_spread_max = float("inf"), float("-inf")
 
             for stat_name in stat_names:
-                default_stat = get_stat(
-                    default_stats, stat_name, variable, is_3d, sel_kwargs
-                )
+                default_stat = get_stat(default_stats, stat_name, variable, is_3d, sel_kwargs)
                 ifs_stat = get_stat(ifs_stats, stat_name, variable, is_3d, sel_kwargs)
 
                 stat_min = min(

@@ -72,9 +72,7 @@ def _resolve_io(
     fig_dir = ensure_dir(path_out)
     data_dir: Optional[Path] = None
     if save_data:
-        data_root = (
-            Path(artifact_root) if artifact_root is not None else fig_dir / "data"
-        )
+        data_root = Path(artifact_root) if artifact_root is not None else fig_dir / "data"
         data_dir = ensure_dir(data_root / metric)
     return fig_dir, data_dir, save_fig, save_data
 
@@ -94,9 +92,7 @@ def plot_density_distribution(
     output_mode: str = "both",
     ensemble: Optional[str | int] = None,
 ) -> None:
-    print(
-        f"Creating density distribution plot for variable: {variable}, level: {level}"
-    )
+    print(f"Creating density distribution plot for variable: {variable}, level: {level}")
 
     mode = (output_mode or "plot").lower()
     save_fig = mode in {"plot", "both"}
@@ -105,9 +101,7 @@ def plot_density_distribution(
     figure_dir = ensure_dir(path_out)
     data_dir: Optional[Path] = None
     if save_data:
-        data_root = (
-            Path(artifact_root) if artifact_root is not None else figure_dir / "data"
-        )
+        data_root = Path(artifact_root) if artifact_root is not None else figure_dir / "data"
         data_dir = ensure_dir(data_root / "density")
 
     if level is not None:
@@ -141,12 +135,8 @@ def plot_density_distribution(
     data_range = combined_max - combined_min
     if data_range != 0:
         ensemble_values_norm = (ensemble_values_sampled - combined_min) / data_range
-        ground_truth_values_norm = (
-            ground_truth_values_sampled - combined_min
-        ) / data_range
-        w_distance_normalized = wasserstein_distance(
-            ensemble_values_norm, ground_truth_values_norm
-        )
+        ground_truth_values_norm = (ground_truth_values_sampled - combined_min) / data_range
+        w_distance_normalized = wasserstein_distance(ensemble_values_norm, ground_truth_values_norm)
     else:
         w_distance_normalized = 0
 
@@ -171,9 +161,7 @@ def plot_density_distribution(
             "ground_truth_sample": ground_truth_values_sampled,
             "wasserstein_normalized": np.array([w_distance_normalized], dtype=float),
             "variable": np.array([variable]),
-            "level": np.array(
-                [level if level is not None else "surface"], dtype=object
-            ),
+            "level": np.array([level if level is not None else "surface"], dtype=object),
             "region": np.array([region], dtype=object),
             "date_time": np.array([date_time], dtype=object),
             "model_name": np.array([model_name], dtype=object),
@@ -236,9 +224,7 @@ def plot_combined_density_distribution(
     figure_dir = ensure_dir(path_out)
     data_dir: Optional[Path] = None
     if save_data:
-        data_root = (
-            Path(artifact_root) if artifact_root is not None else figure_dir / "data"
-        )
+        data_root = Path(artifact_root) if artifact_root is not None else figure_dir / "data"
         data_dir = ensure_dir(data_root / "density")
 
     # Prepare data for each variable-level pair
@@ -327,15 +313,11 @@ def plot_latitude_band_histograms(
         else ground_truth[variable]
     )
     da_pred = (
-        forecast[variable].sel(isobaricInhPa=level)
-        if level is not None
-        else forecast[variable]
+        forecast[variable].sel(isobaricInhPa=level) if level is not None else forecast[variable]
     )
 
     lat_bins, n_bands, n_rows = _lat_bands()
-    fig, axs = plt.subplots(
-        n_rows, 2, figsize=(16, 3 * n_rows), constrained_layout=True
-    )
+    fig, axs = plt.subplots(n_rows, 2, figsize=(16, 3 * n_rows), constrained_layout=True)
 
     combined_npz: Dict[str, list] = {
         "neg_counts": [],
@@ -391,9 +373,7 @@ def plot_latitude_band_histograms(
             global_x_min = float(edges[0])
         if global_x_max is None or float(edges[-1]) > global_x_max:
             global_x_max = float(edges[-1])
-        local_y = float(
-            max(np.nanmax(dt) if dt.size else 0.0, np.nanmax(dp) if dp.size else 0.0)
-        )
+        local_y = float(max(np.nanmax(dt) if dt.size else 0.0, np.nanmax(dp) if dp.size else 0.0))
         global_y_max = max(global_y_max, local_y)
         ax.legend(loc="upper right")
         if save_data and data_dir is not None:
@@ -443,9 +423,7 @@ def plot_latitude_band_histograms(
             global_x_min = float(edges[0])
         if global_x_max is None or float(edges[-1]) > global_x_max:
             global_x_max = float(edges[-1])
-        local_y = float(
-            max(np.nanmax(dt) if dt.size else 0.0, np.nanmax(dp) if dp.size else 0.0)
-        )
+        local_y = float(max(np.nanmax(dt) if dt.size else 0.0, np.nanmax(dp) if dp.size else 0.0))
         global_y_max = max(global_y_max, local_y)
         ax.legend(loc="upper right")
         if save_data and data_dir is not None:
@@ -516,9 +494,7 @@ def plot_histogram_global_grid(
         else ground_truth[variable]
     )
     da_pred = (
-        forecast[variable].sel(isobaricInhPa=level)
-        if level is not None
-        else forecast[variable]
+        forecast[variable].sel(isobaricInhPa=level) if level is not None else forecast[variable]
     )
     n_steps = int(da_pred.sizes.get("step", 0))
     if n_steps == 0:
@@ -552,11 +528,7 @@ def plot_histogram_global_grid(
         xmins.append(edges[0])
         xmaxs.append(edges[-1])
         ymaxs.append(
-            float(
-                max(
-                    np.nanmax(dt) if dt.size else 0.0, np.nanmax(dp) if dp.size else 0.0
-                )
-            )
+            float(max(np.nanmax(dt) if dt.size else 0.0, np.nanmax(dp) if dp.size else 0.0))
         )
 
     x_min = float(min(xmins)) if xmins else -1.0
@@ -653,9 +625,7 @@ def plot_kde_evolution_ridgeline(
         else ground_truth[variable]
     )
     da_p_all = (
-        forecast[variable].sel(isobaricInhPa=level)
-        if level is not None
-        else forecast[variable]
+        forecast[variable].sel(isobaricInhPa=level) if level is not None else forecast[variable]
     )
 
     # Evaluate y-range from robust quantiles across all data
@@ -694,19 +664,13 @@ def plot_kde_evolution_ridgeline(
 
     # Ridgeline figure
     fig, ax = plt.subplots(figsize=(10, 6), constrained_layout=True)
-    offset = (
-        1.05 * max(float(np.max(Z_t_arr)), float(np.max(Z_p_arr)))
-        if Z_t_arr.size
-        else 1.0
-    )
+    offset = 1.05 * max(float(np.max(Z_t_arr)), float(np.max(Z_p_arr))) if Z_t_arr.size else 1.0
     cmap = plt.cm.viridis
     for i, h in enumerate(lead_hours):
         color = cmap(i / max(1, len(lead_hours) - 1))
         y_target = i * offset + Z_t_arr[i]
         y_model = i * offset + Z_p_arr[i]
-        ax.fill_between(
-            y_eval, i * offset, y_model, color=color, alpha=0.55, linewidth=0.0
-        )
+        ax.fill_between(y_eval, i * offset, y_model, color=color, alpha=0.55, linewidth=0.0)
         ax.plot(y_eval, y_target, color="black", lw=0.7)
         ax.text(
             y_eval[-1] + (y_eval[1] - y_eval[0]) * 0.5,
@@ -715,9 +679,7 @@ def plot_kde_evolution_ridgeline(
             fontsize=8,
         )
     ax.set_yticks([])
-    ax.set_xlabel(
-        f"{variable}{' @ ' + str(level) + ' hPa' if level is not None else ''}"
-    )
+    ax.set_xlabel(f"{variable}{' @ ' + str(level) + ' hPa' if level is not None else ''}")
     ax.set_title("Global KDE evolution — ridgeline (filled=model, line=target)")
 
     filename_args = dict(
@@ -777,11 +739,7 @@ def plot_pit_histogram(
         path_out, artifact_root, "pit", output_mode
     )
 
-    da_p = (
-        forecast[variable].sel(isobaricInhPa=level)
-        if level is not None
-        else forecast[variable]
-    )
+    da_p = forecast[variable].sel(isobaricInhPa=level) if level is not None else forecast[variable]
     da_t = (
         ground_truth[variable].sel(isobaricInhPa=level)
         if level is not None
@@ -805,9 +763,7 @@ def plot_pit_histogram(
     total = counts.sum()
     dens = counts / (total * width.mean()) if total > 0 else counts
     fig, ax = plt.subplots(figsize=(7, 3))
-    ax.bar(
-        edges[:-1], dens, width=width, align="edge", color="#4C78A8", edgecolor="white"
-    )
+    ax.bar(edges[:-1], dens, width=width, align="edge", color="#4C78A8", edgecolor="white")
     ax.axhline(1.0, color="brown", linestyle="--", linewidth=1)
     ax.set_title(
         f"PIT histogram — {variable}{' @ ' + str(level) + ' hPa' if level is not None else ''}"
@@ -857,9 +813,7 @@ def plot_pit_histogram_by_lead(
         path_out, artifact_root, "pit", output_mode
     )
     da_p_all = (
-        forecast[variable].sel(isobaricInhPa=level)
-        if level is not None
-        else forecast[variable]
+        forecast[variable].sel(isobaricInhPa=level) if level is not None else forecast[variable]
     )
     da_t_all = (
         ground_truth[variable].sel(isobaricInhPa=level)
@@ -895,9 +849,7 @@ def plot_pit_histogram_by_lead(
         total = counts.sum()
         dens = counts / (total * width.mean()) if total > 0 else counts
         uniform_diff = float(np.nanmean(np.abs(dens - 1.0))) if dens.size else np.nan
-        uniform_rows.append(
-            {"lead_time_hours": float(hours[i]), "uniform_diff": uniform_diff}
-        )
+        uniform_rows.append({"lead_time_hours": float(hours[i]), "uniform_diff": uniform_diff})
         ax = axes[i]
         ax.bar(
             edges[:-1],
@@ -1006,13 +958,9 @@ def prepare_density_distribution_args(
         )
     else:
         # Prepare arguments for individual density distribution plots
-        args_list.extend(
-            [{**base_args, "variable": var, "level": None} for var in vars_2d]
-        )
+        args_list.extend([{**base_args, "variable": var, "level": None} for var in vars_2d])
         for var in vars_3d:
             levels = forecast[var].coords["isobaricInhPa"].values
-            args_list.extend(
-                [{**base_args, "variable": var, "level": level} for level in levels]
-            )
+            args_list.extend([{**base_args, "variable": var, "level": level} for level in levels])
 
     return args_list
