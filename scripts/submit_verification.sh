@@ -10,10 +10,13 @@ IFS=$'\n\t'
 #SBATCH --error=${LOG_DIR}/err_verif_%j.log
 #SBATCH --time=${VERIF_TIME_SB}
 #SBATCH --no-requeue
-#SBATCH --exclusive
+#SBATCH --exclusive=${VERIF_EXCLUSIVE}
 
-source ./config.sh
-bash ./validate.sh
+# Change to repository root
+cd "$(dirname "$0")/.." || exit 1
+
+source ./scripts/config.sh
+bash ./tools/validate.sh
 
 export job='python -u -m ai_models_ensembles.cli verify'
 

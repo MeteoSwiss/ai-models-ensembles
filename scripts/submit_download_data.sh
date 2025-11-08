@@ -13,8 +13,11 @@ IFS=$'\n\t'
 #SBATCH --time=${DL_TIME}
 #SBATCH --no-requeue
 
-source ./config.sh
-bash ./validate.sh
+# Change to repository root
+cd "$(dirname "$0")/.." || exit 1
+
+source ./scripts/config.sh
+bash ./tools/validate.sh
 
 ${DRY_RUN:+echo} srun bash -c '
 echo "Downloading (Re)Analysis and IFS for $MODEL_NAME and $DATE_TIME with 51 members"

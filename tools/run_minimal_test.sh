@@ -8,10 +8,28 @@ set -euo pipefail
 # Change to repository root
 cd "$(dirname "$0")/.."
 
-echo "=========================================="
-echo "AI Models Ensembles - Minimal Test"
-echo "=========================================="
+echo "Quick validation test for ai-models-ensembles"
+echo "============================================="
 echo ""
+echo "This script performs a minimal test of the installation."
+echo "For a complete step-by-step example, see tools/QUICKSTART_TEST.md"
+echo ""
+
+# Activate virtual environment
+if [ ! -d ".venv" ]; then
+    echo "❌ Virtual environment not found. Run: bash tools/setup_uv.sh"
+    exit 1
+fi
+
+source .venv/bin/activate
+
+# Load configuration
+if [ ! -f "scripts/config.sh" ]; then
+    echo "❌ scripts/config.sh not found"
+    exit 1
+fi
+
+source scripts/config.sh
 
 # Activate environment
 echo "Step 1: Activating virtual environment..."
@@ -97,5 +115,5 @@ echo ""
 echo "5. Generate verification plots:"
 echo "   ai-ens verify"
 echo ""
-echo "For detailed instructions, see tests/QUICKSTART_TEST.md"
+echo "For detailed instructions, see scripts/QUICKSTART_TEST.md"
 echo ""

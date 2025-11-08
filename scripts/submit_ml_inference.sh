@@ -14,8 +14,11 @@ IFS=$'\n\t'
 #SBATCH --time=${INF_TIME_SB}
 #SBATCH --no-requeue
 
-source ./config.sh
-bash ./validate.sh
+# Change to repository root
+cd "$(dirname "$0")/.." || exit 1
+
+source ./scripts/config.sh
+bash ./tools/validate.sh
 
 export job1='echo "Running $MODEL_NAME for $DATE_TIME with $NUM_MEMBERS members and initial \
 perturbation $PERTURBATION_INIT, latent perturbation $PERTURBATION_LATENT"

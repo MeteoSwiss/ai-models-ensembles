@@ -4,10 +4,10 @@ set -euo pipefail
 IFS=$'\n\t'
 
 # Change to repository root
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/.." || exit 1
 
 # Load config and helpers
-source "./config.sh"
+source "./scripts/config.sh"
 
 # Validation function (moved from config.sh)
 validate_config() {

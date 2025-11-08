@@ -7,73 +7,58 @@ Run GraphCast, FourCastNetV2, and GenCast ensembles, convert outputs to Zarr, an
 1. Create a Python 3.10 virtual env with uv and install deps
 
 ```bash
-bash scripts/setup_uv.sh
+bash tools/setup_uv.sh
 source .venv/bin/activate
 ```
 
 2. Validate the environment and GPU availability
 
 ```bash
-python scripts/check_gpu.py
-bash ./tests/validate.sh
+python tools/check_gpu.py
+bash ./tools/validate.sh
 ```
 
 3. **[Recommended]** Test the installation
 
 ```bash
 # Quick functionality test
-python tests/test_basic_functionality.py
+python tools/test_basic_functionality.py
 
 # Minimal workflow test
-./tests/run_minimal_test.sh
+./tools/run_minimal_test.sh
 
 # Check workflow status anytime
-./tests/check_workflow_status.sh
+./tools/check_workflow_status.sh
 ```
 
-See [tests/README.md](tests/README.md) for detailed testing documentation and [tests/QUICKSTART_TEST.md](tests/QUICKSTART_TEST.md) for a step-by-step example workflow.
+See [tools/README.md](tools/README.md) for detailed testing documentation and [tools/QUICKSTART_TEST.md](tools/QUICKSTART_TEST.md) for a step-by-step example workflow.
 
 4. Submit jobs (Slurm)
-   - Download ERA5 + IFS: `submit_download_data.sh`
-   - ML inference (array-ready): `submit_ml_inference.sh`
-   - Convert to Zarr: `submit_convert_zarr.sh`
-   - Verify + plots + artefact bundles: `submit_verification.sh`
+   - Download ERA5 + IFS: `scripts/submit_download_data.sh`
+   - ML inference (array-ready): `scripts/submit_ml_inference.sh`
+   - Convert to Zarr: `scripts/submit_convert_zarr.sh`
+   - Verify + plots + artefact bundles: `scripts/submit_verification.sh`
 
-Logs are written to `logs/`. Adjust `config.sh` to tailor runs.
+Logs are written to `logs/`. Adjust `scripts/config.sh` to tailor runs.
 
-## Configure `config.sh`
+## Configure `scripts/config.sh`
 
 - Set `OUTPUT_DIR`, `DATE_TIME`, `MODEL_NAME`, `NUM_MEMBERS`, perturbation values, and region.
 - Optional: set `EARTHKIT_CACHE_DIR` to a writable path for Earthkit cache.
 
 ```bash
-bash ./tests/validate.sh
+bash ./tools/validate.sh
 ```
 
 This checks your Python env and packages, `ai-models`, GRIB tools (`eccodes/cfgrib`), ImageMagick, ECMWF credentials (`~/.cdsapirc`), `OUTPUT_DIR` writability, and more. Fix any warnings/errors before submitting jobs.
 
 Notes:
 
-- On Linux aarch64 with NVIDIA GPUs, `scripts/setup_uv.sh` installs JAX GPU wheels via `pip install "jax[cuda12]"` (no source build) and PyTorch from NVIDIA's aarch64 index.
+- On Linux aarch64 with NVIDIA GPUs, `tools/setup_uv.sh` installs JAX GPU wheels via `pip install "jax[cuda12]"` (no source build) and PyTorch from NVIDIA's aarch64 index.
 - On x86_64 with NVIDIA GPUs, PyTorch is installed targeting CUDA 12.4 wheels; JAX defaults to CPU unless you add `JAX_OVERRIDE=cuda` and adapt.
 - GenCast is inherently probabilistic; weight/latent perturbations are skipped and ensembles are generated via the model itself.
 
-### Centralized Slurm settings
-
-All `#SBATCH` settings are defined in `config.sh` so you don't need to edit the submit scripts. Defaults match the current headers.
-
-- Download (`submit_download_data.sh`): `DL_JOB_NAME`, `DL_NODES`, `DL_NTASKS`, `DL_CPUS_PER_TASK`, `DL_MEM_PER_CPU`, `DL_PARTITION`, `DL_ACCOUNT`, `DL_TIME`
-- Inference (`submit_ml_inference.sh`): `INF_JOB_NAME`, `INF_NODES_SB`, `INF_NTASKS_SB`, `INF_CPUS_PER_TASK_SB`, `INF_MEM_PER_CPU_SB`, `INF_PARTITION_SB`, `INF_GRES_SB`, `INF_ACCOUNT_SB`, `INF_TIME_SB`
-- Convert (`submit_convert_zarr.sh`): `ZARR_JOB_NAME`, `ZARR_NODES_SB`, `ZARR_NTASKS_SB`, `ZARR_CPUS_PER_TASK_SB`, `ZARR_MEM_PER_CPU_SB`, `ZARR_PARTITION_SB`, `ZARR_ACCOUNT_SB`, `ZARR_TIME_SB`
-- Verify (`submit_verification.sh`): `VERIF_JOB_NAME`, `VERIF_NODES_SB`, `VERIF_NTASKS_SB`, `VERIF_PARTITION_SB`, `VERIF_ACCOUNT_SB`, `VERIF_TIME_SB`, `VERIF_EXCLUSIVE`
-
-Example override (edit `config.sh`):
-
-```bash
-export INF_PARTITION_SB=normal
-export INF_GRES_SB=gpu:2
-export INF_TIME_SB=12:00:00
-```
+See [scripts/README.md](scripts/README.md) for detailed workflow documentation and Slurm configuration options.
 
 ## Requirements
 
@@ -169,9 +154,11 @@ Each plot or animation is now accompanied by a data artefact saved beforehand:
 
 With these artefacts on disk you can generate bespoke visualisations or overlay multiple models using the `ai-ens intercompare` command without rerunning verification.
 
-### Documentation
+## Directory Structure
 
-- **[tests/QUICKSTART_TEST.md](tests/QUICKSTART_TEST.md)**: Step-by-step example workflow
+- **`ai_models_ensembles/`**: Core Python package with CLI and workflow modules
+- **`scripts/`**: Workflow execution scripts and configuration ([see scripts/README.md](scripts/README.md))
+- **`tools/`**: Development utilities for setup, testing, and monitoring ([see tools/README.md](tools/README.md))
 
 ## Troubleshooting
 

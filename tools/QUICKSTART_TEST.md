@@ -2,7 +2,7 @@
 
 This guide will walk you through testing the `ai-models-ensembles` repository step by step.
 
-**Note:** This guide is located in the `tests/` directory. All paths assume you're running commands from the repository root.
+**Note:** This guide is located in the `tools/` directory. All paths assume you're running commands from the repository root.
 
 ## Prerequisites Check
 
@@ -16,7 +16,7 @@ This guide will walk you through testing the `ai-models-ensembles` repository st
 2. **Verify the environment:**
 
    ```bash
-   bash ./tests/validate.sh
+   bash ./tools/validate.sh
    ```
 
    This should complete with "Validation completed" message. Minor warnings are OK.
@@ -33,18 +33,18 @@ This guide will walk you through testing the `ai-models-ensembles` repository st
 
    ```bash
    # Comprehensive functionality test
-   python tests/test_basic_functionality.py
+   python tools/test_basic_functionality.py
    
    # Quick minimal test
-   ./tests/run_minimal_test.sh
+   ./tools/run_minimal_test.sh
    
    # Check workflow status
-   ./tests/check_workflow_status.sh
+   ./tools/check_workflow_status.sh
    ```
 
 ## Configuration
 
-The main configuration is in `config.sh`. Key settings:
+The main configuration is in `scripts/config.sh`. Key settings:
 
 ```bash
 # Current settings (from config.sh):
@@ -65,7 +65,7 @@ This downloads the ERA5 reanalysis data for initializing the model:
 
 ```bash
 source .venv/bin/activate
-source config.sh
+source scripts/config.sh
 
 # Download reanalysis data
 ai-ens download-reanalysis \

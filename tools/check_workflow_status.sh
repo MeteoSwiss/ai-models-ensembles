@@ -10,7 +10,7 @@ cd "$(dirname "$0")/.."
 
 # Load configuration
 source .venv/bin/activate
-source config.sh
+source scripts/config.sh
 
 echo "=========================================="
 echo "Workflow Status Check"
