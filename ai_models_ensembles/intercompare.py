@@ -20,14 +20,18 @@ def _as_paths(items: Iterable[str | Path]) -> list[Path]:
     return [Path(item).expanduser().resolve() for item in items]
 
 
-def _common_basenames(model_dirs: Sequence[Path], subdir: str, pattern: str) -> list[str]:
+def _common_basenames(
+    model_dirs: Sequence[Path], subdir: str, pattern: str
+) -> list[str]:
     basenames: list[set[str]] = []
     for root in model_dirs:
         folder = root / subdir
         if not folder.is_dir():
             basenames.append(set())
             continue
-        basenames.append({child.name for child in folder.glob(pattern) if child.is_file()})
+        basenames.append(
+            {child.name for child in folder.glob(pattern) if child.is_file()}
+        )
     if not basenames:
         return []
     shared = set.intersection(*basenames) if len(basenames) > 1 else basenames[0]
@@ -39,7 +43,9 @@ def _load_npz(path: Path) -> Mapping[str, np.ndarray]:
         return {key: payload[key] for key in payload.files}
 
 
-def _plot_energy_spectra(models: Sequence[Path], labels: Sequence[str], out_root: Path) -> None:
+def _plot_energy_spectra(
+    models: Sequence[Path], labels: Sequence[str], out_root: Path
+) -> None:
     basenames = _common_basenames(models, "energy_spectra", "*.npz")
     if not basenames:
         return
@@ -102,7 +108,9 @@ def _plot_rmse(models: Sequence[Path], labels: Sequence[str], out_root: Path) ->
         plt.close(fig)
 
 
-def _plot_timeseries(models: Sequence[Path], labels: Sequence[str], out_root: Path) -> None:
+def _plot_timeseries(
+    models: Sequence[Path], labels: Sequence[str], out_root: Path
+) -> None:
     basenames = _common_basenames(models, "timeseries", "*.nc")
     if not basenames:
         return
@@ -118,8 +126,15 @@ def _plot_timeseries(models: Sequence[Path], labels: Sequence[str], out_root: Pa
         for idx, (label, ds) in enumerate(zip(labels, datasets, strict=False)):
             members = ds.get("forecast_members")
             if members is not None:
-                mean_series = members.mean(dim=[d for d in members.dims if d != "step"], skipna=True)
-                ax.plot(mean_series["step"], mean_series.values, color=colors(idx), label=f"{label} Mean")
+                mean_series = members.mean(
+                    dim=[d for d in members.dims if d != "step"], skipna=True
+                )
+                ax.plot(
+                    mean_series["step"],
+                    mean_series.values,
+                    color=colors(idx),
+                    label=f"{label} Mean",
+                )
             unperturbed = ds.get("forecast_unperturbed")
             if unperturbed is not None:
                 ax.plot(
@@ -139,7 +154,9 @@ def _plot_timeseries(models: Sequence[Path], labels: Sequence[str], out_root: Pa
         plt.close(fig)
 
 
-def _plot_rank_histogram(models: Sequence[Path], labels: Sequence[str], out_root: Path) -> None:
+def _plot_rank_histogram(
+    models: Sequence[Path], labels: Sequence[str], out_root: Path
+) -> None:
     basenames = _common_basenames(models, "rank_histogram", "*.npz")
     if not basenames:
         return
@@ -163,7 +180,9 @@ def _plot_rank_histogram(models: Sequence[Path], labels: Sequence[str], out_root
         plt.close(fig)
 
 
-def _plot_density(models: Sequence[Path], labels: Sequence[str], out_root: Path) -> None:
+def _plot_density(
+    models: Sequence[Path], labels: Sequence[str], out_root: Path
+) -> None:
     basenames = _common_basenames(models, "density", "*.npz")
     if not basenames:
         return
@@ -197,6 +216,13 @@ _METRIC_DISPATCH = {
     "timeseries": _plot_timeseries,
     "rank_histogram": _plot_rank_histogram,
     "density": _plot_density,
+    # New metrics: histogram grids and KDE ridgeline evolution
+    "hist_global": lambda models, labels, out_root: _plot_histogram_grid(
+        models, labels, out_root
+    ),
+    "wd_kde_evolve": lambda models, labels, out_root: _plot_wd_kde_ridgeline(
+        models, labels, out_root
+    ),
 }
 
 
@@ -215,4 +241,84 @@ def run_intercompare(
     for name, func in _METRIC_DISPATCH.items():
         if name in selected:
             func(model_paths, labels_list, out_path)
-*** End Patch
+
+
+def _plot_histogram_grid(
+    models: Sequence[Path], labels: Sequence[str], out_root: Path
+) -> None:
+    basenames = _common_basenames(models, "histograms", "hist_global_*grid_data*.npz")
+    if not basenames:
+        return
+    out_dir = ensure_dir(out_root / "histograms")
+    colors = plt.cm.get_cmap("tab10", len(labels))
+    for base in basenames:
+        payloads = [_load_npz(model / "histograms" / base) for model in models]
+        fig, ax = plt.subplots(figsize=(10, 6), dpi=160)
+        # Compare mean densities across leads (aggregate by averaging per-lead histograms)
+        lead_hours = np.asarray(payloads[0].get("lead_hours", []))
+        if lead_hours.size == 0:
+            continue
+        for idx, (label, payload) in enumerate(zip(labels, payloads, strict=False)):
+            dens_true_list = payload.get("densities_true")
+            dens_pred_list = payload.get("densities_pred")
+            edges_list = payload.get("edges")
+            if dens_true_list is None or dens_pred_list is None or edges_list is None:
+                continue
+            # Use first edges as representative
+            edges0 = np.asarray(edges_list[0])
+            # Mean across panels for a compact comparison curve
+            mean_true = np.nanmean(np.vstack(dens_true_list), axis=0)
+            mean_pred = np.nanmean(np.vstack(dens_pred_list), axis=0)
+            ax.plot(
+                edges0[:-1],
+                mean_true,
+                color="black" if idx == 0 else colors(idx),
+                linestyle="--" if idx != 0 else "-",
+                label=f"GT Mean ({label})" if idx != 0 else "Ground Truth Mean",
+            )
+            ax.plot(edges0[:-1], mean_pred, color=colors(idx), label=f"{label} Mean")
+        ax.set_xlabel("Value")
+        ax.set_ylabel("Density (mean across lead panels)")
+        ax.set_title(base.replace(".npz", ""))
+        ax.legend(frameon=False)
+        plt.tight_layout()
+        plt.savefig(out_dir / base.replace(".npz", "_compare.png"), bbox_inches="tight")
+        plt.close(fig)
+
+
+def _plot_wd_kde_ridgeline(
+    models: Sequence[Path], labels: Sequence[str], out_root: Path
+) -> None:
+    basenames = _common_basenames(
+        models, "wd_kde", "wd_kde_evolve_*ridgeline_data*.npz"
+    )
+    if not basenames:
+        return
+    out_dir = ensure_dir(out_root / "wd_kde")
+    colors = plt.cm.get_cmap("tab10", len(labels))
+    for base in basenames:
+        payloads = [_load_npz(model / "wd_kde" / base) for model in models]
+        y_eval = np.asarray(payloads[0].get("y_eval", []))
+        lead_hours = np.asarray(payloads[0].get("lead_hours", []))
+        if y_eval.size == 0 or lead_hours.size == 0:
+            continue
+        fig, ax = plt.subplots(figsize=(10, 6), dpi=160)
+        # Plot mean density across leads for target and each model
+        target_density = np.asarray(payloads[0].get("density_target"))
+        if target_density.size:
+            mean_target = np.nanmean(target_density, axis=0)
+            ax.plot(
+                y_eval, mean_target, color="black", lw=2.0, label="Ground Truth Mean"
+            )
+        for idx, (label, payload) in enumerate(zip(labels, payloads, strict=False)):
+            model_density = np.asarray(payload.get("density_model"))
+            if model_density.size:
+                mean_model = np.nanmean(model_density, axis=0)
+                ax.plot(y_eval, mean_model, color=colors(idx), label=f"{label} Mean")
+        ax.set_xlabel("Value (standardized)")
+        ax.set_ylabel("Density (mean across leads)")
+        ax.set_title(base.replace(".npz", ""))
+        ax.legend(frameon=False)
+        plt.tight_layout()
+        plt.savefig(out_dir / base.replace(".npz", "_compare.png"), bbox_inches="tight")
+        plt.close(fig)

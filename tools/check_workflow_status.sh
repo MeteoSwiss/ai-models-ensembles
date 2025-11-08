@@ -30,7 +30,7 @@ echo ""
 check_path() {
     local path="$1"
     local description="$2"
-    
+
     if [ -e "$path" ]; then
         if [ -d "$path" ]; then
             local size=$(du -sh "$path" 2>/dev/null | cut -f1)
@@ -90,7 +90,7 @@ echo "=========================================="
 echo "Perturbation directory: $PERTURBATION_DIR"
 if [ -d "$PERTURBATION_DIR" ]; then
     echo "✓ Perturbation directory exists"
-    
+
     # Count member directories
     member_count=0
     for i in $(seq 0 $((NUM_MEMBERS - 1))); do
@@ -98,9 +98,9 @@ if [ -d "$PERTURBATION_DIR" ]; then
             member_count=$((member_count + 1))
         fi
     done
-    
+
     echo "  Member directories: $member_count / $NUM_MEMBERS"
-    
+
     # Check a few members for completeness
     echo ""
     echo "  Sample member status:"
@@ -139,14 +139,14 @@ echo "=========================================="
 echo "Region directory: $REGION_DIR"
 if [ -d "$REGION_DIR" ]; then
     echo "✓ Region directory exists"
-    
+
     # Check for plots
     png_count=$(count_files "$REGION_DIR/png_$MODEL_NAME" "*.png")
     echo "  PNG plots: $png_count files"
-    
+
     gif_count=$(count_files "$REGION_DIR/0/animations" "*.gif")
     echo "  GIF animations: $gif_count files"
-    
+
     # Check for artifacts
     if [ -d "$REGION_DIR/artifacts_$MODEL_NAME" ]; then
         artifact_count=$(count_files "$REGION_DIR/artifacts_$MODEL_NAME" "*.nc")

@@ -33,6 +33,7 @@ def _save_payload(
     )
     save_dataset(ds, data_dir, filename)
 
+
 __all__ = [
     "process_member",
 ]
@@ -128,12 +129,21 @@ def update_plot(
     vmax: float,
     args: Any,
 ):
-    fig, ax = plot_variable_3d(difference, var, member, num, fig, ax, mappable, vmin, vmax, args)
+    fig, ax = plot_variable_3d(
+        difference, var, member, num, fig, ax, mappable, vmin, vmax, args
+    )
     return fig, ax
 
 
 def create_and_save_animation(
-    path: str, difference, var: str, member: int, unit: str, vmin: float, vmax: float, args: Any
+    path: str,
+    difference,
+    var: str,
+    member: int,
+    unit: str,
+    vmin: float,
+    vmax: float,
+    args: Any,
 ) -> None:
     dest = ensure_dir(Path(path))
     fig = plt.figure()
@@ -146,7 +156,9 @@ def create_and_save_animation(
     vmin, vmax = -max_abs, max_abs
 
     mappable.set_clim(vmin, vmax)
-    fig, ax = plot_variable_3d(difference, var, member, 0, fig, ax, mappable, vmin, vmax, args)
+    fig, ax = plot_variable_3d(
+        difference, var, member, 0, fig, ax, mappable, vmin, vmax, args
+    )
     cbar = fig.colorbar(
         mappable,
         ax=ax,
@@ -179,7 +191,9 @@ def process_member(
 ) -> None:
     path_base = Path(path_forecast) / args.crop_region / str(member)
     path_gif = ensure_dir(path_base / "animations")
-    artifact_root = ensure_dir(Path(path_forecast) / args.crop_region / f"artifacts_{args.model_name}")
+    artifact_root = ensure_dir(
+        Path(path_forecast) / args.crop_region / f"artifacts_{args.model_name}"
+    )
     member_artifacts = ensure_dir(artifact_root / f"member_{member:02}")
     variables = config["selected_vars"]
     difference = forecast.sel(member=member) - forecast_unperturbed
@@ -197,4 +211,6 @@ def process_member(
             member_artifacts,
             qualifier="perturbed_minus_unperturbed",
         )
-        create_and_save_animation(path_gif, difference, var, member, unit, vmin, vmax, args)
+        create_and_save_animation(
+            path_gif, difference, var, member, unit, vmin, vmax, args
+        )

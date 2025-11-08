@@ -51,7 +51,9 @@ def main():
     # Priority: env var GRAPHCAST_PARAMS_FILE -> first *.npz in params/ -> error
     params_rel = os.environ.get("GRAPHCAST_PARAMS_FILE")
     if params_rel is None:
-        params_dir = os.path.join(args.out_dir, str(args.date_time), args.model_name, "params")
+        params_dir = os.path.join(
+            args.out_dir, str(args.date_time), args.model_name, "params"
+        )
         if os.path.isdir(params_dir):
             npz_files = [f for f in os.listdir(params_dir) if f.endswith(".npz")]
             if npz_files:
@@ -61,7 +63,9 @@ def main():
             "GraphCast params file not found. Set GRAPHCAST_PARAMS_FILE or place a .npz under params/."
         )
 
-    checkpoint_path = os.path.join(args.out_dir, str(args.date_time), args.model_name, params_rel)
+    checkpoint_path = os.path.join(
+        args.out_dir, str(args.date_time), args.model_name, params_rel
+    )
     params = dict(np.load(checkpoint_path))
 
     np.random.seed(args.member)

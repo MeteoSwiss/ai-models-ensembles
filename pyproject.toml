@@ -23,7 +23,11 @@ dependencies = [
     "ai-models-fourcastnetv2",
     "ai-models-gencast",
     "graphcast @ git+https://github.com/google-deepmind/graphcast.git",
+    "pytest>=8.0",
 ]
+
+[project.optional-dependencies]
+dev = ["pre-commit>=3.7", "ruff>=0.6"]
 
 [project.scripts]
 ai-ens = "ai_models_ensembles.cli:app"

@@ -15,9 +15,9 @@ from scipy.stats import gaussian_kde
 from ai_models_ensembles.utils import (
     build_output_filename,
     ensure_dir,
+    sanitize_token,
     save_dataset,
     save_npz,
-    sanitize_token,
 )
 
 matplotlib.use("Agg")
@@ -92,7 +92,9 @@ def prepare_plot_args(
     """
     forecast_key = "forecast_ifs" if use_ifs else "forecast"
     resolved_output_mode = str(config.get("output_mode", output_mode))
-    resolved_artifact_root = artifact_root if artifact_root is not None else config.get("artifact_root")
+    resolved_artifact_root = (
+        artifact_root if artifact_root is not None else config.get("artifact_root")
+    )
     resolved_ensemble = ensemble if ensemble is not None else config.get("ensemble")
 
     error_map_args = []
@@ -103,109 +105,126 @@ def prepare_plot_args(
     timeseries_fc_gt_args = []
 
     variables = [
-        (vars_3d, data[forecast_key][var].coords["isobaricInhPa"].values, True) for var in vars_3d
+        (vars_3d, data[forecast_key][var].coords["isobaricInhPa"].values, True)
+        for var in vars_3d
     ] + [(vars_2d, [None], False)]
     for variable, levels, is_3d in variables:
         for var in variable:
             for level in levels:
-                error_map_args.append({
-                    "errors_mean": stats["rmse_mean"],
-                    "errors_unperturbed": stats["rmse_unperturbed"],
-                    "errors_members": stats["rmse"],
-                    "path_out": path_out,
-                    "level": level,
-                    "model_name": model_name,
-                    "region": region,
-                    "date_time": date_time,
-                    "output_mode": resolved_output_mode,
-                    "artifact_root": resolved_artifact_root,
-                    "ensemble": resolved_ensemble,
-                })
-                rank_histogram_args.append({
-                    "variable": var,
-                    "forecast": data[forecast_key],
-                    "ground_truth": data["ground_truth"],
-                    "path_out": path_out,
-                    "color_palette": config["color_palette"],
-                    "model_name": model_name,
-                    "level": level,
-                    "region": region,
-                    "date_time": date_time,
-                    "sample_size": config["sample_size"],
-                    "output_mode": resolved_output_mode,
-                    "artifact_root": resolved_artifact_root,
-                    "ensemble": resolved_ensemble,
-                })
-                energy_spectra_args.append({
-                    "variable": var,
-                    "energy_spectra_forecast": stats["energy_spectra_forecast"],
-                    "energy_spectra_unperturbed": stats["energy_spectra_unperturbed"],
-                    "energy_spectra_ground_truth": stats["energy_spectra_ground_truth"],
-                    "alpha_value": alpha_value,
-                    "path_out": path_out,
-                    "color_palette": config["color_palette"],
-                    "model_name": model_name,
-                    "level": level,
-                    "y_lims": y_lims_energy_spectra[(var, level)]
-                    if is_3d
-                    else y_lims_energy_spectra[(var, None)],
-                    "region": region,
-                    "date_time": date_time,
-                    "output_mode": resolved_output_mode,
-                    "artifact_root": resolved_artifact_root,
-                    "ensemble": resolved_ensemble,
-                })
-                rmse_args.append({
-                    "variable": var,
-                    "rmse": stats["rmse"],
-                    "rmse_mean": stats["rmse_mean"],
-                    "rmse_unperturbed": stats["rmse_unperturbed"],
-                    "alpha_value": alpha_value,
-                    "path_out": path_out,
-                    "color_palette": config["color_palette"],
-                    "model_name": model_name,
-                    "level": level,
-                    "y_lims": y_lims_rmse[(var, level)],
-                    "region": region,
-                    "date_time": date_time,
-                    "output_mode": resolved_output_mode,
-                    "artifact_root": resolved_artifact_root,
-                    "ensemble": resolved_ensemble,
-                })
-                spread_skill_ratio_args.append({
-                    "variable": var,
-                    "sr_spread_skill_ratio": stats["sr_spread_skill_ratio"],
-                    "sr_ensemble_spread": stats["sr_ensemble_spread"],
-                    "path_out": path_out,
-                    "color_palette": config["color_palette"],
-                    "model_name": model_name,
-                    "level": level,
-                    "y_lims1": y_lims_spread_skill_ratio[(var, level)][0],
-                    "y_lims2": y_lims_spread_skill_ratio[(var, level)][1],
-                    "region": region,
-                    "date_time": date_time,
-                    "output_mode": resolved_output_mode,
-                    "artifact_root": resolved_artifact_root,
-                    "ensemble": resolved_ensemble,
-                })
-                timeseries_fc_gt_args.append({
-                    "variable": var,
-                    "gt_mean": stats["ts_gt_mean"],
-                    "fc_mean": stats["ts_fc_mean"],
-                    "fc_mean_unperturbed": stats["ts_fc_mean_unperturbed"],
-                    "ground_truth": data["ground_truth"],
-                    "alpha_value": alpha_value,
-                    "path_out": path_out,
-                    "color_palette": config["color_palette"],
-                    "model_name": model_name,
-                    "level": level,
-                    "y_lims": y_lims_timeseries[(var, level)],
-                    "region": region,
-                    "date_time": date_time,
-                    "output_mode": resolved_output_mode,
-                    "artifact_root": resolved_artifact_root,
-                    "ensemble": resolved_ensemble,
-                })
+                error_map_args.append(
+                    {
+                        "errors_mean": stats["rmse_mean"],
+                        "errors_unperturbed": stats["rmse_unperturbed"],
+                        "errors_members": stats["rmse"],
+                        "path_out": path_out,
+                        "level": level,
+                        "model_name": model_name,
+                        "region": region,
+                        "date_time": date_time,
+                        "output_mode": resolved_output_mode,
+                        "artifact_root": resolved_artifact_root,
+                        "ensemble": resolved_ensemble,
+                    }
+                )
+                rank_histogram_args.append(
+                    {
+                        "variable": var,
+                        "forecast": data[forecast_key],
+                        "ground_truth": data["ground_truth"],
+                        "path_out": path_out,
+                        "color_palette": config["color_palette"],
+                        "model_name": model_name,
+                        "level": level,
+                        "region": region,
+                        "date_time": date_time,
+                        "sample_size": config["sample_size"],
+                        "output_mode": resolved_output_mode,
+                        "artifact_root": resolved_artifact_root,
+                        "ensemble": resolved_ensemble,
+                    }
+                )
+                energy_spectra_args.append(
+                    {
+                        "variable": var,
+                        "energy_spectra_forecast": stats["energy_spectra_forecast"],
+                        "energy_spectra_unperturbed": stats[
+                            "energy_spectra_unperturbed"
+                        ],
+                        "energy_spectra_ground_truth": stats[
+                            "energy_spectra_ground_truth"
+                        ],
+                        "alpha_value": alpha_value,
+                        "path_out": path_out,
+                        "color_palette": config["color_palette"],
+                        "model_name": model_name,
+                        "level": level,
+                        "y_lims": y_lims_energy_spectra[(var, level)]
+                        if is_3d
+                        else y_lims_energy_spectra[(var, None)],
+                        "region": region,
+                        "date_time": date_time,
+                        "output_mode": resolved_output_mode,
+                        "artifact_root": resolved_artifact_root,
+                        "ensemble": resolved_ensemble,
+                    }
+                )
+                rmse_args.append(
+                    {
+                        "variable": var,
+                        "rmse": stats["rmse"],
+                        "rmse_mean": stats["rmse_mean"],
+                        "rmse_unperturbed": stats["rmse_unperturbed"],
+                        "alpha_value": alpha_value,
+                        "path_out": path_out,
+                        "color_palette": config["color_palette"],
+                        "model_name": model_name,
+                        "level": level,
+                        "y_lims": y_lims_rmse[(var, level)],
+                        "region": region,
+                        "date_time": date_time,
+                        "output_mode": resolved_output_mode,
+                        "artifact_root": resolved_artifact_root,
+                        "ensemble": resolved_ensemble,
+                    }
+                )
+                spread_skill_ratio_args.append(
+                    {
+                        "variable": var,
+                        "sr_spread_skill_ratio": stats["sr_spread_skill_ratio"],
+                        "sr_ensemble_spread": stats["sr_ensemble_spread"],
+                        "path_out": path_out,
+                        "color_palette": config["color_palette"],
+                        "model_name": model_name,
+                        "level": level,
+                        "y_lims1": y_lims_spread_skill_ratio[(var, level)][0],
+                        "y_lims2": y_lims_spread_skill_ratio[(var, level)][1],
+                        "region": region,
+                        "date_time": date_time,
+                        "output_mode": resolved_output_mode,
+                        "artifact_root": resolved_artifact_root,
+                        "ensemble": resolved_ensemble,
+                    }
+                )
+                timeseries_fc_gt_args.append(
+                    {
+                        "variable": var,
+                        "gt_mean": stats["ts_gt_mean"],
+                        "fc_mean": stats["ts_fc_mean"],
+                        "fc_mean_unperturbed": stats["ts_fc_mean_unperturbed"],
+                        "ground_truth": data["ground_truth"],
+                        "alpha_value": alpha_value,
+                        "path_out": path_out,
+                        "color_palette": config["color_palette"],
+                        "model_name": model_name,
+                        "level": level,
+                        "y_lims": y_lims_timeseries[(var, level)],
+                        "region": region,
+                        "date_time": date_time,
+                        "output_mode": resolved_output_mode,
+                        "artifact_root": resolved_artifact_root,
+                        "ensemble": resolved_ensemble,
+                    }
+                )
 
     print("Plotting arguments prepared")
 
@@ -255,9 +274,13 @@ def plot_error_map(
     )
 
     errors_mean = errors_mean.expand_dims("member").assign_coords(member=[9998])
-    errors_unperturbed = errors_unperturbed.expand_dims("member").assign_coords(member=[9999])
+    errors_unperturbed = errors_unperturbed.expand_dims("member").assign_coords(
+        member=[9999]
+    )
     errors_members = errors_members.sortby("member", ascending=True)
-    errors_comb = xr.combine_by_coords([errors_members, errors_mean, errors_unperturbed])
+    errors_comb = xr.combine_by_coords(
+        [errors_members, errors_mean, errors_unperturbed]
+    )
 
     # TODO this should not be hardcoded and match the animation selection
     for mem_i in errors_comb.member.values[0:2]:
@@ -265,7 +288,13 @@ def plot_error_map(
             errors = errors_comb.sel(member=mem_i, isobaricInhPa=level)
         else:
             errors = errors_comb.sel(member=mem_i)
-        member = "mean" if mem_i == 9998 else "unperturbed" if mem_i == 9999 else f"member {mem_i}"
+        member = (
+            "mean"
+            if mem_i == 9998
+            else "unperturbed"
+            if mem_i == 9999
+            else f"member {mem_i}"
+        )
         # Normalize all errors to [0,1] for color map
         max_errors = errors.max()
         min_errors = errors.min()
@@ -327,12 +356,14 @@ def plot_error_map(
             else:
                 data_payload = errors.to_dataset(name="errors")
             data_payload = data_payload.copy()
-            data_payload.attrs.update({
-                "model_name": model_name,
-                "region": region,
-                "date_time": date_time,
-                "member": member,
-            })
+            data_payload.attrs.update(
+                {
+                    "model_name": model_name,
+                    "region": region,
+                    "date_time": date_time,
+                    "member": member,
+                }
+            )
             data_filename = build_output_filename(ext="nc", **filename_args)
             save_dataset(data_payload, data_dir, data_filename)
 
@@ -404,7 +435,9 @@ def plot_rank_histogram(
     # Create a random subsample
     combined_stacked = combined.stack(z=("step", "latitude", "longitude"))
     sample_size = min(sample_size, combined_stacked.z.size)
-    indices = np.sort(np.random.choice(combined_stacked.z.size, size=sample_size, replace=False))
+    indices = np.sort(
+        np.random.choice(combined_stacked.z.size, size=sample_size, replace=False)
+    )
     combined_sample = combined_stacked.isel(z=indices)
 
     ranks = combined_sample.chunk(dict(member=-1)).rank("member")
@@ -427,7 +460,9 @@ def plot_rank_histogram(
             "ranks": np.array(list(rank_counts.keys()), dtype=int),
             "counts": np.array(list(rank_counts.values()), dtype=int),
             "variable": np.array([variable], dtype=object),
-            "level": np.array([level if level is not None else "surface"], dtype=object),
+            "level": np.array(
+                [level if level is not None else "surface"], dtype=object
+            ),
             "region": np.array([region], dtype=object),
             "date_time": np.array([date_time], dtype=object),
             "model_name": np.array([model_name], dtype=object),
@@ -485,7 +520,9 @@ def plot_energy_spectra(
     fig, ax = plt.subplots(figsize=(12, 9))
 
     if level is not None:
-        energy_spectra_forecast_lev = energy_spectra_forecast[variable].sel(isobaricInhPa=level)
+        energy_spectra_forecast_lev = energy_spectra_forecast[variable].sel(
+            isobaricInhPa=level
+        )
         energy_spectra_unperturbed_lev = energy_spectra_unperturbed[variable].sel(
             isobaricInhPa=level
         )
@@ -588,7 +625,9 @@ def plot_energy_spectra(
             "spectrum_target": energy_spectra_ground_truth_lev.values,
             "model_name": np.array([model_name], dtype=object),
             "variable": np.array([variable], dtype=object),
-            "level": np.array([level if level is not None else "surface"], dtype=object),
+            "level": np.array(
+                [level if level is not None else "surface"], dtype=object
+            ),
             "region": np.array([region], dtype=object),
             "date_time": np.array([date_time], dtype=object),
         }
@@ -687,16 +726,20 @@ def plot_rmse(
     )
 
     if save_data and data_dir is not None:
-        payload = xr.Dataset({
-            "rmse_members": rmse[variable],
-            "rmse_mean": rmse_mean[variable],
-            "rmse_unperturbed": rmse_unperturbed[variable],
-        })
-        payload.attrs.update({
-            "model_name": model_name,
-            "region": region,
-            "date_time": date_time,
-        })
+        payload = xr.Dataset(
+            {
+                "rmse_members": rmse[variable],
+                "rmse_mean": rmse_mean[variable],
+                "rmse_unperturbed": rmse_unperturbed[variable],
+            }
+        )
+        payload.attrs.update(
+            {
+                "model_name": model_name,
+                "region": region,
+                "date_time": date_time,
+            }
+        )
         data_filename = build_output_filename(ext="nc", **filename_args)
         save_dataset(payload, data_dir, data_filename)
 
@@ -742,7 +785,9 @@ def plot_spread_skill_ratio(
         region (str): The region name.
         date_time (str): The date and time string.
     """
-    print(f"Creating combined spread-skill ratio plots for variable: {variable}, level: {level}")
+    print(
+        f"Creating combined spread-skill ratio plots for variable: {variable}, level: {level}"
+    )
 
     fig_dir, data_dir, save_fig, save_data = _prepare_io(
         path_out,
@@ -765,7 +810,9 @@ def plot_spread_skill_ratio(
         ensemble_spread_ifs = sr_ensemble_spread_ifs
 
     # Plot spread-skill ratio for both models
-    spread_skill_ratio[variable].plot(ax=ax, color=color_palette[5], label=f"{model_names[0]} SSR")
+    spread_skill_ratio[variable].plot(
+        ax=ax, color=color_palette[5], label=f"{model_names[0]} SSR"
+    )
     spread_skill_ratio_ifs[variable].plot(
         ax=ax, color=color_palette[0], label=f"{model_names[1]} SSR"
     )
@@ -818,6 +865,7 @@ def plot_spread_skill_ratio(
     )
 
     if save_data and data_dir is not None:
+
         def _sel(source: xr.Dataset | xr.DataArray) -> xr.DataArray:
             if isinstance(source, xr.Dataset):
                 return source[variable]
@@ -825,17 +873,21 @@ def plot_spread_skill_ratio(
 
         label_a = sanitize_token(model_names[0]) if model_names else "model"
         label_b = sanitize_token(model_names[1]) if len(model_names) > 1 else "ifs"
-        payload = xr.Dataset({
-            f"spread_skill_ratio_{label_a}": _sel(spread_skill_ratio),
-            f"ensemble_spread_{label_a}": _sel(ensemble_spread),
-            f"spread_skill_ratio_{label_b}": _sel(spread_skill_ratio_ifs),
-            f"ensemble_spread_{label_b}": _sel(ensemble_spread_ifs),
-        })
-        payload.attrs.update({
-            "region": region,
-            "date_time": date_time,
-            "models": ",".join(model_names),
-        })
+        payload = xr.Dataset(
+            {
+                f"spread_skill_ratio_{label_a}": _sel(spread_skill_ratio),
+                f"ensemble_spread_{label_a}": _sel(ensemble_spread),
+                f"spread_skill_ratio_{label_b}": _sel(spread_skill_ratio_ifs),
+                f"ensemble_spread_{label_b}": _sel(ensemble_spread_ifs),
+            }
+        )
+        payload.attrs.update(
+            {
+                "region": region,
+                "date_time": date_time,
+                "models": ",".join(model_names),
+            }
+        )
         data_filename = build_output_filename(ext="nc", **filename_args)
         save_dataset(payload, data_dir, data_filename)
 
@@ -890,10 +942,14 @@ def plot_timeseries_fc_gt(
 
     # Select the level if provided
     gt_mean_var = (
-        gt_mean[variable].sel(isobaricInhPa=level) if level is not None else gt_mean[variable]
+        gt_mean[variable].sel(isobaricInhPa=level)
+        if level is not None
+        else gt_mean[variable]
     )
     fc_mean_var = (
-        fc_mean[variable].sel(isobaricInhPa=level) if level is not None else fc_mean[variable]
+        fc_mean[variable].sel(isobaricInhPa=level)
+        if level is not None
+        else fc_mean[variable]
     )
     fc_mean_unperturbed_var = (
         fc_mean_unperturbed[variable].sel(isobaricInhPa=level)
@@ -920,13 +976,19 @@ def plot_timeseries_fc_gt(
         else:
             fc_mean_member.plot(ax=ax, color=color_palette[1], alpha=alpha_value)
 
-    fc_mean_var.mean(dim="member").plot(ax=ax, color=color_palette[2], label=f"{model_name} Mean")
-    fc_mean_unperturbed_var.plot(ax=ax, color=color_palette[3], label=f"{model_name} Unperturbed")
+    fc_mean_var.mean(dim="member").plot(
+        ax=ax, color=color_palette[2], label=f"{model_name} Mean"
+    )
+    fc_mean_unperturbed_var.plot(
+        ax=ax, color=color_palette[3], label=f"{model_name} Unperturbed"
+    )
 
     if y_lims is not None:
         (ymin, ymax) = y_lims
         extent = ymax - ymin
-        ax.set_ylim(ymin.item() - 0.1 * extent.item(), ymax.item() + 0.1 * extent.item())
+        ax.set_ylim(
+            ymin.item() - 0.1 * extent.item(), ymax.item() + 0.1 * extent.item()
+        )
 
     # Arbitrary number to make sure the density curves look decent
     if fc_mean.member.size >= 20:
@@ -987,16 +1049,20 @@ def plot_timeseries_fc_gt(
     )
 
     if save_data and data_dir is not None:
-        payload = xr.merge([
-            fc_mean_var.to_dataset(name="forecast_members"),
-            fc_mean_unperturbed_var.to_dataset(name="forecast_unperturbed"),
-            gt_mean_var.to_dataset(name="ground_truth"),
-        ])
-        payload.attrs.update({
-            "model_name": model_name,
-            "region": region,
-            "date_time": date_time,
-        })
+        payload = xr.merge(
+            [
+                fc_mean_var.to_dataset(name="forecast_members"),
+                fc_mean_unperturbed_var.to_dataset(name="forecast_unperturbed"),
+                gt_mean_var.to_dataset(name="ground_truth"),
+            ]
+        )
+        payload.attrs.update(
+            {
+                "model_name": model_name,
+                "region": region,
+                "date_time": date_time,
+            }
+        )
         data_filename = build_output_filename(ext="nc", **filename_args)
         save_dataset(payload, data_dir, data_filename)
 
@@ -1014,7 +1080,157 @@ __all__ = [
     "plot_rmse",
     "plot_spread_skill_ratio",
     "plot_timeseries_fc_gt",
+    "plot_vertical_profile_metrics",
 ]
 
 # Alpha used by plotting functions; can be overridden by callers (e.g., CLI)
 alpha_value: float = 0.5
+
+
+# --- Vertical profile metrics (RMSE & Bias) ---
+
+
+def _calc_rmse_bias(
+    pred: xr.DataArray, tgt: xr.DataArray, level_dim: str
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Return (levels, rmse, bias) reducing all dims except level_dim & member."""
+    pred, tgt = xr.align(pred, tgt, join="inner")
+    levels = pred[level_dim].values
+    reduce_dims = [d for d in pred.dims if d != level_dim and d != "member"]
+    diff = pred - tgt
+    bias = diff.mean(dim=reduce_dims, skipna=True)
+    rmse = np.sqrt((diff**2).mean(dim=reduce_dims, skipna=True))
+    return levels, rmse.values, bias.values
+
+
+def plot_vertical_profile_metrics(
+    forecast: xr.Dataset,
+    ground_truth: xr.Dataset,
+    variable: str,
+    path_out: str,
+    output_mode: str = "both",
+    artifact_root: str | Path | None = None,
+    ensemble: str | int | None = None,
+    member_aggregate: str = "mean",
+    lead_subset: List[int] | None = None,
+) -> None:
+    """Plot RMSE & Bias vs pressure level for a 3D variable.
+
+    If forecast has a `member` dim, aggregate members via mean (or pick first).
+    If a `step` dim exists and lead_subset is provided, only those indices are kept in the
+    multi-lead NPZ stack.
+    """
+    if variable not in forecast.data_vars or variable not in ground_truth.data_vars:
+        print(f"[vprof] variable {variable} missing in datasets; skipping")
+        return
+    da_p_all = forecast[variable]
+    da_t_all = ground_truth[variable]
+    level_dim = next(
+        (d for d in da_p_all.dims if d in ("isobaricInhPa", "level")), None
+    )
+    if level_dim is None:
+        print(f"[vprof] variable {variable} has no pressure level dimension; skipping")
+        return
+
+    fig_dir, data_dir, save_fig, save_data = _prepare_io(
+        path_out, artifact_root, "vertical_profiles", output_mode
+    )
+
+    # Member aggregation
+    if "member" in da_p_all.dims:
+        if member_aggregate == "mean":
+            da_p_all = da_p_all.mean(dim="member", skipna=True)
+        elif member_aggregate == "first":
+            da_p_all = da_p_all.isel(member=0)
+
+    # Base (all steps) profile
+    levels, rmse_vals, bias_vals = _calc_rmse_bias(da_p_all, da_t_all, level_dim)
+    order = np.argsort(levels)[::-1]  # descending pressure
+    levels_plot = levels[order]
+    rmse_plot = rmse_vals[order]
+    bias_plot = bias_vals[order]
+
+    fig, ax1 = plt.subplots(figsize=(6, 8))
+    ax1.plot(rmse_plot, levels_plot, color="#d62728", label="RMSE")
+    ax1.set_xlabel("RMSE")
+    ax1.set_ylabel("Pressure (hPa)")
+    ax1.invert_yaxis()
+    ax2 = ax1.twiny()
+    ax2.plot(bias_plot, levels_plot, color="#1f77b4", label="Bias")
+    ax2.set_xlabel("Bias")
+    ax1.set_title(f"Vertical profile — {variable}")
+    lines = ax1.get_lines() + ax2.get_lines()
+    labels = [line.get_label() for line in lines]
+    ax1.legend(lines, labels, loc="lower right")
+    if save_fig:
+        out_png = build_output_filename(
+            metric="vprof_rmse_bias",
+            variable=variable,
+            level=None,
+            qualifier="combined",
+            ensemble=ensemble,
+            ext="png",
+        )
+        plt.savefig(fig_dir / out_png, dpi=300, bbox_inches="tight")
+    plt.close(fig)
+
+    if save_data and data_dir is not None:
+        out_npz = build_output_filename(
+            metric="vprof_rmse_bias",
+            variable=variable,
+            level=None,
+            qualifier="combined_data",
+            ensemble=ensemble,
+            ext="npz",
+        )
+        save_npz(
+            {
+                "levels": levels_plot.astype(float),
+                "rmse": rmse_plot.astype(float),
+                "bias": bias_plot.astype(float),
+                "variable": np.array([variable]),
+            },
+            data_dir,
+            out_npz,
+        )
+
+    # Multi-lead stacked artefact (optional)
+    if "step" in forecast[variable].dims:
+        da_p_steps = forecast[variable]
+        da_t_steps = ground_truth[variable]
+        if lead_subset is not None:
+            da_p_steps = da_p_steps.isel(step=list(lead_subset))
+            if "step" in da_t_steps.dims:
+                da_t_steps = da_t_steps.isel(step=list(lead_subset))
+        n_steps = int(da_p_steps.sizes.get("step", 0))
+        rmse_stack = []
+        bias_stack = []
+        lead_hours = []
+        for i in range(n_steps):
+            p_i = da_p_steps.isel(step=i)
+            t_i = da_t_steps.isel(step=i) if "step" in da_t_steps.dims else da_t_steps
+            lv, r_i, b_i = _calc_rmse_bias(p_i, t_i, level_dim)
+            ord_i = np.argsort(lv)[::-1]
+            rmse_stack.append(r_i[ord_i])
+            bias_stack.append(b_i[ord_i])
+            lead_hours.append(int(i * 6))
+        if rmse_stack and save_data and data_dir is not None:
+            out_npz_multi = build_output_filename(
+                metric="vprof_rmse_bias",
+                variable=variable,
+                level=None,
+                qualifier="multi_lead_data",
+                ensemble=ensemble,
+                ext="npz",
+            )
+            save_npz(
+                {
+                    "levels": levels_plot.astype(float),
+                    "lead_hours": np.array(lead_hours, dtype=float),
+                    "rmse": np.asarray(rmse_stack),
+                    "bias": np.asarray(bias_stack),
+                    "variable": np.array([variable]),
+                },
+                data_dir,
+                out_npz_multi,
+            )

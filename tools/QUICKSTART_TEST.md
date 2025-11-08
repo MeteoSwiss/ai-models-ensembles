@@ -34,10 +34,10 @@ This guide will walk you through testing the `ai-models-ensembles` repository st
    ```bash
    # Comprehensive functionality test
    python tools/test_basic_functionality.py
-   
+
    # Quick minimal test
    ./tools/run_minimal_test.sh
-   
+
    # Check workflow status
    ./tools/check_workflow_status.sh
    ```

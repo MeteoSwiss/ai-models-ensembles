@@ -18,7 +18,14 @@ python tools/check_gpu.py
 bash ./tools/validate.sh
 ```
 
-3. **[Recommended]** Test the installation
+1. **[Recommended]** Test the installation
+1. Enable pre-commit hooks (format + lint)
+
+```bash
+pre-commit install
+```
+
+This will enforce Ruff linting and formatting on staged Python files.
 
 ```bash
 # Quick functionality test
@@ -33,7 +40,7 @@ python tools/test_basic_functionality.py
 
 See [tools/README.md](tools/README.md) for detailed testing documentation and [tools/QUICKSTART_TEST.md](tools/QUICKSTART_TEST.md) for a step-by-step example workflow.
 
-4. Submit jobs (Slurm)
+1. Submit jobs (Slurm)
    - Download ERA5 + IFS: `scripts/submit_download_data.sh`
    - ML inference (array-ready): `scripts/submit_ml_inference.sh`
    - Convert to Zarr: `scripts/submit_convert_zarr.sh`
@@ -151,6 +158,56 @@ Each plot or animation is now accompanied by a data artefact saved beforehand:
 - Static plots store their inputs (NetCDF/NPZ/CSV) under the matching `artifacts_*` tree.
 - Animations (2D maps, 3D difference volumes) persist the xarray payloads used for each GIF.
 - Density/rank histograms, RMSE, spread-skill, timeseries, and energy spectra export comparable datasets that can be reloaded later.
+
+### Pre-commit & Ruff
+
+A `.pre-commit-config.yaml` file is provided. Install hooks with:
+
+```bash
+pre-commit install
+pre-commit run --all-files  # optional initial pass
+```
+
+Hooks executed:
+
+- Ruff lint (auto-fix enabled)
+- Ruff format (code formatting)
+- End-of-file fixer, trailing whitespace cleanup, merge-conflict checks
+- Custom: forbid stray `print(` outside the CLI module
+
+Dev dependencies are available via the `dev` extra:
+
+```bash
+uv pip install -e .[dev]
+```
+
+### Testing
+
+Repository-level smoke tests (in `tests/test_repository_smoke.py`) validate that:
+
+1. Core imports and CLI are loadable.
+2. Vertical profile plotting (`plot_vertical_profile_metrics` from `plot_1d_timeseries.py`) produces PNG + NPZ artefacts.
+3. PIT histogram functions generate expected NPZ payloads.
+
+Run tests:
+
+```bash
+pytest -q
+```
+
+All smoke tests use synthetic xarray datasets and execute quickly (<5s typical).
+
+File naming follows the SwissClim-style pattern produced by `build_output_filename`:
+
+```text
+<metric>_<variable>_<level?>_<qualifier?>_init<YYYYMMDDHH-YYYYMMDDHH?>_lead<000h-XXXh?>_<ensemble-token>.npz
+```
+
+Ensemble tokens automatically normalise (e.g. `graphcast` -> `ensgraphcast`, probabilistic -> `ensprob`). When no ensemble is provided the suffix `ensnone` is used.
+
+### Reproducing & Intercomparison
+
+All artefacts live under `artifacts_<model_name>/.../data/<metric>/`. You can safely load NPZ bundles with `numpy.load(path, allow_pickle=True)` (object arrays are used for variable-length histogram edges/densities). The intercomparison CLI (`ai-ens intercompare`) consumes existing metrics (density, energy spectra, RMSE, timeseries, rank histograms) and can be extended to include the new histogram/KDE/PIT outputs if desired.
 
 With these artefacts on disk you can generate bespoke visualisations or overlay multiple models using the `ai-ens intercompare` command without rerunning verification.
 

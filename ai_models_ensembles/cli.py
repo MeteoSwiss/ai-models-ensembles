@@ -65,13 +65,21 @@ def _symlink(src: Path, dst: Path) -> None:
 
 @app.command("download-reanalysis")
 def cli_download_reanalysis(
-    out_dir: Optional[str] = typer.Option(None, help="Output dir (defaults to $OUTPUT_DIR)"),
-    start: Optional[str] = typer.Option(None, help="Start (YYYYMMDDHHMM); defaults to $DATE_TIME"),
-    end: Optional[str] = typer.Option(None, help="End (YYYYMMDDHHMM); defaults to $END_DATE_TIME"),
+    out_dir: Optional[str] = typer.Option(
+        None, help="Output dir (defaults to $OUTPUT_DIR)"
+    ),
+    start: Optional[str] = typer.Option(
+        None, help="Start (YYYYMMDDHHMM); defaults to $DATE_TIME"
+    ),
+    end: Optional[str] = typer.Option(
+        None, help="End (YYYYMMDDHHMM); defaults to $END_DATE_TIME"
+    ),
     interval: Optional[int] = typer.Option(
         None, help="Hours between analyses; defaults to $INTERVAL"
     ),
-    model: Optional[str] = typer.Option(None, help="Model name; defaults to $MODEL_NAME"),
+    model: Optional[str] = typer.Option(
+        None, help="Model name; defaults to $MODEL_NAME"
+    ),
 ) -> None:
     _validate_basic_config()
     out = out_dir or _env("OUTPUT_DIR") or ""
@@ -84,11 +92,21 @@ def cli_download_reanalysis(
 
 @app.command("download-ifs-ensemble")
 def cli_download_ifs_ensemble(
-    out_dir: Optional[str] = typer.Option(None, help="Output dir (defaults to $OUTPUT_DIR)"),
-    date_time: Optional[str] = typer.Option(None, help="YYYYMMDDHHMM; defaults to $DATE_TIME"),
-    interval: Optional[int] = typer.Option(None, help="Hours between steps; defaults to $INTERVAL"),
-    num_days: Optional[int] = typer.Option(None, help="Days to download; defaults to $NUM_DAYS"),
-    model: Optional[str] = typer.Option(None, help="Model name; defaults to $MODEL_NAME"),
+    out_dir: Optional[str] = typer.Option(
+        None, help="Output dir (defaults to $OUTPUT_DIR)"
+    ),
+    date_time: Optional[str] = typer.Option(
+        None, help="YYYYMMDDHHMM; defaults to $DATE_TIME"
+    ),
+    interval: Optional[int] = typer.Option(
+        None, help="Hours between steps; defaults to $INTERVAL"
+    ),
+    num_days: Optional[int] = typer.Option(
+        None, help="Days to download; defaults to $NUM_DAYS"
+    ),
+    model: Optional[str] = typer.Option(
+        None, help="Model name; defaults to $MODEL_NAME"
+    ),
 ) -> None:
     _validate_basic_config()
     out = out_dir or _env("OUTPUT_DIR") or ""
@@ -101,11 +119,21 @@ def cli_download_ifs_ensemble(
 
 @app.command("download-ifs-control")
 def cli_download_ifs_control(
-    out_dir: Optional[str] = typer.Option(None, help="Output dir (defaults to $OUTPUT_DIR)"),
-    date_time: Optional[str] = typer.Option(None, help="YYYYMMDDHHMM; defaults to $DATE_TIME"),
-    interval: Optional[int] = typer.Option(None, help="Hours between steps; defaults to $INTERVAL"),
-    num_days: Optional[int] = typer.Option(None, help="Days to download; defaults to $NUM_DAYS"),
-    model: Optional[str] = typer.Option(None, help="Model name; defaults to $MODEL_NAME"),
+    out_dir: Optional[str] = typer.Option(
+        None, help="Output dir (defaults to $OUTPUT_DIR)"
+    ),
+    date_time: Optional[str] = typer.Option(
+        None, help="YYYYMMDDHHMM; defaults to $DATE_TIME"
+    ),
+    interval: Optional[int] = typer.Option(
+        None, help="Hours between steps; defaults to $INTERVAL"
+    ),
+    num_days: Optional[int] = typer.Option(
+        None, help="Days to download; defaults to $NUM_DAYS"
+    ),
+    model: Optional[str] = typer.Option(
+        None, help="Model name; defaults to $MODEL_NAME"
+    ),
 ) -> None:
     _validate_basic_config()
     out = out_dir or _env("OUTPUT_DIR") or ""
@@ -129,7 +157,9 @@ def cli_convert(
 
 @app.command("infer")
 def cli_infer(
-    member: Optional[int] = typer.Option(None, help="Run only this member id (array mode)"),
+    member: Optional[int] = typer.Option(
+        None, help="Run only this member id (array mode)"
+    ),
 ) -> None:
     _validate_basic_config()
     out_dir = Path(_env("OUTPUT_DIR", ""))
@@ -262,12 +292,14 @@ def cli_infer(
                 str(lead_time),
             ]
             if is_gencast:
-                cmd.extend([
-                    "--num-ensemble-members",
-                    "1",
-                    "--member-number",
-                    str(m + 1),
-                ])
+                cmd.extend(
+                    [
+                        "--num-ensemble-members",
+                        "1",
+                        "--member-number",
+                        str(m + 1),
+                    ]
+                )
             cmd.append(model_name)
 
             subprocess.run(cmd, cwd=member_dir, check=True)
@@ -299,8 +331,19 @@ def cli_verify() -> None:
     import ai_models_ensembles.animate_3d_grids as a3
     import ai_models_ensembles.plot_0d_distributions as p0
     import ai_models_ensembles.plot_1d_timeseries as p1
+    from ai_models_ensembles.plot_0d_distributions import (
+        plot_pit_histogram,
+        plot_pit_histogram_by_lead,
+    )
+    from ai_models_ensembles.plot_1d_timeseries import (
+        plot_vertical_profile_metrics as vprof_plot,
+    )
 
-    from .preprocess_data import calculate_stats, calculate_y_lims, load_and_prepare_data
+    from .preprocess_data import (
+        calculate_stats,
+        calculate_y_lims,
+        load_and_prepare_data,
+    )
 
     # Load data
     path_in = str(_model_dir())
@@ -323,17 +366,25 @@ def cli_verify() -> None:
         typer.echo("Evaluating model and creating 0D and 1D figures")
         png_dir.mkdir(parents=True, exist_ok=True)
         variables = list(data["forecast"].data_vars)
-        vars_3d = [var for var in variables if "isobaricInhPa" in data["forecast"][var].dims]
-        vars_2d = [var for var in variables if "isobaricInhPa" not in data["forecast"][var].dims]
+        vars_3d = [
+            var for var in variables if "isobaricInhPa" in data["forecast"][var].dims
+        ]
+        vars_2d = [
+            var
+            for var in variables
+            if "isobaricInhPa" not in data["forecast"][var].dims
+        ]
         config = {
-            "color_palette": sns.color_palette([
-                "#f75b78",
-                "#6495ed",
-                "#0e2d75",
-                "#f9c740",
-                "#45b7aa",
-                "#353434",
-            ]),
+            "color_palette": sns.color_palette(
+                [
+                    "#f75b78",
+                    "#6495ed",
+                    "#0e2d75",
+                    "#f9c740",
+                    "#45b7aa",
+                    "#353434",
+                ]
+            ),
             "sample_size": 100000,
             "selected_vars": ["u10"],
             "output_mode": "both",
@@ -375,6 +426,63 @@ def cli_verify() -> None:
         for plot_args in args_list_comb:
             p0.plot_combined_density_distribution(**plot_args)
 
+        # 0D PIT histograms (global + per-lead) for a small selection of variables
+        pit_vars = config.get("selected_vars", []) or [v for v in vars_2d[:1]]
+        for var in pit_vars:
+            # Surface variable
+            plot_pit_histogram(
+                variable=var,
+                forecast=data["forecast"],
+                ground_truth=data["ground_truth"],
+                path_out=str(png_dir),
+                model_name=model_name,
+                level=None,
+                output_mode=config["output_mode"],
+                artifact_root=str(data_dir),
+                ensemble=model_name,
+            )
+            plot_pit_histogram_by_lead(
+                variable=var,
+                forecast=data["forecast"],
+                ground_truth=data["ground_truth"],
+                path_out=str(png_dir),
+                model_name=model_name,
+                level=None,
+                output_mode=config["output_mode"],
+                artifact_root=str(data_dir),
+                ensemble=model_name,
+                panel_cols=2,
+            )
+        # For 3D, use the first level per var to keep runtime light
+        for var in vars_3d[:1]:
+            try:
+                lvl = data["forecast"][var].coords["isobaricInhPa"].values[0]
+                plot_pit_histogram(
+                    variable=var,
+                    forecast=data["forecast"],
+                    ground_truth=data["ground_truth"],
+                    path_out=str(png_dir),
+                    model_name=model_name,
+                    level=float(lvl),
+                    output_mode=config["output_mode"],
+                    artifact_root=str(data_dir),
+                    ensemble=model_name,
+                )
+                plot_pit_histogram_by_lead(
+                    variable=var,
+                    forecast=data["forecast"],
+                    ground_truth=data["ground_truth"],
+                    path_out=str(png_dir),
+                    model_name=model_name,
+                    level=float(lvl),
+                    output_mode=config["output_mode"],
+                    artifact_root=str(data_dir),
+                    ensemble=model_name,
+                    panel_cols=2,
+                )
+            except Exception:
+                pass
+
         # 1D timeseries and scorecards
         default_stats = calculate_stats(
             data["ground_truth"],
@@ -391,7 +499,12 @@ def cli_verify() -> None:
         # alpha_value is used inside plot_1d_timeseries.prepare_plot_args
         p1.alpha_value = 1 / data["forecast"].member.size ** (5 / 8)
         y_lims = calculate_y_lims(
-            vars_3d, vars_2d, data["forecast"], data["forecast_ifs"], default_stats, ifs_stats
+            vars_3d,
+            vars_2d,
+            data["forecast"],
+            data["forecast_ifs"],
+            default_stats,
+            ifs_stats,
         )
         default_plot_args = p1.prepare_plot_args(
             data,
@@ -441,6 +554,88 @@ def cli_verify() -> None:
             # one scorecard per set
             p1.plot_error_map(**plot_args["error_map"][0])
 
+        # New: PIT histograms (global + per-lead) and Vertical Profiles
+        # Use same output_mode and artifact_root as other 0D/1D plots
+        out_mode = config["output_mode"]
+        artifact_root = str(data_dir)
+        # Choose a small set of variables for demonstration
+        pit_vars = vars_2d[:1] + vars_3d[:1]
+        for var in pit_vars:
+            # Surface vs 3D handling
+            if var in vars_3d:
+                for level in data["forecast"][var].coords["isobaricInhPa"].values[:1]:
+                    p0.plot_pit_histogram(
+                        variable=var,
+                        forecast=data["forecast"],
+                        ground_truth=data["ground_truth"],
+                        path_out=str(png_dir),
+                        model_name=model_name,
+                        level=float(level),
+                        output_mode=out_mode,
+                        artifact_root=artifact_root,
+                        ensemble=model_name,
+                    )
+                    p0.plot_pit_histogram_by_lead(
+                        variable=var,
+                        forecast=data["forecast"],
+                        ground_truth=data["ground_truth"],
+                        path_out=str(png_dir),
+                        model_name=model_name,
+                        level=float(level),
+                        output_mode=out_mode,
+                        artifact_root=artifact_root,
+                        ensemble=model_name,
+                    )
+                    # Vertical profiles for 3D variables
+                    vprof_plot(
+                        forecast=data["forecast"],
+                        ground_truth=data["ground_truth"],
+                        variable=var,
+                        path_out=str(png_dir),
+                        output_mode=out_mode,
+                        artifact_root=artifact_root,
+                        ensemble=model_name,
+                        member_aggregate="mean",
+                    )
+            else:
+                # Surface variable PIT only
+                p0.plot_pit_histogram(
+                    variable=var,
+                    forecast=data["forecast"],
+                    ground_truth=data["ground_truth"],
+                    path_out=str(png_dir),
+                    model_name=model_name,
+                    level=None,
+                    output_mode=out_mode,
+                    artifact_root=artifact_root,
+                    ensemble=model_name,
+                )
+                p0.plot_pit_histogram_by_lead(
+                    variable=var,
+                    forecast=data["forecast"],
+                    ground_truth=data["ground_truth"],
+                    path_out=str(png_dir),
+                    model_name=model_name,
+                    level=None,
+                    output_mode=out_mode,
+                    artifact_root=artifact_root,
+                    ensemble=model_name,
+                )
+
+        # Vertical profile metrics (RMSE & Bias) for 3D variables
+        for var in vars_3d:
+            vprof_plot(
+                forecast=data["forecast"],
+                ground_truth=data["ground_truth"],
+                variable=var,
+                path_out=str(png_dir),
+                output_mode=config["output_mode"],
+                artifact_root=str(data_dir),
+                ensemble=model_name,
+                member_aggregate="mean",
+                lead_subset=None,
+            )
+
         # Combined spread-skill ratio plots using both IFS and model
         for args_dict in default_plot_args["spread_skill_ratio"]:
             args_dict = args_dict.copy()
@@ -485,7 +680,13 @@ def cli_verify() -> None:
                 args_ns,
             )
         a2.process_ensemble_metrics(
-            data["forecast"], data["ground_truth"], stats_default, path_forecast, lat, lon, args_ns
+            data["forecast"],
+            data["ground_truth"],
+            stats_default,
+            path_forecast,
+            lat,
+            lon,
+            args_ns,
         )
 
         # 3D difference animations (selected variables)
@@ -506,7 +707,8 @@ def cli_verify() -> None:
         import subprocess
 
         subprocess.run(
-            ["fd", "-IH", "--type", "f", ".grib", str(region_dir), "-x", "rm", "{}"], check=True
+            ["fd", "-IH", "--type", "f", ".grib", str(region_dir), "-x", "rm", "{}"],
+            check=True,
         )
     else:
         for grib in region_dir.rglob("*.grib"):
@@ -537,7 +739,9 @@ def cli_intercompare(
 ) -> None:
     labels_final = labels or [Path(m).name for m in model_dirs]
     if len(labels_final) != len(model_dirs):
-        raise typer.BadParameter("Number of labels must match number of model directories.")
+        raise typer.BadParameter(
+            "Number of labels must match number of model directories."
+        )
     from .intercompare import run_intercompare
 
     run_intercompare(model_dirs, labels_final, out_dir, metrics)

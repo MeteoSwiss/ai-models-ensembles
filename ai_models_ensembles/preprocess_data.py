@@ -45,7 +45,14 @@ def parse_args():
 
     config = {
         "color_palette": sns.color_palette(
-            ["#f75b78", "#6495ed", "#0e2d75", "#f9c740", "#45b7aa", "#353434"]
+            [
+                "#f75b78",
+                "#6495ed",
+                "#0e2d75",
+                "#f9c740",
+                "#45b7aa",
+                "#353434",
+            ]
         ),
         # TODO: make this a user INPUT
         "sample_size": 100000,
@@ -307,7 +314,7 @@ def calculate_stats(ground_truth, forecast, forecast_unperturbed, crop_region):
 
                 power_spectra = []
                 wavenumbers_list = []
-                wavenumbers_earth_list = []
+                # Note: retain only the averaged wavenumber; per-latitude earth-scaled list not used
                 for level in levels:
                     # Select data for the current level
                     data_level = (
@@ -338,7 +345,9 @@ def calculate_stats(ground_truth, forecast, forecast_unperturbed, crop_region):
                         circumference = 2 * np.pi * EARTH_RADIUS_KM * cos_latitudes[i]
                         # Calculate the physical distance between longitude points (in km)
                         dx = circumference / n  # km between longitude points
-                        wavenumber = np.fft.rfftfreq(n, d=dx) * dx * n  # in cycles/latitude band (around the earth)
+                        wavenumber = (
+                            np.fft.rfftfreq(n, d=dx) * dx * n
+                        )  # in cycles/latitude band (around the earth)
                         wavenumbers_list.append(wavenumber)
 
                         # Calculate power spectrum (mathematical "Energy")
