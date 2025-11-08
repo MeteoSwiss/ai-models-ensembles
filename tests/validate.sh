@@ -3,6 +3,9 @@
 set -euo pipefail
 IFS=$'\n\t'
 
+# Change to repository root
+cd "$(dirname "$0")/.."
+
 # Load config and helpers
 source "./config.sh"
 
@@ -13,7 +16,7 @@ validate_config() {
   [[ -w "$OUTPUT_DIR" ]] || { echo "OUTPUT_DIR is not writable: $OUTPUT_DIR" >&2; exit 1; }
   [[ "$DATE_TIME" =~ ^[0-9]{12}$ ]] || { echo "DATE_TIME must be YYYYMMDDHHMM" >&2; exit 1; }
   case "$MODEL_NAME" in
-    graphcast|fourcastnetv2-small) : ;;
+    graphcast|fourcastnetv2-small|gencast) : ;;
     *) echo "Unknown MODEL_NAME: $MODEL_NAME" >&2; exit 1 ;;
   esac
   # NUM_MEMBERS sanity

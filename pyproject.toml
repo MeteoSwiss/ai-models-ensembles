@@ -20,6 +20,7 @@ dependencies = [
     "ai-models",
     "ai-models-graphcast",
     "ai-models-fourcastnetv2",
+    "ai-models-gencast",
 ]
 
 [project.scripts]

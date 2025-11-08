@@ -6,6 +6,6 @@ ifs_ens.zarr
 logs*
 _old
 rechunk.py
-ai_models_ensembles/__pycache__/
+*__pycache__
 ai_models_ensembles.egg-info/
 .venv/

@@ -33,15 +33,22 @@ def download_re_analysis(
     start_dt = datetime.strptime(start_date, "%Y%m%d%H%M")
     end_dt = datetime.strptime(end_date, "%Y%m%d%H%M")
 
-    if model_name == "graphcast":
-        print("Downloading data for GraphCast model...", flush=True)
+    pretty_names = {
+        "graphcast": "GraphCast",
+        "fourcastnetv2-small": "FourCastNetV2-Small",
+        "gencast": "GenCast",
+    }
+    print(f"Downloading data for {pretty_names.get(model_name, model_name)} model...", flush=True)
+
+    graphcast_like = model_name in {"graphcast", "gencast"}
+
+    if graphcast_like:
         date = int(start_dt.strftime("%Y%m%d"))
         time = int(start_dt.strftime("%H%M"))
         start_date_prev = start_dt - timedelta(hours=6)
         date_prev = int(start_date_prev.strftime("%Y%m%d"))
         time_prev = int(start_date_prev.strftime("%H%M"))
     else:
-        print("Downloading data for FCN model...", flush=True)
         date = int(start_dt.strftime("%Y%m%d"))
         time = int(start_dt.strftime("%H%M"))
 
@@ -67,7 +74,7 @@ def download_re_analysis(
         time=time,
     )
 
-    if model_name == "graphcast":
+    if graphcast_like:
         ds_single_prev = earthkit.data.from_source(
             "cds",
             "reanalysis-era5-single-levels",
@@ -91,7 +98,7 @@ def download_re_analysis(
         levels=pressure_levels,
     )
 
-    if model_name == "graphcast":
+    if graphcast_like:
         ds_pressure_prev = earthkit.data.from_source(
             "cds",
             "reanalysis-era5-pressure-levels",
@@ -104,7 +111,7 @@ def download_re_analysis(
             levels=pressure_levels,
         )
 
-    if model_name == "graphcast":
+    if graphcast_like:
         ds_combined = ds_single_init + ds_pressure_init + ds_single_prev + ds_pressure_prev
     else:
         ds_combined = ds_single_init + ds_pressure_init
@@ -134,7 +141,7 @@ def download_re_analysis(
         time=times,
         levels=pressure_levels,
     )
-    if model_name == "graphcast":
+    if graphcast_like:
         ds_single_xr = ds_single.to_xarray().drop_vars(["z"])
         ds_single_xr["surface_z"] = ds_single.sel({"shortName": "z"}).to_xarray()["z"]
         ds_combined_xr = xr.merge([ds_single_xr, ds_pressure.to_xarray()])

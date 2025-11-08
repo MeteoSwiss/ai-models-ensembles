@@ -35,7 +35,7 @@ def _validate_basic_config() -> None:
         raise typer.Abort()
     if not date_time or not re.fullmatch(r"\d{12}", date_time):
         raise typer.BadParameter("DATE_TIME must be YYYYMMDDHHMM")
-    if model not in {"graphcast", "fourcastnetv2-small"}:
+    if model not in {"graphcast", "fourcastnetv2-small", "gencast"}:
         raise typer.BadParameter(f"Unknown MODEL_NAME: {model}")
 
 
@@ -141,6 +141,15 @@ def cli_infer(
 
     model_dir = _model_dir()
     pert_dir = _perturbation_dir()
+    is_graphcast = model_name == "graphcast"
+    is_fourcast = model_name == "fourcastnetv2-small"
+    is_gencast = model_name == "gencast"
+    effective_perturb_latent = 0.0 if is_gencast else perturb_latent
+    if is_gencast and perturb_latent > 0.0:
+        typer.echo(
+            "Latent perturbations are ignored for probabilistic model 'gencast'.",
+            err=True,
+        )
     _ensure_dir(pert_dir)
 
     members = [int(member)] if member is not None else list(range(num_members))
@@ -173,8 +182,8 @@ def cli_infer(
             _symlink(model_dir / "init_field.grib", init_grib)
 
         # Latent/weights perturbation
-        if perturb_latent > 0.0:
-            if model_name == "graphcast":
+        if effective_perturb_latent > 0.0:
+            if is_graphcast:
                 params_dir = member_dir / "params"
                 if not params_dir.exists():
                     import subprocess
@@ -195,7 +204,7 @@ def cli_infer(
                         ],
                         check=True,
                     )
-            else:
+            elif is_fourcast:
                 weights_tar = member_dir / "weights.tar"
                 if not _exists(weights_tar):
                     import subprocess
@@ -217,36 +226,51 @@ def cli_infer(
                         check=True,
                     )
         else:
-            if model_name == "graphcast":
+            if is_graphcast:
                 _symlink(model_dir / "params", member_dir / "params")
-            else:
+            elif is_fourcast:
                 _symlink(model_dir / "weights.tar", member_dir / "weights.tar")
 
         # Common assets
-        if model_name == "graphcast":
+        if is_graphcast:
             _symlink(model_dir / "stats", member_dir / "stats")
-        else:
+        elif is_fourcast:
             _symlink(model_dir / "global_means.npy", member_dir / "global_means.npy")
             _symlink(model_dir / "global_stds.npy", member_dir / "global_stds.npy")
+        elif is_gencast:
+            assets_src = model_dir / "assets"
+            if not assets_src.exists():
+                raise typer.BadParameter(
+                    "GenCast assets not found. Run ai-models with --download-assets gencast first."
+                )
+            _symlink(assets_src, member_dir / "assets")
+            fields_src = model_dir / "fields.txt"
+            if fields_src.exists():
+                _symlink(fields_src, member_dir / "fields.txt")
 
         # Run the model
         if not (pert_dir / f"forecast.zarr/member/{m}").exists():
             import subprocess
 
-            subprocess.run(
-                [
-                    "ai-models",
-                    "--input",
-                    "file",
-                    "--file",
-                    str(init_grib),
-                    "--lead-time",
-                    str(lead_time),
-                    model_name,
-                ],
-                cwd=member_dir,
-                check=True,
-            )
+            cmd = [
+                "ai-models",
+                "--input",
+                "file",
+                "--file",
+                str(init_grib),
+                "--lead-time",
+                str(lead_time),
+            ]
+            if is_gencast:
+                cmd.extend([
+                    "--num-ensemble-members",
+                    "1",
+                    "--member-number",
+                    str(m + 1),
+                ])
+            cmd.append(model_name)
+
+            subprocess.run(cmd, cwd=member_dir, check=True)
 
     typer.echo("*****DONE*****")
 
@@ -495,9 +519,15 @@ def cli_verify() -> None:
 
 @app.command("intercompare")
 def cli_intercompare(
-    model_dirs: List[str] = typer.Argument(..., help="Artifact directories produced by verify runs."),
-    labels: Optional[List[str]] = typer.Option(None, "--label", "-l", help="Display labels (repeat per model)."),
-    out_dir: str = typer.Option("intercomparison", "--out-dir", help="Directory for comparison figures."),
+    model_dirs: List[str] = typer.Argument(
+        ..., help="Artifact directories produced by verify runs."
+    ),
+    labels: Optional[List[str]] = typer.Option(
+        None, "--label", "-l", help="Display labels (repeat per model)."
+    ),
+    out_dir: str = typer.Option(
+        "intercomparison", "--out-dir", help="Directory for comparison figures."
+    ),
     metrics: List[str] = typer.Option(
         ["energy_spectra", "rmse", "timeseries", "rank_histogram", "density"],
         "--metric",

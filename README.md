@@ -1,6 +1,6 @@
 # AI Model Ensembles for Weather Forecasting
 
-Run GraphCast and FourCastNetV2 ensembles, convert outputs to Zarr, and verify against IFS/ERA5 with ready-made plots and animations.
+Run GraphCast, FourCastNetV2, and GenCast ensembles, convert outputs to Zarr, and verify against IFS/ERA5 with ready-made plots and animations.
 
 ## Quickstart (uv + venv)
 
@@ -11,14 +11,29 @@ bash scripts/setup_uv.sh
 source .venv/bin/activate
 ```
 
-1. Validate the environment and GPU availability
+2. Validate the environment and GPU availability
 
 ```bash
 python scripts/check_gpu.py
-bash ./validate.sh
+bash ./tests/validate.sh
 ```
 
-1. Submit jobs (Slurm)
+3. **[Recommended]** Test the installation
+
+```bash
+# Quick functionality test
+python tests/test_basic_functionality.py
+
+# Minimal workflow test
+./tests/run_minimal_test.sh
+
+# Check workflow status anytime
+./tests/check_workflow_status.sh
+```
+
+See [tests/README.md](tests/README.md) for detailed testing documentation and [tests/QUICKSTART_TEST.md](tests/QUICKSTART_TEST.md) for a step-by-step example workflow.
+
+4. Submit jobs (Slurm)
    - Download ERA5 + IFS: `submit_download_data.sh`
    - ML inference (array-ready): `submit_ml_inference.sh`
    - Convert to Zarr: `submit_convert_zarr.sh`
@@ -32,7 +47,7 @@ Logs are written to `logs/`. Adjust `config.sh` to tailor runs.
 - Optional: set `EARTHKIT_CACHE_DIR` to a writable path for Earthkit cache.
 
 ```bash
-bash ./validate.sh
+bash ./tests/validate.sh
 ```
 
 This checks your Python env and packages, `ai-models`, GRIB tools (`eccodes/cfgrib`), ImageMagick, ECMWF credentials (`~/.cdsapirc`), `OUTPUT_DIR` writability, and more. Fix any warnings/errors before submitting jobs.
@@ -41,6 +56,7 @@ Notes:
 
 - On Linux aarch64 with NVIDIA GPUs, `scripts/setup_uv.sh` installs JAX GPU wheels via `pip install "jax[cuda12]"` (no source build) and PyTorch from NVIDIA's aarch64 index.
 - On x86_64 with NVIDIA GPUs, PyTorch is installed targeting CUDA 12.4 wheels; JAX defaults to CPU unless you add `JAX_OVERRIDE=cuda` and adapt.
+- GenCast is inherently probabilistic; weight/latent perturbations are skipped and ensembles are generated via the model itself.
 
 ### Centralized Slurm settings
 
@@ -139,8 +155,8 @@ $OUTPUT_DIR/
            │  └─ member_{MEMBER}/
            │     └─ data/{metric}/
            └─ ${MEMBER}/
-              ├─ init_field.grib          # link or perturbed
-              ├─ weights.tar | params/    # link or perturbed
+             ├─ init_field.grib          # link or perturbed
+             ├─ weights.tar | params/ | assets/  # model-specific assets (symlink or perturbed)
               └─ animations/              # GIFs + static PNGs
 
 ```
@@ -153,7 +169,58 @@ Each plot or animation is now accompanied by a data artefact saved beforehand:
 
 With these artefacts on disk you can generate bespoke visualisations or overlay multiple models using the `ai-ens intercompare` command without rerunning verification.
 
+## Testing & Validation
+
+The `tests/` directory contains scripts and documentation to help you verify the installation and monitor workflow progress.
+
+### Quick Tests
+
+```bash
+# Validate environment
+bash ./tests/validate.sh
+
+# Test all core functionality
+python tests/test_basic_functionality.py
+
+# Quick setup validation
+./tests/run_minimal_test.sh
+
+# Check workflow status
+./tests/check_workflow_status.sh
 ```
+
+### Available Test Scripts
+
+- **`validate.sh`**: Environment and configuration validation (checks dependencies, credentials, paths)
+- **`test_basic_functionality.py`**: Comprehensive test of all modules, CLI commands, and dependencies
+- **`run_minimal_test.sh`**: Quick end-to-end validation without data downloads
+- **`check_workflow_status.sh`**: Monitor progress and see which workflow steps are complete
+
+### Documentation
+
+- **[tests/README.md](tests/README.md)**: Complete testing documentation
+- **[tests/QUICKSTART_TEST.md](tests/QUICKSTART_TEST.md)**: Step-by-step example workflow
+- **[tests/TEST_RESULTS.md](tests/TEST_RESULTS.md)**: Sample test results and next steps
+
+### Example: Monitor a Running Workflow
+
+```bash
+# Check what's complete
+./tests/check_workflow_status.sh
+
+# Monitor Slurm jobs
+watch squeue -u $USER
+
+# View logs
+tail -f logs/*.out
+```
+
+The status checker shows:
+
+- Which data files have been downloaded
+- How many ensemble members are complete
+- Whether verification has run
+- What the next recommended step is
 
 ## Troubleshooting
 
