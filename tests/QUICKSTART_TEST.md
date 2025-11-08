@@ -238,16 +238,6 @@ If you want to test the CLI without downloading data, you can:
 
 ## Troubleshooting
 
-### Issue: JAX/Haiku import errors
-
-**Solution:** The models require specific JAX versions. Check compatibility:
-
-```bash
-python -c "import jax; print(jax.__version__)"
-```
-
-If errors persist, you may need to reinstall JAX with GPU support or update dependencies.
-
 ### Issue: ECMWF credentials not found
 
 **Error:** `~/.ecmwfapirc` not found

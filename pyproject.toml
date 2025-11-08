@@ -16,11 +16,13 @@ dependencies = [
     "dask",
     "cartopy",
     "matplotlib",
-    "numpy",
+    "numpy<2.0",
+    "dm-haiku>=0.0.12",
     "ai-models",
     "ai-models-graphcast",
     "ai-models-fourcastnetv2",
     "ai-models-gencast",
+    "graphcast @ git+https://github.com/google-deepmind/graphcast.git",
 ]
 
 [project.scripts]

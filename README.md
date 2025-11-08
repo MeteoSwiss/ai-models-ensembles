@@ -169,67 +169,13 @@ Each plot or animation is now accompanied by a data artefact saved beforehand:
 
 With these artefacts on disk you can generate bespoke visualisations or overlay multiple models using the `ai-ens intercompare` command without rerunning verification.
 
-## Testing & Validation
-
-The `tests/` directory contains scripts and documentation to help you verify the installation and monitor workflow progress.
-
-### Quick Tests
-
-```bash
-# Validate environment
-bash ./tests/validate.sh
-
-# Test all core functionality
-python tests/test_basic_functionality.py
-
-# Quick setup validation
-./tests/run_minimal_test.sh
-
-# Check workflow status
-./tests/check_workflow_status.sh
-```
-
-### Available Test Scripts
-
-- **`validate.sh`**: Environment and configuration validation (checks dependencies, credentials, paths)
-- **`test_basic_functionality.py`**: Comprehensive test of all modules, CLI commands, and dependencies
-- **`run_minimal_test.sh`**: Quick end-to-end validation without data downloads
-- **`check_workflow_status.sh`**: Monitor progress and see which workflow steps are complete
-
 ### Documentation
 
-- **[tests/README.md](tests/README.md)**: Complete testing documentation
 - **[tests/QUICKSTART_TEST.md](tests/QUICKSTART_TEST.md)**: Step-by-step example workflow
-- **[tests/TEST_RESULTS.md](tests/TEST_RESULTS.md)**: Sample test results and next steps
-
-### Example: Monitor a Running Workflow
-
-```bash
-# Check what's complete
-./tests/check_workflow_status.sh
-
-# Monitor Slurm jobs
-watch squeue -u $USER
-
-# View logs
-tail -f logs/*.out
-```
-
-The status checker shows:
-
-- Which data files have been downloaded
-- How many ensemble members are complete
-- Whether verification has run
-- What the next recommended step is
 
 ## Troubleshooting
 
-- Install GRIB readers if missing: use OS packages for ecCodes and `pip install cfgrib`.
-- Ensure `~/.cdsapirc` (and MARS) credentials are valid for ERA5/IFS access
-- For GPU inference, ensure NVIDIA drivers meet JAX/PyTorch requirements (driver >= 525 for CUDA 12). On aarch64, PyTorch GPU is installed from NVIDIA's pip wheels; JAX GPU comes from `jax[cuda12]` wheels (no local toolkit required).
-- GraphCast is installed from PyPI (`ai-models-graphcast`); no local source checkout is required.
-- If you see a message like "Loaded runtime CuDNN library: 9.1.0 but source was compiled with: 9.8.0" when importing both Torch and JAX in the same process: Import JAX before Torch (JAX preloads pip’s cuDNN 9.14, which Torch can reuse)
-
-## License
-
-See `LICENSE`.
+- **GRIB readers**: Install OS packages for ecCodes and `pip install cfgrib` if missing.
+- **ECMWF credentials**: Ensure `~/.cdsapirc` (and MARS) credentials are valid for ERA5/IFS access.
+- **GPU requirements**: Ensure NVIDIA drivers meet JAX/PyTorch requirements (driver >= 525 for CUDA 12). On aarch64, PyTorch GPU is installed from NVIDIA's pip wheels; JAX GPU comes from `jax[cuda12]` wheels (no local toolkit required).
+- **CuDNN warnings**: If you see "Loaded runtime CuDNN library: 9.1.0 but source was compiled with: 9.8.0" when importing both Torch and JAX in the same process: Import JAX before Torch (JAX preloads pip's cuDNN 9.14, which Torch can reuse).
