@@ -186,9 +186,7 @@ def _unstack_e2s_variable_axis(ds: xr.Dataset) -> xr.Dataset:
             sub = arr.sel(variable=tokens[0]).drop_vars("variable")
             out_vars[long_name] = sub
         else:
-            level_values = np.array(
-                [lvl for lvl in levels if lvl is not None], dtype="int64"
-            )
+            level_values = np.array([lvl for lvl in levels if lvl is not None], dtype="int64")
             sub = arr.sel(variable=tokens).rename({"variable": "level"})
             sub = sub.assign_coords(level=level_values).sortby("level")
             out_vars[long_name] = sub

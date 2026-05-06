@@ -57,11 +57,7 @@ def _list_package_files(package: Any) -> list[str]:
     """Return relative paths of files inside an earth2studio Package."""
     fs = package.fs
     root = package.root
-    return sorted(
-        p[len(root):].lstrip("/")
-        for p in fs.find(root)
-        if not fs.isdir(p)
-    )
+    return sorted(p[len(root) :].lstrip("/") for p in fs.find(root) if not fs.isdir(p))
 
 
 def _copy_package_to_local(package: Any, dest: Path) -> None:
@@ -121,7 +117,9 @@ def _perturb_torch(path: Path, sigma: float, rng: np.random.Generator, layer: in
     torch.save(obj if isinstance(obj, dict) else state, path)
 
 
-def _perturb_safetensors(path: Path, sigma: float, rng: np.random.Generator, layer: int | None) -> None:
+def _perturb_safetensors(
+    path: Path, sigma: float, rng: np.random.Generator, layer: int | None
+) -> None:
     from safetensors.numpy import load_file, save_file
 
     tensors = load_file(str(path))

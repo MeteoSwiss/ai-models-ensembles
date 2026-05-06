@@ -48,7 +48,5 @@ def test_models_command_lists_registry():
 def test_verify_rejects_missing_config(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.delenv("SWISSCLIM_CONFIG", raising=False)
     runner = CliRunner()
-    result = runner.invoke(
-        cli_module.app, ["verify", "--config", str(tmp_path / "nope.yaml")]
-    )
+    result = runner.invoke(cli_module.app, ["verify", "--config", str(tmp_path / "nope.yaml")])
     assert result.exit_code != 0

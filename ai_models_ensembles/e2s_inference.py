@@ -180,9 +180,7 @@ def run_inference(
         )
 
         print(f"[member {m + 1}/{n_members}] running rollout")
-        ds = _run_one_member(
-            model, data, init_time, steps, ensemble_id=m, seed=seed + m
-        )
+        ds = _run_one_member(model, data, init_time, steps, ensemble_id=m, seed=seed + m)
         ds = _filter_levels(ds, output_levels)
 
         if m == 0:

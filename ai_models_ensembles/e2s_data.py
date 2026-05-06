@@ -143,10 +143,12 @@ def build_data_source(spec: str, materialise: bool = False) -> Any:
                                cross-model comparison).
     """
     if spec.startswith("ifs_analysis:"):
-        return _ifs_analysis_source(spec[len("ifs_analysis:"):])
+        return _ifs_analysis_source(spec[len("ifs_analysis:") :])
     if spec.startswith("file:"):
-        path = spec[len("file:"):]
-        return XarrayDataSource(xr.open_dataset(path) if Path(path).is_file() else xr.open_zarr(path))
+        path = spec[len("file:") :]
+        return XarrayDataSource(
+            xr.open_dataset(path) if Path(path).is_file() else xr.open_zarr(path)
+        )
 
     from earth2studio import data as e2s_data  # type: ignore
 
@@ -160,9 +162,7 @@ def build_data_source(spec: str, materialise: bool = False) -> Any:
     }
     cls_name = table.get(spec.lower())
     if cls_name is None:
-        raise ValueError(
-            f"Unknown data source '{spec}'. Known: {sorted(table)} or 'file:PATH'."
-        )
+        raise ValueError(f"Unknown data source '{spec}'. Known: {sorted(table)} or 'file:PATH'.")
     cls = getattr(e2s_data, cls_name)
     return cls()
 

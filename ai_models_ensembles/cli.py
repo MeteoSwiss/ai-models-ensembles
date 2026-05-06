@@ -16,7 +16,9 @@ from .e2s_inference import run_inference
 from .e2s_models import REGISTRY
 
 rich_traceback_install(show_locals=False)
-app = typer.Typer(help="ai-models-ensembles: earth2studio-backed inference + SwissClim verification")
+app = typer.Typer(
+    help="ai-models-ensembles: earth2studio-backed inference + SwissClim verification"
+)
 
 
 def _env(name: str, default: Optional[str] = None) -> Optional[str]:
@@ -50,8 +52,7 @@ def cli_infer(
         "--model",
         "-m",
         help=(
-            "Model registry name (see `ai-ens models`). "
-            "Defaults to $MODEL_NAME from config.sh."
+            "Model registry name (see `ai-ens models`). " "Defaults to $MODEL_NAME from config.sh."
         ),
     ),
     init: Optional[str] = typer.Option(
@@ -268,9 +269,7 @@ def cli_intercompare(
         out = _env("OUTPUT_DIR")
         dt = _env("DATE_TIME")
         if not (out and dt):
-            raise typer.BadParameter(
-                "No paths given and $OUTPUT_DIR/$DATE_TIME are not both set."
-            )
+            raise typer.BadParameter("No paths given and $OUTPUT_DIR/$DATE_TIME are not both set.")
         # Recursive glob picks up:
         #   $OUTPUT_DIR/$DATE_TIME/<model>/init_*_latent_*_layer_*/<region>/swissclim_*
         #   $OUTPUT_DIR/$DATE_TIME/_ifs_ens/<region>/swissclim_ifs_ens
@@ -286,9 +285,7 @@ def cli_intercompare(
 
     if labels:
         if len(labels) != len(discovered):
-            raise typer.BadParameter(
-                f"Got {len(labels)} labels for {len(discovered)} paths."
-            )
+            raise typer.BadParameter(f"Got {len(labels)} labels for {len(discovered)} paths.")
         final_labels = list(labels)
     else:
         if label_from == "leaf":

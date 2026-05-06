@@ -79,9 +79,7 @@ REGISTRY: dict[str, ModelSpec] = {
 
 def get_spec(name: str) -> ModelSpec:
     if name not in REGISTRY:
-        raise KeyError(
-            f"Unknown model '{name}'. Available: {sorted(REGISTRY.keys())}"
-        )
+        raise KeyError(f"Unknown model '{name}'. Available: {sorted(REGISTRY.keys())}")
     return REGISTRY[name]
 
 

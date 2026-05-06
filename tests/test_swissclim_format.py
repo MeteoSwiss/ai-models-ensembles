@@ -90,9 +90,7 @@ def test_target_renames_isobaric_and_drops_valid_time():
             ),
         },
         coords={
-            "time": np.array(
-                ["2018-01-01T00", "2018-01-01T06"], dtype="datetime64[ns]"
-            ),
+            "time": np.array(["2018-01-01T00", "2018-01-01T06"], dtype="datetime64[ns]"),
             "isobaricInhPa": np.array([500, 850], dtype="int64"),
             "latitude": np.linspace(90, -90, 3),
             "longitude": np.linspace(0, 359, 4),
