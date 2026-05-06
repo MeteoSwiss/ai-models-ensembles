@@ -1,28 +1,20 @@
 [project]
 name = "ai-models-ensembles"
-version = "0.1.0"
-description = "Ensemble forecasting with AI models and weight perturbations"
+version = "0.2.0"
+description = "earth2studio-backed ensemble forecasting with IC and weight perturbations + SwissClim verification"
 authors = [{ name = "Simon Adamov", email = "simon.adamov@meteoswiss.ch" }]
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 
 dependencies = [
     "typer>=0.12",
     "rich>=13.0",
-    "numcodecs",
-    "scores",
-    "seaborn",
-    "zarr",
-    "xarray",
+    "zarr>=3.0",
+    "xarray>=2024.10",
     "dask",
-    "cartopy",
-    "matplotlib",
-    "numpy<2.0",
-    "dm-haiku>=0.0.12",
-    "ai-models",
-    "ai-models-graphcast",
-    "ai-models-fourcastnetv2",
-    "ai-models-gencast",
-    "graphcast @ git+https://github.com/google-deepmind/graphcast.git",
+    "numpy>=2.0",
+    "pyyaml>=6.0",
+    "earth2studio[graphcast,fcn,fcn3,sfno,gencast,pangu,fuxi,aifs]",
+    "swissclim-evaluations @ git+https://github.com/swiss-ai/SwissClim_Evaluations.git@research",
     "pytest>=8.0",
 ]
 
@@ -68,7 +60,7 @@ exclude = [
 line-length = 100
 indent-width = 4
 
-target-version = "py310"
+target-version = "py311"
 
 [tool.ruff.lint]
 # Enable Pyflakes (`F`) and a subset of the pycodestyle (`E`)  codes by default.

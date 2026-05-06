@@ -1,0 +1,141 @@
+# SwissClim Evaluations config template for ai-models-ensembles.
+#
+# Placeholders (envsubst-friendly):
+#   ${MODEL_DIR}        - $OUTPUT_DIR/$DATE_TIME/$MODEL_NAME
+#   ${PERTURBATION_DIR} - ${MODEL_DIR}/init_${PERTURBATION_INIT}_latent_${PERTURBATION_LATENT}_layer_${LAYER}
+#   ${REGION_DIR}       - ${PERTURBATION_DIR}/${CROP_REGION}
+#   ${MODEL_NAME}, ${DATE_TIME}, ${CROP_REGION}
+#   ${TARGET_PATH}      - absolute path to the ERA5 reference zarr (e.g. WB2 ERA5)
+#
+# Render to a concrete YAML before running, e.g.:
+#   envsubst < config/swissclim_eval.yaml.template > $REGION_DIR/swissclim_eval.yaml
+#   ai-ens verify --config $REGION_DIR/swissclim_eval.yaml
+#
+# All other knobs follow the upstream schema; see the example config in the
+# SwissClim Evaluations repository:
+# https://github.com/swiss-ai/SwissClim_Evaluations/blob/research/config/example_config.yaml
+
+paths:
+  prediction: "${PERTURBATION_DIR}/forecast.zarr"
+  target: "${TARGET_PATH}"
+  output_root: "${REGION_DIR}/swissclim_${MODEL_NAME}"
+
+selection:
+  levels: [100, 500, 850]
+  temporal_resolution_hours: null
+  # 8 weeks of init times matching sadamov/ifs_download (Mon-Sun in
+  # Jan/Apr/Jul/Oct of 2023 + 2024). Init cadence within each week is 6h.
+  datetimes:
+    - "2023-01-02T00:2023-01-08T18"
+    - "2023-04-02T00:2023-04-08T18"
+    - "2023-07-02T00:2023-07-08T18"
+    - "2023-10-02T00:2023-10-08T18"
+    - "2024-01-02T00:2024-01-08T18"
+    - "2024-04-02T00:2024-04-08T18"
+    - "2024-07-02T00:2024-07-08T18"
+    - "2024-10-02T00:2024-10-08T18"
+  latitudes: [90.0, -89.75]
+  longitudes: [0.0, 359.75]
+
+  variables_2d:
+    - "10m_u_component_of_wind"
+    - "10m_v_component_of_wind"
+    - "2m_temperature"
+
+  variables_3d:
+    - "geopotential"
+    - "temperature"
+    - "u_component_of_wind"
+    - "v_component_of_wind"
+
+  ensemble_members: null
+
+  ensemble:
+    maps: members
+    histograms: pooled
+    wd_kde: pooled
+    energy_spectra: pooled
+    vertical_profiles: mean
+    deterministic: mean
+    ets: mean
+    probabilistic: prob
+    ssim: mean
+    multivariate: mean
+
+  check_missing: false
+
+  lead_time:
+    mode: "full"
+    max_hour: 336   # 14 days
+
+plotting:
+  random_seed: 42
+  plot_datetime: null
+  plot_ensemble_members: null
+  dpi: 96
+  maps_lead_layout: stacked
+  maps_level_layout: per_level
+  kde_max_samples: auto
+  histogram_max_samples: auto
+  histograms_per_lat_band: false
+  wd_kde_per_lat_band: false
+  output_mode: both
+
+derived_variables:
+  10m_wind_speed:
+    kind: wind_speed
+    u: 10m_u_component_of_wind
+    v: 10m_v_component_of_wind
+  wind_speed:
+    kind: wind_speed
+    u: u_component_of_wind
+    v: v_component_of_wind
+
+modules:
+  maps: true
+  histograms: true
+  wd_kde: true
+  energy_spectra: true
+  vertical_profiles: true
+  deterministic: true
+  ets: true
+  probabilistic: true
+  ssim: true
+  multivariate: false
+
+metrics:
+  deterministic:
+    report_per_level: true
+    error_maps: false
+    include: ["MAE", "RMSE", "MSE", "Bias", "Relative MAE", "Pearson R", "FSS"]
+    standardized_include: ["MAE", "RMSE", "MSE", "Relative MAE"]
+    heatmap_normalization: global_std
+    fss:
+      quantile: 0.95
+      window_size: 9
+
+  ets:
+    report_per_level: true
+    thresholds: [70, 90]
+
+  energy_spectra:
+    report_per_level: true
+    individual_plots: false
+    per_lead_spectra_layout: none
+
+  ssim:
+    sigma: 1.5
+    k1: 0.01
+    k2: 0.03
+    gaussian_weights: true
+    use_sample_covariance: true
+    report_per_level: true
+    report_per_lead: true
+
+  probabilistic:
+    report_per_level: true
+
+performance:
+  dask_scheduler: distributed
+  dask_profile: safe
+  enforce_chunking: true

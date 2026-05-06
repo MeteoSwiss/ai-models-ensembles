@@ -11,7 +11,7 @@ IFS=$'\n\t'
 ROOT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 cd "$ROOT_DIR"
 
-PYVER=${PYVER:-3.10}
+PYVER=${PYVER:-3.11}
 RECREATE=${RECREATE:-0}
 
 # Ensure uv is installed

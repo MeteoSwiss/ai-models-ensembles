@@ -17,7 +17,7 @@ source .venv/bin/activate
 
 **What it does:**
 
-- Creates Python 3.10 virtual environment
+- Creates Python 3.11 virtual environment
 - Installs all dependencies via uv
 - Configures JAX and PyTorch for GPU support
 - Handles platform-specific installations (ARM/x86_64)
@@ -54,10 +54,10 @@ bash ./tools/validate.sh
 **What it validates:**
 
 - Configuration variables (OUTPUT_DIR, DATE_TIME, MODEL_NAME, etc.)
-- Python version (3.10.x recommended)
-- Required Python packages
-- External tools (ai-models, ImageMagick, GRIB tools)
-- ECMWF credentials and MARS connectivity
+- Python version (3.11.x recommended; required by earth2studio + SwissClim)
+- Required Python packages (xarray, zarr, typer, earth2studio, swissclim_evaluations)
+- External tools (envsubst)
+- CONTAINER_IMAGE existence (when set)
 - Directory permissions
 
 **Expected output:** "Validation completed; please review any warnings above."
@@ -75,11 +75,11 @@ python tools/test_basic_functionality.py
 
 **Tests performed:**
 
-- Python package imports
-- Module imports (CLI, preprocessing, plotting, etc.)
-- CLI command accessibility
+- Python package imports (CLI + e2s_models / e2s_data / e2s_perturbation /
+  e2s_inference)
+- `earth2studio` and `swissclim_evaluations` are importable
+- CLI command accessibility (`models`, `infer`, `verify`, `intercompare`)
 - Dependency versions
-- ai-models installation
 - Configuration file existence
 
 **Expected output:** All tests pass with ✓ marks
@@ -120,11 +120,9 @@ Monitor workflow progress and completion status.
 **Information displayed:**
 
 - Current configuration settings
-- Data download status (ERA5, IFS ensemble, IFS control)
-- Model fields file status
-- Ensemble member count and completion
-- Forecast output status
-- Verification and plots status
+- Forecast Zarr presence under `$PERTURBATION_DIR/`
+- Per-perturbation completion status across `$PERTURBATION_LATENTS`
+- Verification (SwissClim) output presence under `$REGION_DIR/`
 - Recommended next step
 
 **Example output:**

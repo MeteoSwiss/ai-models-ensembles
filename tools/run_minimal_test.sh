@@ -1,119 +1,53 @@
 #!/bin/bash
-#
-# Minimal test workflow for ai-models-ensembles
-# This script runs a simple test with minimal data to verify the pipeline works
-#
+# Minimal sanity test for ai-models-ensembles. No GPU, no network.
 set -euo pipefail
 
-# Change to repository root
 cd "$(dirname "$0")/.."
 
-echo "Quick validation test for ai-models-ensembles"
-echo "============================================="
-echo ""
-echo "This script performs a minimal test of the installation."
-echo "For a complete step-by-step example, see tools/QUICKSTART_TEST.md"
+echo "ai-models-ensembles - minimal sanity test"
+echo "========================================="
 echo ""
 
-# Activate virtual environment
 if [ ! -d ".venv" ]; then
-    echo "❌ Virtual environment not found. Run: bash tools/setup_uv.sh"
+    echo "Virtual environment not found. Run: bash tools/setup_uv.sh"
     exit 1
 fi
-
 source .venv/bin/activate
 
-# Load configuration
 if [ ! -f "scripts/config.sh" ]; then
-    echo "❌ scripts/config.sh not found"
+    echo "scripts/config.sh not found"
     exit 1
 fi
-
 source scripts/config.sh
 
-# Activate environment
-echo "Step 1: Activating virtual environment..."
-source .venv/bin/activate
-source config.sh
-
-echo "✓ Environment activated"
-echo "  - OUTPUT_DIR: $OUTPUT_DIR"
-echo "  - DATE_TIME: $DATE_TIME"
-echo "  - MODEL_NAME: $MODEL_NAME"
+echo "Step 1: Activated venv"
+echo "  OUTPUT_DIR: $OUTPUT_DIR"
+echo "  DATE_TIME:  $DATE_TIME"
+echo "  MODEL_NAME: $MODEL_NAME"
 echo ""
 
-# Create output directory
-echo "Step 2: Creating output directory structure..."
-mkdir -p "$MODEL_DIR"
-echo "✓ Created $MODEL_DIR"
+echo "Step 2: CLI help"
+ai-ens --help > /dev/null
+echo "  ai-ens --help: OK"
 echo ""
 
-# Test CLI help
-echo "Step 3: Testing CLI commands..."
-python -m ai_models_ensembles.cli --help > /dev/null
-echo "✓ CLI is working"
+echo "Step 3: Registered models"
+ai-ens models
 echo ""
 
-# List available models
-echo "Step 4: Listing available AI models..."
-echo "Available models:"
-ai-models --models | sed 's/^/  - /'
+echo "Step 4: earth2studio + swissclim_evaluations import"
+python - <<'PY'
+import importlib, sys
+ok = True
+for mod in ("earth2studio", "swissclim_evaluations", "ai_models_ensembles.e2s_inference"):
+    try:
+        importlib.import_module(mod)
+        print(f"  {mod}: OK")
+    except Exception as exc:
+        print(f"  {mod}: FAIL ({exc})")
+        ok = False
+sys.exit(0 if ok else 1)
+PY
 echo ""
 
-# Show required fields for the selected model
-echo "Step 5: Checking required fields for $MODEL_NAME..."
-FIELDS_FILE="$MODEL_DIR/fields.txt"
-if [ ! -f "$FIELDS_FILE" ]; then
-    echo "Generating fields file..."
-    # Note: This may fail if the model can't be loaded due to JAX issues
-    # We'll catch the error and continue
-    if ai-models --fields "$MODEL_NAME" > "$FIELDS_FILE" 2>&1; then
-        echo "✓ Fields file generated at $FIELDS_FILE"
-        echo "  Total fields: $(wc -l < "$FIELDS_FILE")"
-        echo "  First 10 fields:"
-        head -10 "$FIELDS_FILE" | sed 's/^/    /'
-    else
-        echo "⚠️  Could not generate fields (model loading issue - this is OK for testing)"
-        echo "    This is likely due to JAX/Haiku compatibility on ARM architecture"
-        rm -f "$FIELDS_FILE"
-    fi
-else
-    echo "✓ Fields file already exists"
-fi
-echo ""
-
-echo "=========================================="
-echo "Summary"
-echo "=========================================="
-echo ""
-echo "✓ Repository structure: OK"
-echo "✓ Virtual environment: OK"
-echo "✓ CLI functionality: OK"
-echo "✓ ai-models installation: OK"
-echo ""
-echo "The repository is ready to use!"
-echo ""
-echo "=========================================="
-echo "Next Steps for Full Workflow"
-echo "=========================================="
-echo ""
-echo "To run a complete example with data download and inference:"
-echo ""
-echo "1. Download initial conditions (requires ECMWF credentials):"
-echo "   ai-ens download-reanalysis"
-echo ""
-echo "2. Download IFS reference data (optional):"
-echo "   ai-ens download-ifs-ensemble"
-echo "   ai-ens download-ifs-control"
-echo ""
-echo "3. Run model inference (requires GPU):"
-echo "   ai-ens infer --member 0"
-echo ""
-echo "4. Convert to Zarr format:"
-echo "   ai-ens convert --path \"\$PERTURBATION_DIR\" --subdir-search"
-echo ""
-echo "5. Generate verification plots:"
-echo "   ai-ens verify"
-echo ""
-echo "For detailed instructions, see scripts/QUICKSTART_TEST.md"
-echo ""
+echo "All checks passed. See tools/QUICKSTART_TEST.md for the full workflow."

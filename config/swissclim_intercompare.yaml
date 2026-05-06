@@ -1,0 +1,22 @@
+# Intercomparison config for SwissClim Evaluations.
+#
+# Run with:
+#   swissclim-evaluations-compare --config config/swissclim_intercompare.yaml
+#
+# Each entry under `models` should point at an output_root produced by a prior
+# `ai-ens verify` run (i.e. the `swissclim_<model>` folder under $REGION_DIR).
+
+models:
+  - /path/to/REGION_DIR_A/swissclim_graphcast
+  - /path/to/REGION_DIR_B/swissclim_fourcastnetv2-small
+
+labels:
+  - GraphCast
+  - FourCastNetV2
+
+output_root: comparisons/graphcast_vs_fourcastnet
+
+modules: [maps, hist, kde, spectra, vprof, metrics, ets, prob, multivariate]
+
+max_map_panels: 4
+max_crps_map_panels: 4

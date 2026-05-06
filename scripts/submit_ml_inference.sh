@@ -20,47 +20,43 @@ cd "$(dirname "$0")/.." || exit 1
 source ./scripts/config.sh
 bash ./tools/validate.sh
 
-export job1='echo "Running $MODEL_NAME for $DATE_TIME with $NUM_MEMBERS members and initial \
-perturbation $PERTURBATION_INIT, latent perturbation $PERTURBATION_LATENT"
-echo "This will generate roughly $((NUM_MEMBERS * 7))GB of data"
+# One srun per perturbation latent. Each srun runs `ai-ens infer` inside the
+# enroot container, which loads the e2s model, builds the IC source, and
+# rolls $NUM_MEMBERS members into $PERTURBATION_DIR/forecast.zarr.
+run_one() {
+    local latent="$1"
+    export PERTURBATION_LATENT="$latent"
+    export PERTURBATION_DIR="${MODEL_DIR}/init_${PERTURBATION_INIT}_latent_${PERTURBATION_LATENT}_layer_${LAYER}"
+    mkdir -p "${PERTURBATION_DIR}"
 
-proceed_if_not_exists "${MODEL_DIR}/${MODEL_NAME}.grib" "pushd ${MODEL_DIR} && \
-    ai-models --input file --file init_field.grib --lead-time ${LEAD_TIME} \
-    --download-assets $MODEL_NAME && popd"'
+    local container_args=()
+    if [[ -n "${CONTAINER_IMAGE:-}" ]]; then
+        container_args=(--container-image="${CONTAINER_IMAGE}")
+    fi
 
-export job2='python -u -m ai_models_ensembles.cli infer'
+    ${DRY_RUN:+echo} srun -N1 -n1 -c"${INF_CPUS}" --mem "${INF_MEM}" \
+        --gres=gpu:"${INF_GPUS}" \
+        "${container_args[@]}" \
+        --output="${LOG_DIR}/out_ml${latent}_%j.log" \
+        --error="${LOG_DIR}/err_ml${latent}_%j.log" \
+        ai-ens infer \
+            --model "${MODEL_NAME}" \
+            --init "${INIT_ISO}" \
+            --lead-hours "${LEAD_TIME}" \
+            --members "${NUM_MEMBERS}" \
+            --ic-magnitude "${PERTURBATION_INIT}" \
+            --weight-magnitude "${PERTURBATION_LATENT}" \
+            --layer "${LAYER}" \
+            --data-source "${DATA_SOURCE:-arco}" \
+            --output-levels "${OUTPUT_LEVELS}" \
+            --output "${PERTURBATION_DIR}/forecast.zarr" &
+}
 
-${DRY_RUN:+echo} srun -N1 -n1 -c"${INF_CPUS}" --mem "${INF_MEM}" \
-    --output="${LOG_DIR}/out_ml0_%j.log" \
-    --error="${LOG_DIR}/err_ml0_%j.log" \
-    bash -c "$job1"
+# Convert YYYYMMDDHHMM to ISO-8601 once.
+INIT_ISO="${DATE_TIME:0:4}-${DATE_TIME:4:2}-${DATE_TIME:6:2}T${DATE_TIME:8:2}:${DATE_TIME:10:2}"
+export INIT_ISO
 
-# Array mode: if SLURM_ARRAY_TASK_ID is present, run a single member for the current env (set PERTURBATION_LATENT before sbatch)
-if [ -n "${SLURM_ARRAY_TASK_ID:-}" ]; then
-    MEMBER_ID="${SLURM_ARRAY_TASK_ID}"
-    python -u -m ai_models_ensembles.cli infer --member "$MEMBER_ID"
-else
-    # Non-array mode: loop over perturbation values and run full member loops via CLI
-    for latent in ${PERTURBATION_LATENTS}; do
-        export PERTURBATION_LATENT=$latent
-        export PERTURBATION_DIR="${MODEL_DIR}/init_${PERTURBATION_INIT}_latent_${PERTURBATION_LATENT}_layer_${LAYER}"
-        export job2
-        ${DRY_RUN:+echo} srun -N1 -n1 -c"${INF_CPUS}" --mem "${INF_MEM}" --gres=gpu:"${INF_GPUS}" \
-             --output="${LOG_DIR}/out_ml${latent}_%j.log" \
-             --error="${LOG_DIR}/err_ml${latent}_%j.log" \
-             bash -c "$job2" &
-    done
-    wait
-fi
-
-# # Run with different perturbation layers
-# for layer in 0 1 2 3 4 5 6 7 8 9 10 11 12; do
-#     export LAYER=$layer
-#     export PERTURBATION_DIR="${MODEL_DIR}/init_${PERTURBATION_INIT}_latent_${PERTURBATION_LATENT}_layer_${LAYER}"
-#     export job2
-#     srun -N1 -n1 -c32 --gres=gpu:1 \
-#          --output=logs/out_ml${layer}_%j.log \
-#          --error=logs/err_ml${layer}_%j.log \
-#          bash -c "$job2"
-# done
-# wait
+for latent in ${PERTURBATION_LATENTS}; do
+    run_one "$latent"
+done
+wait

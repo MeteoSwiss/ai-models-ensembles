@@ -1,42 +1,27 @@
 from __future__ import annotations
 
 import os
-import re
 import shutil
+import subprocess
+import tempfile
+from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
 
 import typer
+import yaml
 from rich.traceback import install as rich_traceback_install
 
-from .convert_grib_to_zarr import convert_grib_to_zarr
-from .download_ifs_control import download_ifs_control
-from .download_ifs_ensemble import download_ifs_ensemble
-from .download_re_analysis import download_re_analysis
+from .e2s_inference import run_inference
+from .e2s_models import REGISTRY
 
 rich_traceback_install(show_locals=False)
-app = typer.Typer(help="AI Models Ensembles CLI")
+app = typer.Typer(help="ai-models-ensembles: earth2studio-backed inference + SwissClim verification")
 
 
 def _env(name: str, default: Optional[str] = None) -> Optional[str]:
     val = os.environ.get(name, default)
     return None if val is None else str(val)
-
-
-def _ensure_dir(path: Path) -> None:
-    path.mkdir(parents=True, exist_ok=True)
-
-
-def _validate_basic_config() -> None:
-    out = _env("OUTPUT_DIR")
-    date_time = _env("DATE_TIME")
-    model = _env("MODEL_NAME")
-    if not out:
-        raise typer.Abort()
-    if not date_time or not re.fullmatch(r"\d{12}", date_time):
-        raise typer.BadParameter("DATE_TIME must be YYYYMMDDHHMM")
-    if model not in {"graphcast", "fourcastnetv2-small", "gencast"}:
-        raise typer.BadParameter(f"Unknown MODEL_NAME: {model}")
 
 
 def _model_dir() -> Path:
@@ -50,663 +35,304 @@ def _perturbation_dir() -> Path:
     )
 
 
-def _exists(p: Path) -> bool:
-    return p.exists()
-
-
-def _symlink(src: Path, dst: Path) -> None:
-    try:
-        if dst.exists() or dst.is_symlink():
-            dst.unlink()
-    except FileNotFoundError:
-        pass
-    dst.symlink_to(src)
-
-
-@app.command("download-reanalysis")
-def cli_download_reanalysis(
-    out_dir: Optional[str] = typer.Option(None, help="Output dir (defaults to $OUTPUT_DIR)"),
-    start: Optional[str] = typer.Option(None, help="Start (YYYYMMDDHHMM); defaults to $DATE_TIME"),
-    end: Optional[str] = typer.Option(None, help="End (YYYYMMDDHHMM); defaults to $END_DATE_TIME"),
-    interval: Optional[int] = typer.Option(
-        None, help="Hours between analyses; defaults to $INTERVAL"
-    ),
-    model: Optional[str] = typer.Option(None, help="Model name; defaults to $MODEL_NAME"),
-) -> None:
-    _validate_basic_config()
-    out = out_dir or _env("OUTPUT_DIR") or ""
-    start_dt = start or _env("DATE_TIME") or ""
-    end_dt = end or _env("END_DATE_TIME") or ""
-    inter = int(interval or int(_env("INTERVAL", "6") or 6))
-    mdl = model or _env("MODEL_NAME") or "graphcast"
-    download_re_analysis(out, start_dt, end_dt, inter, mdl)
-
-
-@app.command("download-ifs-ensemble")
-def cli_download_ifs_ensemble(
-    out_dir: Optional[str] = typer.Option(None, help="Output dir (defaults to $OUTPUT_DIR)"),
-    date_time: Optional[str] = typer.Option(None, help="YYYYMMDDHHMM; defaults to $DATE_TIME"),
-    interval: Optional[int] = typer.Option(None, help="Hours between steps; defaults to $INTERVAL"),
-    num_days: Optional[int] = typer.Option(None, help="Days to download; defaults to $NUM_DAYS"),
-    model: Optional[str] = typer.Option(None, help="Model name; defaults to $MODEL_NAME"),
-) -> None:
-    _validate_basic_config()
-    out = out_dir or _env("OUTPUT_DIR") or ""
-    dt = date_time or _env("DATE_TIME") or ""
-    inter = int(interval or int(_env("INTERVAL", "6") or 6))
-    days = int(num_days or int(_env("NUM_DAYS", "10") or 10))
-    mdl = model or _env("MODEL_NAME") or "graphcast"
-    download_ifs_ensemble(out, dt, inter, days, mdl)
-
-
-@app.command("download-ifs-control")
-def cli_download_ifs_control(
-    out_dir: Optional[str] = typer.Option(None, help="Output dir (defaults to $OUTPUT_DIR)"),
-    date_time: Optional[str] = typer.Option(None, help="YYYYMMDDHHMM; defaults to $DATE_TIME"),
-    interval: Optional[int] = typer.Option(None, help="Hours between steps; defaults to $INTERVAL"),
-    num_days: Optional[int] = typer.Option(None, help="Days to download; defaults to $NUM_DAYS"),
-    model: Optional[str] = typer.Option(None, help="Model name; defaults to $MODEL_NAME"),
-) -> None:
-    _validate_basic_config()
-    out = out_dir or _env("OUTPUT_DIR") or ""
-    dt = date_time or _env("DATE_TIME") or ""
-    inter = int(interval or int(_env("INTERVAL", "6") or 6))
-    days = int(num_days or int(_env("NUM_DAYS", "10") or 10))
-    mdl = model or _env("MODEL_NAME") or "graphcast"
-    download_ifs_control(out, dt, inter, days, mdl)
-
-
-@app.command("convert")
-def cli_convert(
-    path: str = typer.Option(..., help="Path to model or perturbation dir"),
-    subdir_search: bool = typer.Option(False, help="Search subdirs for GRIB files"),
-) -> None:
-    p = Path(path)
-    if not p.exists():
-        raise typer.BadParameter(f"Path not found: {p}")
-    convert_grib_to_zarr(str(p), subdir_search=subdir_search)
+@app.command("models")
+def cli_models() -> None:
+    """List available earth2studio models."""
+    for name, spec in sorted(REGISTRY.items()):
+        kind = "probabilistic" if spec.probabilistic else "deterministic"
+        typer.echo(f"  {name:<22} step={spec.step_hours}h  {kind:<14} {spec.description}")
 
 
 @app.command("infer")
 def cli_infer(
-    member: Optional[int] = typer.Option(None, help="Run only this member id (array mode)"),
+    model: Optional[str] = typer.Option(
+        None,
+        "--model",
+        "-m",
+        help=(
+            "Model registry name (see `ai-ens models`). "
+            "Defaults to $MODEL_NAME from config.sh."
+        ),
+    ),
+    init: Optional[str] = typer.Option(
+        None,
+        "--init",
+        help=(
+            "Initialization time, ISO-8601 (e.g. 2023-01-02T00). "
+            "Defaults to $DATE_TIME (YYYYMMDDHHMM) from config.sh."
+        ),
+    ),
+    lead_hours: int = typer.Option(
+        240, "--lead-hours", "-L", help="Total forecast lead time in hours."
+    ),
+    output: Optional[str] = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Output zarr path. Defaults to $PERTURBATION_DIR/forecast.zarr.",
+    ),
+    members: int = typer.Option(1, "--members", "-n", help="Number of ensemble members."),
+    ic_magnitude: float = typer.Option(
+        0.0, "--ic-magnitude", help="Std-dev of multiplicative IC noise (0 disables)."
+    ),
+    weight_magnitude: float = typer.Option(
+        0.0,
+        "--weight-magnitude",
+        help="Std-dev of multiplicative weight noise (0 disables).",
+    ),
+    layer: Optional[int] = typer.Option(
+        None,
+        "--layer",
+        help="Index of the weight tensor to perturb (None = all). Read from $LAYER if unset.",
+    ),
+    data_source: str = typer.Option(
+        "arco",
+        "--data-source",
+        help="ARCO | CDS | GFS | IFS | IFS_ENS | WB2 | file:PATH (case-insensitive).",
+    ),
+    output_levels: str = typer.Option(
+        "100,500,850",
+        "--output-levels",
+        help=(
+            "Comma-separated pressure levels (hPa) kept in the forecast zarr. "
+            "Set to 'all' to keep every level the model emits. Reads $OUTPUT_LEVELS if set."
+        ),
+    ),
+    seed: int = typer.Option(0, "--seed", help="RNG seed (member id is added to it)."),
 ) -> None:
-    _validate_basic_config()
-    out_dir = Path(_env("OUTPUT_DIR", ""))
-    model_name = _env("MODEL_NAME", "")
-    num_members = int(_env("NUM_MEMBERS", "1"))
-    lead_time = int(_env("LEAD_TIME", "24"))
-    perturb_init = float(_env("PERTURBATION_INIT", "0.0"))
-    perturb_latent = float(_env("PERTURBATION_LATENT", "0.0"))
-
-    model_dir = _model_dir()
-    pert_dir = _perturbation_dir()
-    is_graphcast = model_name == "graphcast"
-    is_fourcast = model_name == "fourcastnetv2-small"
-    is_gencast = model_name == "gencast"
-    effective_perturb_latent = 0.0 if is_gencast else perturb_latent
-    if is_gencast and perturb_latent > 0.0:
-        typer.echo(
-            "Latent perturbations are ignored for probabilistic model 'gencast'.",
-            err=True,
+    """Run inference + write a SwissClim-format zarr."""
+    model_name = model or _env("MODEL_NAME") or ""
+    if not model_name:
+        raise typer.BadParameter("--model not given and $MODEL_NAME unset.")
+    if model_name not in REGISTRY:
+        raise typer.BadParameter(
+            f"Unknown model '{model_name}'. Available: {sorted(REGISTRY.keys())}"
         )
-    _ensure_dir(pert_dir)
 
-    members = [int(member)] if member is not None else list(range(num_members))
-    for m in members:
-        member_dir = pert_dir / str(m)
-        _ensure_dir(member_dir)
+    if init:
+        init_time = datetime.fromisoformat(init)
+    else:
+        date_time = _env("DATE_TIME")
+        if not date_time:
+            raise typer.BadParameter("--init not given and $DATE_TIME unset.")
+        init_time = datetime.strptime(date_time, "%Y%m%d%H%M")
 
-        # Initial condition perturbation
-        init_grib = member_dir / "init_field.grib"
-        if perturb_init > 0.0:
-            if not _exists(init_grib):
-                import subprocess
+    if output:
+        out_path = Path(output)
+    else:
+        out_path = _perturbation_dir() / "forecast.zarr"
 
-                subprocess.run(
-                    [
-                        "python",
-                        "-u",
-                        "-m",
-                        "ai_models_ensembles.perturb_era5",
-                        str(out_dir),
-                        _env("DATE_TIME", ""),
-                        model_name,
-                        str(perturb_init),
-                        str(perturb_latent),
-                        str(m),
-                    ],
-                    check=True,
-                )
-        else:
-            _symlink(model_dir / "init_field.grib", init_grib)
+    if layer is None:
+        env_layer = _env("LAYER")
+        layer = int(env_layer) if env_layer not in (None, "", "None") else None
+    if ic_magnitude == 0.0:
+        env_ic = _env("PERTURBATION_INIT")
+        if env_ic is not None:
+            ic_magnitude = float(env_ic)
+    if weight_magnitude == 0.0:
+        env_w = _env("PERTURBATION_LATENT")
+        if env_w is not None:
+            weight_magnitude = float(env_w)
+    if members == 1:
+        env_n = _env("NUM_MEMBERS")
+        if env_n is not None:
+            members = int(env_n)
 
-        # Latent/weights perturbation
-        if effective_perturb_latent > 0.0:
-            if is_graphcast:
-                params_dir = member_dir / "params"
-                if not params_dir.exists():
-                    import subprocess
+    env_levels = _env("OUTPUT_LEVELS")
+    if env_levels is not None and output_levels == "100,500,850":
+        output_levels = env_levels
+    levels_list: list[int] | None
+    if output_levels.strip().lower() in {"", "all"}:
+        levels_list = None
+    else:
+        levels_list = [int(x) for x in output_levels.split(",") if x.strip()]
 
-                    subprocess.run(
-                        [
-                            "python",
-                            "-u",
-                            "-m",
-                            "ai_models_ensembles.perturb_graphcast_weights",
-                            str(out_dir),
-                            _env("DATE_TIME", ""),
-                            model_name,
-                            str(perturb_init),
-                            str(perturb_latent),
-                            str(m),
-                            _env("LAYER", "0"),
-                        ],
-                        check=True,
-                    )
-            elif is_fourcast:
-                weights_tar = member_dir / "weights.tar"
-                if not _exists(weights_tar):
-                    import subprocess
-
-                    subprocess.run(
-                        [
-                            "python",
-                            "-u",
-                            "-m",
-                            "ai_models_ensembles.perturb_fourcastnet_weights",
-                            str(out_dir),
-                            _env("DATE_TIME", ""),
-                            model_name,
-                            str(perturb_init),
-                            str(perturb_latent),
-                            str(m),
-                            _env("LAYER", "0"),
-                        ],
-                        check=True,
-                    )
-        else:
-            if is_graphcast:
-                _symlink(model_dir / "params", member_dir / "params")
-            elif is_fourcast:
-                _symlink(model_dir / "weights.tar", member_dir / "weights.tar")
-
-        # Common assets
-        if is_graphcast:
-            _symlink(model_dir / "stats", member_dir / "stats")
-        elif is_fourcast:
-            _symlink(model_dir / "global_means.npy", member_dir / "global_means.npy")
-            _symlink(model_dir / "global_stds.npy", member_dir / "global_stds.npy")
-        elif is_gencast:
-            assets_src = model_dir / "assets"
-            if not assets_src.exists():
-                raise typer.BadParameter(
-                    "GenCast assets not found. Run ai-models with --download-assets gencast first."
-                )
-            _symlink(assets_src, member_dir / "assets")
-            fields_src = model_dir / "fields.txt"
-            if fields_src.exists():
-                _symlink(fields_src, member_dir / "fields.txt")
-
-        # Run the model
-        if not (pert_dir / f"forecast.zarr/member/{m}").exists():
-            import subprocess
-
-            cmd = [
-                "ai-models",
-                "--input",
-                "file",
-                "--file",
-                str(init_grib),
-                "--lead-time",
-                str(lead_time),
-            ]
-            if is_gencast:
-                cmd.extend(
-                    [
-                        "--num-ensemble-members",
-                        "1",
-                        "--member-number",
-                        str(m + 1),
-                    ]
-                )
-            cmd.append(model_name)
-
-            subprocess.run(cmd, cwd=member_dir, check=True)
-
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    typer.echo(
+        f"Inference: model={model_name} init={init_time.isoformat()} "
+        f"lead={lead_hours}h members={members} ic={ic_magnitude} "
+        f"weight={weight_magnitude} layer={layer} source={data_source} "
+        f"levels={levels_list or 'all'}"
+    )
+    run_inference(
+        model_name=model_name,
+        init_time=init_time,
+        lead_hours=lead_hours,
+        output=out_path,
+        n_members=members,
+        ic_magnitude=ic_magnitude,
+        weight_magnitude=weight_magnitude,
+        layer=layer,
+        data_source=data_source,
+        seed=seed,
+        output_levels=levels_list,
+    )
     typer.echo("*****DONE*****")
 
 
 @app.command("verify")
-def cli_verify() -> None:
-    _validate_basic_config()
-    out_dir = _env("OUTPUT_DIR", "")
-    dt = _env("DATE_TIME", "")
-    model_name = _env("MODEL_NAME", "")
-    p_init = _env("PERTURBATION_INIT", "0.0")
-    p_latent = _env("PERTURBATION_LATENT", "0.0")
-    layer = _env("LAYER", "0")
-    n_members = _env("NUM_MEMBERS", "1")
-    region = _env("CROP_REGION", "europe")
+def cli_verify(
+    config: Optional[str] = typer.Option(
+        None,
+        "--config",
+        "-c",
+        help=(
+            "Path to a SwissClim Evaluations YAML config. Defaults to "
+            "$SWISSCLIM_CONFIG, then config/swissclim_eval.yaml in the repo."
+        ),
+    ),
+) -> None:
+    """Run verification via SwissClim Evaluations.
 
-    region_dir = _perturbation_dir() / region
-    _ensure_dir(region_dir)
-
-    # Imports for plotting/animations as library calls (no argparse)
-    from types import SimpleNamespace
-
-    import seaborn as sns
-
-    import ai_models_ensembles.animate_2d_maps as a2
-    import ai_models_ensembles.animate_3d_grids as a3
-    import ai_models_ensembles.plot_0d_distributions as p0
-    import ai_models_ensembles.plot_1d_timeseries as p1
-    from ai_models_ensembles.plot_0d_distributions import (
-        plot_pit_histogram,
-        plot_pit_histogram_by_lead,
-    )
-    from ai_models_ensembles.plot_1d_timeseries import (
-        plot_vertical_profile_metrics as vprof_plot,
-    )
-
-    from .preprocess_data import (
-        calculate_stats,
-        calculate_y_lims,
-        load_and_prepare_data,
-    )
-
-    # Load data
-    path_in = str(_model_dir())
-    data = load_and_prepare_data(
-        path_in,
-        ["u10"],  # default selection from original config
-        region,
-        model_name,
-        float(p_init),
-        float(p_latent),
-        int(layer),
-        int(n_members),
-        debug_mode=False,
-    )
-
-    # 0D density plots
-    png_dir = region_dir / f"png_{model_name}"
-    data_dir = region_dir / f"artifacts_{model_name}"
-    if not png_dir.exists():
-        typer.echo("Evaluating model and creating 0D and 1D figures")
-        png_dir.mkdir(parents=True, exist_ok=True)
-        variables = list(data["forecast"].data_vars)
-        vars_3d = [var for var in variables if "isobaricInhPa" in data["forecast"][var].dims]
-        vars_2d = [var for var in variables if "isobaricInhPa" not in data["forecast"][var].dims]
-        config = {
-            "color_palette": sns.color_palette(
-                [
-                    "#f75b78",
-                    "#6495ed",
-                    "#0e2d75",
-                    "#f9c740",
-                    "#45b7aa",
-                    "#353434",
-                ]
-            ),
-            "sample_size": 100000,
-            "selected_vars": ["u10"],
-            "output_mode": "both",
-            "artifact_root": str(data_dir),
-        }
-        # Individual density plots
-        args_list_ind = p0.prepare_density_distribution_args(
-            data,
-            vars_3d,
-            vars_2d,
-            config,
-            str(png_dir),
-            model_name,
-            region,
-            dt,
-            max_samples=config["sample_size"],
-            combined=False,
-            artifact_root=str(data_dir),
-            output_mode=config["output_mode"],
-        )
-        for plot_args in args_list_ind:
-            p0.plot_density_distribution(**plot_args)
-        # Combined density plots
-        args_list_comb = p0.prepare_density_distribution_args(
-            data,
-            vars_3d,
-            vars_2d,
-            config,
-            str(png_dir),
-            model_name,
-            region,
-            dt,
-            max_samples=config["sample_size"],
-            max_variables=5,
-            combined=True,
-            artifact_root=str(data_dir),
-            output_mode=config["output_mode"],
-        )
-        for plot_args in args_list_comb:
-            p0.plot_combined_density_distribution(**plot_args)
-
-        # 0D PIT histograms (global + per-lead) for a small selection of variables
-        pit_vars = config.get("selected_vars", []) or [v for v in vars_2d[:1]]
-        for var in pit_vars:
-            # Surface variable
-            plot_pit_histogram(
-                variable=var,
-                forecast=data["forecast"],
-                ground_truth=data["ground_truth"],
-                path_out=str(png_dir),
-                model_name=model_name,
-                level=None,
-                output_mode=config["output_mode"],
-                artifact_root=str(data_dir),
-                ensemble=model_name,
-            )
-            plot_pit_histogram_by_lead(
-                variable=var,
-                forecast=data["forecast"],
-                ground_truth=data["ground_truth"],
-                path_out=str(png_dir),
-                model_name=model_name,
-                level=None,
-                output_mode=config["output_mode"],
-                artifact_root=str(data_dir),
-                ensemble=model_name,
-                panel_cols=2,
-            )
-        # For 3D, use the first level per var to keep runtime light
-        for var in vars_3d[:1]:
-            try:
-                lvl = data["forecast"][var].coords["isobaricInhPa"].values[0]
-                plot_pit_histogram(
-                    variable=var,
-                    forecast=data["forecast"],
-                    ground_truth=data["ground_truth"],
-                    path_out=str(png_dir),
-                    model_name=model_name,
-                    level=float(lvl),
-                    output_mode=config["output_mode"],
-                    artifact_root=str(data_dir),
-                    ensemble=model_name,
-                )
-                plot_pit_histogram_by_lead(
-                    variable=var,
-                    forecast=data["forecast"],
-                    ground_truth=data["ground_truth"],
-                    path_out=str(png_dir),
-                    model_name=model_name,
-                    level=float(lvl),
-                    output_mode=config["output_mode"],
-                    artifact_root=str(data_dir),
-                    ensemble=model_name,
-                    panel_cols=2,
-                )
-            except Exception:
-                pass
-
-        # 1D timeseries and scorecards
-        default_stats = calculate_stats(
-            data["ground_truth"],
-            data["forecast"],
-            data["forecast_unperturbed"],
-            region,
-        )
-        ifs_stats = calculate_stats(
-            data["ground_truth"],
-            data["forecast_ifs"],
-            data["forecast_ifs_unperturbed"],
-            region,
-        )
-        # alpha_value is used inside plot_1d_timeseries.prepare_plot_args
-        p1.alpha_value = 1 / data["forecast"].member.size ** (5 / 8)
-        y_lims = calculate_y_lims(
-            vars_3d,
-            vars_2d,
-            data["forecast"],
-            data["forecast_ifs"],
-            default_stats,
-            ifs_stats,
-        )
-        default_plot_args = p1.prepare_plot_args(
-            data,
-            default_stats,
-            vars_3d,
-            vars_2d,
-            config,
-            **y_lims,
-            use_ifs=False,
-            path_out=str(png_dir),
-            model_name=model_name.title(),
-            region=region.title(),
-            date_time=dt,
-            output_mode=config["output_mode"],
-            artifact_root=str(data_dir),
-        )
-        png_dir_ifs = region_dir / "png_ifs"
-        data_dir_ifs = region_dir / "artifacts_ifs"
-        png_dir_ifs.mkdir(parents=True, exist_ok=True)
-        (png_dir / "scorecards").mkdir(parents=True, exist_ok=True)
-        (png_dir_ifs / "scorecards").mkdir(parents=True, exist_ok=True)
-        ifs_plot_args = p1.prepare_plot_args(
-            data,
-            ifs_stats,
-            vars_3d,
-            vars_2d,
-            config,
-            **y_lims,
-            use_ifs=True,
-            path_out=str(png_dir_ifs),
-            model_name="IFS ENS",
-            region=region.title(),
-            date_time=dt,
-            output_mode=config["output_mode"],
-            artifact_root=str(data_dir_ifs),
-        )
-        # Render plots
-        for plot_args in [default_plot_args, ifs_plot_args]:
-            for args_i in plot_args["energy_spectra"]:
-                p1.plot_energy_spectra(**args_i)
-            for args_i in plot_args["rank_histogram"]:
-                p1.plot_rank_histogram(**args_i)
-            for args_i in plot_args["rmse"]:
-                p1.plot_rmse(**args_i)
-            for args_i in plot_args["timeseries_fc_gt"]:
-                p1.plot_timeseries_fc_gt(**args_i)
-            # one scorecard per set
-            p1.plot_error_map(**plot_args["error_map"][0])
-
-        # New: PIT histograms (global + per-lead) and Vertical Profiles
-        # Use same output_mode and artifact_root as other 0D/1D plots
-        out_mode = config["output_mode"]
-        artifact_root = str(data_dir)
-        # Choose a small set of variables for demonstration
-        pit_vars = vars_2d[:1] + vars_3d[:1]
-        for var in pit_vars:
-            # Surface vs 3D handling
-            if var in vars_3d:
-                for level in data["forecast"][var].coords["isobaricInhPa"].values[:1]:
-                    p0.plot_pit_histogram(
-                        variable=var,
-                        forecast=data["forecast"],
-                        ground_truth=data["ground_truth"],
-                        path_out=str(png_dir),
-                        model_name=model_name,
-                        level=float(level),
-                        output_mode=out_mode,
-                        artifact_root=artifact_root,
-                        ensemble=model_name,
-                    )
-                    p0.plot_pit_histogram_by_lead(
-                        variable=var,
-                        forecast=data["forecast"],
-                        ground_truth=data["ground_truth"],
-                        path_out=str(png_dir),
-                        model_name=model_name,
-                        level=float(level),
-                        output_mode=out_mode,
-                        artifact_root=artifact_root,
-                        ensemble=model_name,
-                    )
-                    # Vertical profiles for 3D variables
-                    vprof_plot(
-                        forecast=data["forecast"],
-                        ground_truth=data["ground_truth"],
-                        variable=var,
-                        path_out=str(png_dir),
-                        output_mode=out_mode,
-                        artifact_root=artifact_root,
-                        ensemble=model_name,
-                        member_aggregate="mean",
-                    )
-            else:
-                # Surface variable PIT only
-                p0.plot_pit_histogram(
-                    variable=var,
-                    forecast=data["forecast"],
-                    ground_truth=data["ground_truth"],
-                    path_out=str(png_dir),
-                    model_name=model_name,
-                    level=None,
-                    output_mode=out_mode,
-                    artifact_root=artifact_root,
-                    ensemble=model_name,
-                )
-                p0.plot_pit_histogram_by_lead(
-                    variable=var,
-                    forecast=data["forecast"],
-                    ground_truth=data["ground_truth"],
-                    path_out=str(png_dir),
-                    model_name=model_name,
-                    level=None,
-                    output_mode=out_mode,
-                    artifact_root=artifact_root,
-                    ensemble=model_name,
-                )
-
-        # Vertical profile metrics (RMSE & Bias) for 3D variables
-        for var in vars_3d:
-            vprof_plot(
-                forecast=data["forecast"],
-                ground_truth=data["ground_truth"],
-                variable=var,
-                path_out=str(png_dir),
-                output_mode=config["output_mode"],
-                artifact_root=str(data_dir),
-                ensemble=model_name,
-                member_aggregate="mean",
-                lead_subset=None,
-            )
-
-        # Combined spread-skill ratio plots using both IFS and model
-        for args_dict in default_plot_args["spread_skill_ratio"]:
-            args_dict = args_dict.copy()
-            args_dict["sr_spread_skill_ratio_ifs"] = ifs_stats["sr_spread_skill_ratio"]
-            args_dict["sr_ensemble_spread_ifs"] = ifs_stats["sr_ensemble_spread"]
-            args_dict["model_names"] = [args_dict.pop("model_name"), "IFS ENS"]
-            p1.plot_spread_skill_ratio(**args_dict)
-
-    # Animations (2D maps + ensemble metrics) using library functions
-    anim_dir = region_dir / "0/animations"
-    gifs_exist = any(anim_dir.rglob("*.gif")) if anim_dir.exists() else False
-    if not gifs_exist:
-        typer.echo("Generating 2D and 3D animations")
-        # Build a lightweight args namespace expected by animation helpers
-        args_ns = SimpleNamespace(
-            out_dir=out_dir,
-            date_time=dt,
-            model_name=model_name,
-            perturbation_init=float(p_init),
-            perturbation_latent=float(p_latent),
-            layer=int(layer),
-            crop_region=region,
-            members=int(n_members),
-            debug=False,
-        )
-        # 2D animations
-        path_forecast = str(_perturbation_dir())
-        lat = data["ground_truth"].latitude.values
-        lon = data["ground_truth"].longitude.values
-        stats_default = calculate_stats(
-            data["ground_truth"], data["forecast"], data["forecast_unperturbed"], region
-        )
-        for member in [0, 1]:
-            a2.process_member(
-                member,
-                data["forecast"],
-                data["ground_truth"],
-                stats_default,
-                path_forecast,
-                lat,
-                lon,
-                args_ns,
-            )
-        a2.process_ensemble_metrics(
-            data["forecast"],
-            data["ground_truth"],
-            stats_default,
-            path_forecast,
-            lat,
-            lon,
-            args_ns,
-        )
-
-        # 3D difference animations (selected variables)
-        config = {"selected_vars": ["u10"]}
-        for member in [0, 1]:
-            a3.process_member(
-                member,
-                data["forecast"],
-                data["forecast_unperturbed"],
-                path_forecast,
-                args_ns,
-                config,
-            )
-
-    # Cleanup GRIB files under region_dir
-    typer.echo("Cleaning up GRIB files")
-    if shutil.which("fd"):
-        import subprocess
-
-        subprocess.run(
-            ["fd", "-IH", "--type", "f", ".grib", str(region_dir), "-x", "rm", "{}"],
-            check=True,
-        )
+    Thin wrapper around `swissclim-evaluations --config <yaml>`. The YAML is
+    the source of truth for paths, variables, modules, and metrics.
+    """
+    cfg_path: Optional[Path] = None
+    if config:
+        cfg_path = Path(config)
+    elif _env("SWISSCLIM_CONFIG"):
+        cfg_path = Path(_env("SWISSCLIM_CONFIG", ""))
     else:
-        for grib in region_dir.rglob("*.grib"):
-            try:
-                grib.unlink()
-            except FileNotFoundError:
-                pass
+        default = Path(__file__).resolve().parent.parent / "config" / "swissclim_eval.yaml"
+        if default.exists():
+            cfg_path = default
+
+    if cfg_path is None or not cfg_path.exists():
+        raise typer.BadParameter(
+            "No SwissClim config found. Pass --config <yaml> or set $SWISSCLIM_CONFIG."
+        )
+
+    swissclim = shutil.which("swissclim-evaluations")
+    cmd = (
+        [swissclim, "--config", str(cfg_path)]
+        if swissclim
+        else ["python", "-u", "-m", "swissclim_evaluations.cli", "--config", str(cfg_path)]
+    )
+    typer.echo(f"Running: {' '.join(cmd)}")
+    subprocess.run(cmd, check=True)
     typer.echo("*****DONE*****")
 
 
 @app.command("intercompare")
 def cli_intercompare(
-    model_dirs: List[str] = typer.Argument(
-        ..., help="Artifact directories produced by verify runs."
+    paths: List[str] = typer.Argument(
+        None,
+        help=(
+            "SwissClim output_root directories (or a glob pattern) to compare. "
+            "If omitted, recursively finds every 'swissclim_*' directory under "
+            "'$OUTPUT_DIR/$DATE_TIME' (covers all AI-model perturbation runs "
+            "plus the _ifs_ens baseline)."
+        ),
     ),
     labels: Optional[List[str]] = typer.Option(
-        None, "--label", "-l", help="Display labels (repeat per model)."
+        None, "--label", "-l", help="Display label per path (repeat option)."
     ),
-    out_dir: str = typer.Option(
-        "intercomparison", "--out-dir", help="Directory for comparison figures."
+    label_from: str = typer.Option(
+        "leaf",
+        "--label-from",
+        help=(
+            "How to derive labels when --label is not given: "
+            "'leaf' (default; uses 'swissclim_<name>'), "
+            "'parent' (perturbation/region dir), 'tail2' (last two)."
+        ),
     ),
-    metrics: List[str] = typer.Option(
-        ["energy_spectra", "rmse", "timeseries", "rank_histogram", "density"],
-        "--metric",
+    out_dir: Optional[str] = typer.Option(
+        None,
+        "--out-dir",
+        help="Where to write comparison outputs. Defaults to <first path>/intercomparison_<N>.",
+    ),
+    modules: List[str] = typer.Option(
+        ["maps", "hist", "kde", "spectra", "vprof", "metrics", "ets", "prob", "multivariate"],
+        "--module",
         "-m",
-        help="Metrics to compare (repeat option to select subset).",
+        help="Modules to run (repeat option).",
     ),
+    config_out: Optional[str] = typer.Option(
+        None,
+        "--config-out",
+        help="Write the rendered intercomparison YAML to this path.",
+    ),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Render YAML + print command only."),
 ) -> None:
-    labels_final = labels or [Path(m).name for m in model_dirs]
-    if len(labels_final) != len(model_dirs):
-        raise typer.BadParameter("Number of labels must match number of model directories.")
-    from .intercompare import run_intercompare
+    """Run swissclim-evaluations-compare across a set of verify output_roots."""
+    import glob
 
-    run_intercompare(model_dirs, labels_final, out_dir, metrics)
+    discovered: List[str] = []
+    if paths:
+        for p in paths:
+            if any(c in p for c in "*?["):
+                discovered.extend(sorted(glob.glob(p)))
+            else:
+                discovered.append(p)
+    else:
+        out = _env("OUTPUT_DIR")
+        dt = _env("DATE_TIME")
+        if not (out and dt):
+            raise typer.BadParameter(
+                "No paths given and $OUTPUT_DIR/$DATE_TIME are not both set."
+            )
+        # Recursive glob picks up:
+        #   $OUTPUT_DIR/$DATE_TIME/<model>/init_*_latent_*_layer_*/<region>/swissclim_*
+        #   $OUTPUT_DIR/$DATE_TIME/_ifs_ens/<region>/swissclim_ifs_ens
+        discovered = sorted(
+            str(p) for p in Path(out).joinpath(dt).rglob("swissclim_*") if p.is_dir()
+        )
+
+    discovered = [p for p in discovered if Path(p).is_dir()]
+    if len(discovered) < 2:
+        raise typer.BadParameter(
+            f"Need at least 2 output_roots; found {len(discovered)}: {discovered}"
+        )
+
+    if labels:
+        if len(labels) != len(discovered):
+            raise typer.BadParameter(
+                f"Got {len(labels)} labels for {len(discovered)} paths."
+            )
+        final_labels = list(labels)
+    else:
+        if label_from == "leaf":
+            final_labels = [Path(p).name for p in discovered]
+        elif label_from == "tail2":
+            final_labels = [f"{Path(p).parent.name}/{Path(p).name}" for p in discovered]
+        else:
+            final_labels = [Path(p).parent.parent.name for p in discovered]
+
+    if out_dir is None:
+        out_dir = str(Path(discovered[0]).parent.parent / f"intercomparison_{len(discovered)}")
+
+    config_dict = {
+        "models": discovered,
+        "labels": final_labels,
+        "output_root": out_dir,
+        "modules": list(modules),
+    }
+
+    if config_out:
+        cfg_path = Path(config_out)
+        cfg_path.parent.mkdir(parents=True, exist_ok=True)
+        cfg_path.write_text(yaml.safe_dump(config_dict, sort_keys=False))
+    else:
+        fd, tmp = tempfile.mkstemp(prefix="swissclim_intercompare_", suffix=".yaml")
+        os.close(fd)
+        cfg_path = Path(tmp)
+        cfg_path.write_text(yaml.safe_dump(config_dict, sort_keys=False))
+
+    typer.echo(f"Intercomparison config: {cfg_path}")
+    for label, path in zip(final_labels, discovered):
+        typer.echo(f"  - {label}: {path}")
+    typer.echo(f"Output root: {out_dir}")
+
+    compare = shutil.which("swissclim-evaluations-compare")
+    cmd = (
+        [compare, "--config", str(cfg_path)]
+        if compare
+        else ["python", "-u", "-m", "swissclim_evaluations.intercompare", "--config", str(cfg_path)]
+    )
+    typer.echo(f"Running: {' '.join(cmd)}")
+    if dry_run:
+        return
+    subprocess.run(cmd, check=True)
     typer.echo("*****DONE*****")
 
 
