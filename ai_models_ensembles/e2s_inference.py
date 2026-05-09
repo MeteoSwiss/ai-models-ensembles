@@ -12,6 +12,10 @@ Supported combinations:
                                         N times from per-member mirror packages)
    N        yes         yes             N members with both perturbations
                                         (per-member weights + per-member IC)
+
+When multiple GPUs are available, members are distributed across GPUs
+(one process per GPU, round-robin assignment). Each GPU worker runs its
+assigned members sequentially.
 """
 
 from __future__ import annotations
@@ -26,6 +30,8 @@ import xarray as xr
 from .e2s_data import XarrayDataSource, build_data_source, fetch_initial_conditions
 from .e2s_models import get_spec, load_model, steps_from_hours
 from .e2s_perturbation import (
+    _parse_layer_spec,
+    cache_default_checkpoints,
     materialise_perturbed_package,
     perturb_initial_conditions,
 )
@@ -105,10 +111,11 @@ def _data_for_member(
 def _model_for_member(
     model_name: str,
     weight_magnitude: float,
-    layer: int | None,
+    layer: str | None,
     member_id: int,
     seed: int,
     work_dir: Path,
+    cached_checkpoints: dict[str, str] | None = None,
 ) -> Any:
     if weight_magnitude <= 0:
         model, _ = load_model(model_name)
@@ -120,39 +127,129 @@ def _model_for_member(
         layer=layer,
         seed=seed + member_id,
         out_dir=pkg_dir,
+        cached_checkpoints=cached_checkpoints,
     )
     model, _ = load_model(model_name, package_root=package_root)
     return model
 
 
-def run_inference(
+# -- Multi-GPU parallelism ---------------------------------------------------
+
+
+def _available_gpus() -> int:
+    try:
+        import torch
+
+        return torch.cuda.device_count()
+    except (ImportError, RuntimeError):
+        return 1
+
+
+def _gpu_worker(
+    gpu_id: int,
+    member_id: int,
     model_name: str,
     init_time: datetime,
-    lead_hours: int,
-    output: Path,
-    *,
-    n_members: int = 1,
-    ic_magnitude: float = 0.0,
-    weight_magnitude: float = 0.0,
-    layer: int | None = None,
-    data_source: str = "arco",
-    seed: int = 0,
-    work_dir: Path | None = None,
-    output_levels: list[int] | None = None,
-) -> Path:
-    """Run an earth2studio model and emit a SwissClim-format zarr at `output`.
+    steps: int,
+    n_members_total: int,
+    ic_magnitude: float,
+    weight_magnitude: float,
+    layer: str | None,
+    data_source: str,
+    seed: int,
+    work_dir: str,
+    output_dir: str,
+    output_levels: list[int] | None,
+    cached_checkpoints: dict[str, str] | None,
+) -> None:
+    """Run a single member on a specific GPU. Called via multiprocessing spawn.
 
-    The output is built incrementally: each member's xr.Dataset is computed
-    in turn and either written (member 0) or appended along the `ensemble`
-    dim. This keeps memory bounded by one rollout at a time.
+    Each invocation runs exactly one member and then exits, ensuring all
+    runtime state (including JAX/XLA compiled programs) is fully released.
     """
-    spec = get_spec(model_name)
-    steps = steps_from_hours(spec, lead_hours)
-    output = Path(output)
-    work_dir = Path(work_dir or output.parent / "_e2s_work")
-    work_dir.mkdir(parents=True, exist_ok=True)
+    import os
 
-    # Reuse one model when weights are not perturbed.
+    os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
+    os.environ["BLOSC_NTHREADS"] = "1"
+    os.environ["XLA_PYTHON_CLIENT_PREALLOCATE"] = "false"
+
+    import torch
+
+    torch.cuda.set_device(0)
+
+    work_path = Path(work_dir)
+    output_path = Path(output_dir)
+    m = member_id
+
+    print(
+        f"[GPU {gpu_id}][member {m + 1}/{n_members_total}] preparing data + model",
+        flush=True,
+    )
+    data, _ = _data_for_member(
+        base_source=data_source,
+        ic_magnitude=ic_magnitude,
+        init_time=init_time,
+        member_id=m,
+        seed=seed,
+        cached_ic=None,
+    )
+    if weight_magnitude > 0:
+        model = _model_for_member(
+            model_name=model_name,
+            weight_magnitude=weight_magnitude,
+            layer=layer,
+            member_id=m,
+            seed=seed,
+            work_dir=work_path,
+            cached_checkpoints=cached_checkpoints,
+        )
+    else:
+        model, _ = load_model(model_name)
+
+    print(
+        f"[GPU {gpu_id}][member {m + 1}/{n_members_total}] running rollout",
+        flush=True,
+    )
+    ds = _run_one_member(model, data, init_time, steps, ensemble_id=m, seed=seed + m)
+    ds = _filter_levels(ds, output_levels)
+
+    member_zarr = output_path / f"member_{m:03d}.zarr"
+    ds.to_zarr(member_zarr, mode="w", consolidated=True)
+    print(
+        f"[GPU {gpu_id}][member {m + 1}/{n_members_total}] wrote {member_zarr}",
+        flush=True,
+    )
+
+
+def _merge_member_zarrs(tmp_dir: Path, output: Path, n_members: int) -> None:
+    """Concatenate per-member zarr files along the ensemble dimension."""
+    import shutil
+
+    for m in range(n_members):
+        member_zarr = tmp_dir / f"member_{m:03d}.zarr"
+        ds = xr.open_zarr(member_zarr, consolidated=True)
+        if m == 0:
+            ds.to_zarr(output, mode="w", consolidated=True)
+        else:
+            ds.to_zarr(output, mode="a", append_dim="ensemble", consolidated=True)
+    shutil.rmtree(tmp_dir)
+
+
+def _run_members_sequential(
+    model_name: str,
+    init_time: datetime,
+    steps: int,
+    n_members: int,
+    ic_magnitude: float,
+    weight_magnitude: float,
+    layer: str | None,
+    data_source: str,
+    seed: int,
+    work_dir: Path,
+    output: Path,
+    output_levels: list[int] | None,
+    cached_checkpoints: dict[str, str] | None,
+) -> None:
     shared_model = None if weight_magnitude > 0 else load_model(model_name)[0]
     cached_ic: xr.Dataset | None = None
 
@@ -176,6 +273,7 @@ def run_inference(
                 member_id=m,
                 seed=seed,
                 work_dir=work_dir,
+                cached_checkpoints=cached_checkpoints,
             )
         )
 
@@ -188,6 +286,234 @@ def run_inference(
         else:
             ds.to_zarr(output, mode="a", append_dim="ensemble", consolidated=True)
         print(f"[member {m + 1}/{n_members}] wrote ensemble={m} -> {output}")
+
+
+def _run_members_parallel(
+    model_name: str,
+    init_time: datetime,
+    steps: int,
+    n_members: int,
+    n_gpus: int,
+    ic_magnitude: float,
+    weight_magnitude: float,
+    layer: str | None,
+    data_source: str,
+    seed: int,
+    work_dir: Path,
+    output: Path,
+    output_levels: list[int] | None,
+    cached_checkpoints: dict[str, str] | None,
+) -> None:
+    """Run members in parallel across GPUs, one process per member.
+
+    Members are launched in rounds of `n_gpus`. Each process runs exactly
+    one member then exits, fully releasing all runtime state (including
+    JAX/XLA compiled programs and GPU memory).
+    """
+    import torch.multiprocessing as mp
+
+    tmp_dir = work_dir / "_member_outputs"
+    tmp_dir.mkdir(parents=True, exist_ok=True)
+
+    # Build rounds: each round runs up to n_gpus members in parallel
+    rounds: list[list[tuple[int, int]]] = []  # [(gpu_id, member_id), ...]
+    for m in range(n_members):
+        round_idx = m // n_gpus
+        if round_idx >= len(rounds):
+            rounds.append([])
+        gpu_id = m % n_gpus
+        rounds[round_idx].append((gpu_id, m))
+
+    print(f"[main] Launching {n_members} members across {n_gpus} GPUs in {len(rounds)} rounds")
+
+    ctx = mp.get_context("spawn")
+    worker_args = (
+        model_name,
+        init_time,
+        steps,
+        n_members,
+        ic_magnitude,
+        weight_magnitude,
+        layer,
+        data_source,
+        seed,
+        str(work_dir),
+        str(tmp_dir),
+        output_levels,
+        cached_checkpoints,
+    )
+
+    for round_idx, round_members in enumerate(rounds):
+        print(
+            f"[main] Round {round_idx + 1}/{len(rounds)}: "
+            f"members {[m for _, m in round_members]}",
+            flush=True,
+        )
+        processes = []
+        for gpu_id, member_id in round_members:
+            p = ctx.Process(
+                target=_gpu_worker,
+                args=(gpu_id, member_id, *worker_args),
+            )
+            p.start()
+            processes.append((gpu_id, member_id, p))
+
+        errors = []
+        for gpu_id, member_id, p in processes:
+            p.join()
+            if p.exitcode != 0:
+                errors.append(f"GPU {gpu_id} member {member_id} exited with code {p.exitcode}")
+
+        if errors:
+            raise RuntimeError(
+                f"Parallel inference failed in round {round_idx + 1}:\n" + "\n".join(errors)
+            )
+
+    print("[main] Merging member outputs...")
+    _merge_member_zarrs(tmp_dir, output, n_members)
+    print(f"[main] Final output: {output}")
+
+
+def _prefetch_ic_data(
+    model_name: str,
+    data_source: str,
+    init_time: datetime,
+) -> None:
+    """Pre-fetch IC data to populate the fsspec disk cache.
+
+    Discovers the model's input variables via a subprocess (so no GPU memory
+    is consumed in the main process), then fetches them from the remote source
+    (ARCO/CDS). Workers subsequently read from the already-cached data,
+    avoiding concurrent downloads and blosc race conditions.
+    """
+    import json
+    import subprocess
+    import sys
+
+    # Write a helper script to /tmp and run it as a file. Using `python -c`
+    # with inline code can pick up stale bytecode from the container's
+    # installed package instead of the bind-mounted source.
+    helper = (
+        "import json, os, sys\n"
+        "import numpy as np\n"
+        f"os.environ['CUDA_VISIBLE_DEVICES'] = '0'\n"
+        "from ai_models_ensembles.e2s_models import load_model\n"
+        f"m, _ = load_model('{model_name}')\n"
+        "c = m.input_coords()\n"
+        "lts = [int(np.timedelta64(lt, 'ns') / np.timedelta64(1, 'ns'))"
+        " for lt in c.get('lead_time', [0])]\n"
+        "print(json.dumps({'variables': list(c.get('variable', [])),"
+        " 'lead_times': lts}))\n"
+    )
+    helper_path = Path("/tmp") / "_discover_vars.py"
+    try:
+        helper_path.write_text(helper)
+        result = subprocess.run(
+            [sys.executable, str(helper_path)],
+            capture_output=True,
+            text=True,
+            timeout=600,
+        )
+    finally:
+        helper_path.unlink(missing_ok=True)
+
+    if result.returncode != 0:
+        print(f"[main] Could not discover input vars: {result.stderr[-500:]}", flush=True)
+        return
+
+    info = json.loads(result.stdout.strip().split("\n")[-1])
+    variables = info["variables"]
+    lead_times_ns = [np.timedelta64(lt, "ns") for lt in info["lead_times"]]
+
+    if not variables:
+        return
+
+    init_np = np.datetime64(init_time, "ns")
+    fetch_times = np.array(sorted(set(init_np + lt for lt in lead_times_ns)))
+
+    print(
+        f"[main] Pre-fetching {len(variables)} variables x {len(fetch_times)} times "
+        f"from {data_source} to warm cache...",
+        flush=True,
+    )
+    source = build_data_source(data_source)
+    source(fetch_times, variables)
+    print("[main] IC cache warmed.", flush=True)
+
+
+def run_inference(
+    model_name: str,
+    init_time: datetime,
+    lead_hours: int,
+    output: Path,
+    *,
+    n_members: int = 1,
+    ic_magnitude: float = 0.0,
+    weight_magnitude: float = 0.0,
+    layer: str | None = None,
+    data_source: str = "arco",
+    seed: int = 0,
+    work_dir: Path | None = None,
+    output_levels: list[int] | None = None,
+) -> Path:
+    """Run an earth2studio model and emit a SwissClim-format zarr at `output`.
+
+    When multiple GPUs are available and n_members > 1, members are distributed
+    across GPUs (one process per GPU, round-robin). Checkpoint files are
+    downloaded once and copied locally per member to avoid redundant downloads.
+    """
+    spec = get_spec(model_name)
+    steps = steps_from_hours(spec, lead_hours)
+    layer = _parse_layer_spec(layer, model_name=model_name)
+    output = Path(output)
+    work_dir = Path(work_dir or output.parent / "_e2s_work")
+    work_dir.mkdir(parents=True, exist_ok=True)
+
+    cached_checkpoints = None
+    if weight_magnitude > 0:
+        print("[main] Pre-caching model checkpoints...")
+        cached_checkpoints = cache_default_checkpoints(model_name)
+        print(f"[main] Cached {len(cached_checkpoints)} checkpoint file(s)")
+
+    n_gpus = _available_gpus()
+
+    # Pre-fetch IC data to warm fsspec cache before spawning GPU workers
+    if n_members > 1 and n_gpus > 1:
+        _prefetch_ic_data(model_name, data_source, init_time)
+
+    if n_members > 1 and n_gpus > 1:
+        _run_members_parallel(
+            model_name=model_name,
+            init_time=init_time,
+            steps=steps,
+            n_members=n_members,
+            n_gpus=n_gpus,
+            ic_magnitude=ic_magnitude,
+            weight_magnitude=weight_magnitude,
+            layer=layer,
+            data_source=data_source,
+            seed=seed,
+            work_dir=work_dir,
+            output=output,
+            output_levels=output_levels,
+            cached_checkpoints=cached_checkpoints,
+        )
+    else:
+        _run_members_sequential(
+            model_name=model_name,
+            init_time=init_time,
+            steps=steps,
+            n_members=n_members,
+            ic_magnitude=ic_magnitude,
+            weight_magnitude=weight_magnitude,
+            layer=layer,
+            data_source=data_source,
+            seed=seed,
+            work_dir=work_dir,
+            output=output,
+            output_levels=output_levels,
+            cached_checkpoints=cached_checkpoints,
+        )
 
     return output
 

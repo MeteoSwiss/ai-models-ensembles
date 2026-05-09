@@ -13,13 +13,22 @@ dependencies = [
     "dask",
     "numpy>=2.0",
     "pyyaml>=6.0",
-    "earth2studio[graphcast,fcn,fcn3,sfno,gencast,pangu,fuxi,aifs]",
+    "chex",
+    "graphcast @ git+https://github.com/google-deepmind/graphcast",
+    "earth2studio",
     "swissclim-evaluations @ git+https://github.com/swiss-ai/SwissClim_Evaluations.git@research",
     "pytest>=8.0",
 ]
 
 [project.optional-dependencies]
 dev = ["pre-commit>=3.7", "ruff>=0.6"]
+# Per-model extras (each container installs only what it needs)
+aurora = ["earth2studio[aurora,data,perturbation]"]
+graphcast = ["earth2studio[graphcast,data]", "chex", "graphcast @ git+https://github.com/google-deepmind/graphcast"]
+sfno = ["earth2studio[sfno,data]"]
+fcn3 = ["earth2studio[fcn3,data]"]
+atlas = ["earth2studio[atlas,data]"]
+aifsens = ["earth2studio[aifs,data,perturbation]"]
 
 [project.scripts]
 ai-ens = "ai_models_ensembles.cli:app"

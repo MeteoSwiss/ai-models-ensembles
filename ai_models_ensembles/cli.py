@@ -81,10 +81,13 @@ def cli_infer(
         "--weight-magnitude",
         help="Std-dev of multiplicative weight noise (0 disables).",
     ),
-    layer: Optional[int] = typer.Option(
+    layer: Optional[str] = typer.Option(
         None,
         "--layer",
-        help="Index of the weight tensor to perturb (None = all). Read from $LAYER if unset.",
+        help=(
+            "Layer spec: single index '42', range '10:50', fraction '0.0:0.33', "
+            "or 'all' (default). Read from $LAYER if unset."
+        ),
     ),
     data_source: str = typer.Option(
         "arco",
@@ -125,7 +128,7 @@ def cli_infer(
 
     if layer is None:
         env_layer = _env("LAYER")
-        layer = int(env_layer) if env_layer not in (None, "", "None") else None
+        layer = env_layer if env_layer not in (None, "", "None") else None
     if ic_magnitude == 0.0:
         env_ic = _env("PERTURBATION_INIT")
         if env_ic is not None:

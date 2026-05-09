@@ -74,6 +74,14 @@ REGISTRY: dict[str, ModelSpec] = {
         role="baseline_prob",
         description="NVIDIA Atlas-ERA5 (stochastic interpolant, 0.25 deg, 6h).",
     ),
+    "aifsens": ModelSpec(
+        name="aifsens",
+        e2s_class="earth2studio.models.px:AIFSENS",
+        step_hours=6,
+        probabilistic=True,
+        role="baseline_prob",
+        description="ECMWF AIFS-ENS (probabilistic, 0.25 deg, 6h).",
+    ),
 }
 
 
@@ -86,7 +94,54 @@ def get_spec(name: str) -> ModelSpec:
 def import_class(spec: ModelSpec) -> Any:
     module_path, _, class_name = spec.e2s_class.partition(":")
     module = importlib.import_module(module_path)
-    return getattr(module, class_name)
+    cls = getattr(module, class_name)
+    if spec.name == "aurora":
+        _patch_aurora_package(cls)
+    return cls
+
+
+def _patch_aurora_package(cls: Any) -> None:
+    """Patch Aurora to use HuggingFace main branch instead of closed refs/pr/1.
+
+    earth2studio hardcodes refs/pr/1 which was closed on HuggingFace (2025-06-23).
+    The .npy static files only existed on that PR; main has .pickle format.
+    """
+    from earth2studio.models.auto.package import Package
+
+    @classmethod  # type: ignore[misc]
+    def patched_default_package(klass: type) -> Package:
+        return Package(
+            "hf://microsoft/aurora",
+            cache_options={
+                "cache_storage": Package.default_cache("aurora"),
+                "same_names": True,
+            },
+        )
+
+    @classmethod  # type: ignore[misc]
+    def patched_load_model(klass: type, package: Package) -> Any:
+        import pickle
+
+        import numpy as np
+        import torch
+        from aurora import Aurora as AuroraModel
+
+        # Static data always comes from the HF default package (small, cached).
+        # The `package` arg may be a local perturbed copy with only the .ckpt.
+        default_pkg = klass.load_default_package()
+        static_path = default_pkg.resolve("aurora-0.25-static.pickle")
+        with open(static_path, "rb") as f:
+            static = pickle.load(f)
+        z = torch.from_numpy(np.array(static["z"])[:-1])
+        slt = torch.from_numpy(np.array(static["slt"])[:-1])
+        lsm = torch.from_numpy(np.array(static["lsm"])[:-1])
+        model = AuroraModel(use_lora=False)
+        model.load_checkpoint_local(package.resolve("aurora-0.25-pretrained.ckpt"))
+        model.eval()
+        return klass(model, z, slt, lsm)
+
+    cls.load_default_package = patched_default_package
+    cls.load_model = patched_load_model
 
 
 def load_model(name: str, package_root: str | None = None) -> tuple[Any, ModelSpec]:
@@ -101,7 +156,7 @@ def load_model(name: str, package_root: str | None = None) -> tuple[Any, ModelSp
     if package_root is None:
         package = cls.load_default_package()
     else:
-        from earth2studio.utils.package import Package
+        from earth2studio.models.auto.package import Package
 
         package = Package(package_root)
     model = cls.load_model(package)

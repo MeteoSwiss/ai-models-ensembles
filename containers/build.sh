@@ -1,29 +1,35 @@
 #!/usr/bin/env bash
-# Build the ai-models-ensembles container image for GH200 (aarch64).
+# Build a per-model container image for GH200 (aarch64).
 #
-# Pipeline (mirrors earthPip's pattern):
-#   1. podman build  - linux/arm64 image
-#   2. enroot import - convert to a .sqsh squashfs for pyxis
+# Pipeline:
+#   1. podman build  - linux/arm64 image from containers/<model>.dockerfile
+#   2. enroot import - convert to .sqsh for pyxis
 #
 # Usage:
-#   ./containers/build.sh                       # tag ai-ens:latest, sqsh -> ./ai-ens.sqsh
-#   IMAGE_TAG=ai-ens:dev OUTPUT=foo.sqsh ./containers/build.sh
+#   ./containers/build.sh graphcast        # -> graphcast.sqsh
+#   ./containers/build.sh atlas            # -> atlas.sqsh
+#   OUTPUT=/path/to/sfno.sqsh ./containers/build.sh sfno
 #
 # Env vars:
-#   IMAGE_TAG  (default: ai-ens:latest)
-#   OUTPUT     (default: ai-ens.sqsh)
+#   OUTPUT     (default: <model>.sqsh)
 #   PLATFORM   (default: linux/arm64)
-#   DOCKERFILE (default: containers/Dockerfile)
 
 set -euo pipefail
 IFS=$'\n\t'
 
-IMAGE_TAG=${IMAGE_TAG:-ai-ens:latest}
-OUTPUT=${OUTPUT:-ai-ens.sqsh}
-PLATFORM=${PLATFORM:-linux/arm64}
-DOCKERFILE=${DOCKERFILE:-containers/Dockerfile}
+MODEL="${1:?Usage: build.sh <model>  (aurora|graphcast|sfno|fcn3|atlas)}"
+DOCKERFILE="containers/${MODEL}.dockerfile"
+IMAGE_TAG="ai-ens-${MODEL}:latest"
+OUTPUT="${OUTPUT:-${MODEL}.sqsh}"
+PLATFORM="${PLATFORM:-linux/arm64}"
 
 cd "$(dirname "$0")/.."
+
+if [[ ! -f "$DOCKERFILE" ]]; then
+    echo "ERROR: $DOCKERFILE not found. Available:" >&2
+    ls containers/*.dockerfile 2>/dev/null >&2
+    exit 1
+fi
 
 if ! command -v podman >/dev/null 2>&1; then
     echo "podman not found; please load it via your module system or install it." >&2
@@ -34,7 +40,7 @@ if ! command -v enroot >/dev/null 2>&1; then
     exit 1
 fi
 
-echo "==> podman build (${PLATFORM}) -> ${IMAGE_TAG}"
+echo "==> podman build (${PLATFORM}) ${DOCKERFILE} -> ${IMAGE_TAG}"
 podman build --platform "${PLATFORM}" -t "${IMAGE_TAG}" -f "${DOCKERFILE}" .
 
 echo "==> enroot import -> ${OUTPUT}"

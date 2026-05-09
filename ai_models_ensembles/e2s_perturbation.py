@@ -60,12 +60,18 @@ def _list_package_files(package: Any) -> list[str]:
     return sorted(p[len(root) :].lstrip("/") for p in fs.find(root) if not fs.isdir(p))
 
 
-def _copy_package_to_local(package: Any, dest: Path) -> None:
-    """Copy every file under a Package's fsspec root into a local directory."""
+def _copy_package_to_local(package: Any, dest: Path, suffixes: set[str] | None = None) -> None:
+    """Copy files under a Package's fsspec root into a local directory.
+
+    If `suffixes` is given, only files with matching extensions are copied.
+    This avoids downloading multi-GB repos when only checkpoint files are needed.
+    """
     fs = package.fs
     root = package.root
     dest.mkdir(parents=True, exist_ok=True)
     for rel in _list_package_files(package):
+        if suffixes and Path(rel).suffix.lower() not in suffixes:
+            continue
         src = f"{root.rstrip('/')}/{rel}"
         target = dest / rel
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -80,15 +86,91 @@ def _perturb_array(arr: np.ndarray, sigma: float, rng: np.random.Generator) -> n
     return arr * (1.0 + sigma * noise)
 
 
-def _select_indices(total: int, layer: int | None) -> list[int]:
+# Model-specific architectural layer groups.
+# Keys in checkpoint files are sorted alphabetically; indices refer to that order.
+# Determined empirically via tools/inspect_weights.py.
+_MODEL_LAYER_GROUPS: dict[str, dict[str, tuple[int, int]]] = {
+    "aurora": {
+        # 644 float tensors: backbone (594) | decoder (17) | encoder (33)
+        "backbone": (0, 594),
+        "decoder": (594, 611),
+        "encoder": (611, 644),
+    },
+    "graphcast_operational": {
+        # 267 float tensors: grid2mesh (36) | mesh2grid (30) | mesh_gnn (198)
+        # Note: alphabetical sort puts mesh2grid before mesh_gnn
+        "g2m": (0, 36),
+        "m2g": (36, 66),
+        "m2m": (66, 264),
+    },
+    "sfno": {
+        # 79 float tensors: all under module.model, no sub-architecture split.
+        # Use even thirds of the FNO layer stack.
+        "early": (0, 26),
+        "middle": (26, 53),
+        "late": (53, 79),
+    },
+}
+
+
+def _parse_layer_spec(spec: str | int | None, model_name: str | None = None) -> str | None:
+    """Normalise a layer specification to a canonical string form.
+
+    Accepted formats:
+      None / "all"         -> None  (perturb every tensor)
+      "42"  / 42           -> "42"  (single tensor index)
+      "10:50"              -> "10:50" (index range [10, 50))
+      "0.0:0.33"           -> "0.0:0.33" (fraction range, first third)
+      "encoder" / "m2m"    -> "611:644" (named group, requires model_name)
+    """
+    if spec is None:
+        return None
+    s = str(spec).strip().lower()
+    if s in ("", "all", "none"):
+        return None
+
+    # Named architectural group (not a pure number, not a range with ':')
+    if model_name and not s.replace(".", "").isdigit() and ":" not in s:
+        groups = _MODEL_LAYER_GROUPS.get(model_name, {})
+        if s not in groups:
+            available = sorted(groups.keys()) if groups else ["(none defined)"]
+            raise ValueError(f"Unknown layer group '{s}' for {model_name}. Available: {available}")
+        lo, hi = groups[s]
+        return f"{lo}:{hi}"
+
+    return s
+
+
+def _select_indices(total: int, layer: str | None) -> list[int]:
     if layer is None:
         return list(range(total))
-    if layer < 0 or layer >= total:
-        raise ValueError(f"--layer {layer} out of range; package exposes {total} weight tensors.")
-    return [layer]
+
+    # Fraction range: "0.0:0.33"
+    if ":" in layer and "." in layer:
+        lo_s, hi_s = layer.split(":", 1)
+        lo_f, hi_f = float(lo_s), float(hi_s)
+        lo_i, hi_i = int(lo_f * total), int(hi_f * total)
+        hi_i = max(hi_i, lo_i + 1)  # at least one tensor
+        return list(range(lo_i, min(hi_i, total)))
+
+    # Index range: "10:50"
+    if ":" in layer:
+        lo_s, hi_s = layer.split(":", 1)
+        lo_i, hi_i = int(lo_s), int(hi_s)
+        if lo_i < 0 or hi_i > total:
+            raise ValueError(
+                f"--layer {layer} out of range; package exposes {total} weight tensors."
+            )
+        return list(range(lo_i, hi_i))
+
+    # Single index: "42"
+    idx = int(layer)
+    if idx < 0 or idx >= total:
+        raise ValueError(f"--layer {idx} out of range; package exposes {total} weight tensors.")
+    return [idx]
 
 
-def _perturb_npz(path: Path, sigma: float, rng: np.random.Generator, layer: int | None) -> None:
+def _perturb_npz(path: Path, sigma: float, rng: np.random.Generator, layer: str | None) -> None:
     with np.load(path, allow_pickle=False) as f:
         keys = list(f.files)
         arrays = {k: f[k] for k in keys}
@@ -98,27 +180,53 @@ def _perturb_npz(path: Path, sigma: float, rng: np.random.Generator, layer: int 
     np.savez(path, **arrays)
 
 
-def _perturb_torch(path: Path, sigma: float, rng: np.random.Generator, layer: int | None) -> None:
+def _extract_state_dict(obj: Any) -> dict:
+    """Extract the flat tensor state dict from a checkpoint object.
+
+    Handles both plain state dicts and training checkpoints where the model
+    weights are nested under keys like 'model_state' or 'state_dict'.
+    """
+    if not isinstance(obj, dict):
+        sd = getattr(obj, "state_dict", None)
+        if callable(sd):
+            return sd()
+        raise RuntimeError(f"Unrecognised torch checkpoint structure: {type(obj)}")
+
+    # Check for nested model state (e.g. SFNO training checkpoints)
+    for nested_key in ("model_state", "state_dict", "model_state_dict", "model"):
+        if nested_key in obj and isinstance(obj[nested_key], dict):
+            candidate = obj[nested_key]
+            # Verify it actually contains tensors, not just metadata
+            import torch
+
+            if any(isinstance(v, torch.Tensor) for v in list(candidate.values())[:5]):
+                return candidate
+
+    return obj
+
+
+def _perturb_torch(path: Path, sigma: float, rng: np.random.Generator, layer: str | None) -> None:
     import torch
 
     obj = torch.load(path, map_location="cpu", weights_only=False)
-    state = obj if isinstance(obj, dict) else getattr(obj, "state_dict", lambda: {})()
-    if not isinstance(state, dict):
-        raise RuntimeError(f"Unrecognised torch checkpoint structure: {type(obj)}")
-    keys = sorted(state.keys())
+    state = _extract_state_dict(obj)
+    keys = sorted(k for k, v in state.items() if hasattr(v, "numpy"))
+    if not keys:
+        raise RuntimeError(
+            f"No float tensors found in {path.name}. "
+            f"Top-level keys: {sorted(state.keys())[:10]}"
+        )
     targets = _select_indices(len(keys), layer)
     for i in targets:
         k = keys[i]
-        t = state[k]
-        if hasattr(t, "numpy"):
-            arr = t.detach().cpu().numpy()
-            new = _perturb_array(arr, sigma, rng)
-            state[k] = torch.from_numpy(new)
-    torch.save(obj if isinstance(obj, dict) else state, path)
+        arr = state[k].detach().cpu().numpy()
+        new = _perturb_array(arr, sigma, rng)
+        state[k] = torch.from_numpy(new)
+    torch.save(obj, path)
 
 
 def _perturb_safetensors(
-    path: Path, sigma: float, rng: np.random.Generator, layer: int | None
+    path: Path, sigma: float, rng: np.random.Generator, layer: str | None
 ) -> None:
     from safetensors.numpy import load_file, save_file
 
@@ -136,6 +244,7 @@ _HANDLERS = {
     ".pt": _perturb_torch,
     ".pth": _perturb_torch,
     ".ckpt": _perturb_torch,
+    ".tar": _perturb_torch,
     ".safetensors": _perturb_safetensors,
 }
 
@@ -146,28 +255,88 @@ def _checkpoint_files(root: Path) -> Iterable[Path]:
             yield p
 
 
-def materialise_perturbed_package(
-    model_name: str,
-    magnitude: float,
-    layer: int | None,
-    seed: int,
-    out_dir: Path,
-) -> str:
-    """Download + perturb + write a model's checkpoint package locally.
+# All package files needed per model. Listed explicitly because NGC/GCS
+# filesystems don't support glob/find. All files are copied into the local
+# perturbed package directory; only those matching _HANDLERS get perturbed.
+_MODEL_PACKAGE_FILES: dict[str, list[str]] = {
+    "aurora": [
+        "aurora-0.25-pretrained.ckpt",
+    ],
+    "sfno": [
+        "config.json",
+        "global_means.npy",
+        "global_stds.npy",
+        "orography.nc",
+        "land_mask.nc",
+        "training_checkpoints/best_ckpt_mp0.tar",
+    ],
+    "graphcast_operational": [
+        "stats/diffs_stddev_by_level.nc",
+        "stats/mean_by_level.nc",
+        "stats/stddev_by_level.nc",
+        "params/GraphCast_operational - ERA5-HRES 1979-2021"
+        " - resolution 0.25 - pressure levels 13"
+        " - mesh 2to6 - precipitation output only.npz",
+        "dataset/source-era5_date-2022-01-01_res-0.25_levels-13_steps-01.nc",
+    ],
+}
 
-    Returns the local root path to be passed as `package_root` to
-    `e2s_models.load_model(name, package_root=...)`.
+
+def cache_default_checkpoints(model_name: str) -> dict[str, str]:
+    """Download default checkpoint files once, return {rel_path: local_cached_path}.
+
+    Call once in the main process before spawning GPU workers. Workers pass the
+    result to ``materialise_perturbed_package(cached_checkpoints=...)`` to copy
+    from local cache instead of re-downloading.
     """
-    from .e2s_models import import_class, get_spec
+    from .e2s_models import get_spec, import_class
 
     spec = get_spec(model_name)
     cls = import_class(spec)
     package = cls.load_default_package()
 
+    ckpt_suffixes = set(_HANDLERS)
+    if model_name in _MODEL_PACKAGE_FILES:
+        files = _MODEL_PACKAGE_FILES[model_name]
+    else:
+        files = [
+            rel for rel in _list_package_files(package) if Path(rel).suffix.lower() in ckpt_suffixes
+        ]
+
+    cached: dict[str, str] = {}
+    for rel in files:
+        cached[rel] = package.resolve(rel)
+    return cached
+
+
+def materialise_perturbed_package(
+    model_name: str,
+    magnitude: float,
+    layer: str | None,
+    seed: int,
+    out_dir: Path,
+    cached_checkpoints: dict[str, str] | None = None,
+) -> str:
+    """Download + perturb + write a model's checkpoint package locally.
+
+    Returns the local root path to be passed as `package_root` to
+    `e2s_models.load_model(name, package_root=...)`.
+
+    If ``cached_checkpoints`` is provided (from `cache_default_checkpoints`),
+    files are copied from the local cache instead of re-downloading.
+    """
     out_dir = Path(out_dir)
     if out_dir.exists():
         shutil.rmtree(out_dir)
-    _copy_package_to_local(package, out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    if cached_checkpoints is None:
+        cached_checkpoints = cache_default_checkpoints(model_name)
+
+    for rel, cached_path in cached_checkpoints.items():
+        target = out_dir / rel
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(cached_path, target)
 
     rng = np.random.default_rng(seed)
     ckpts = list(_checkpoint_files(out_dir))
@@ -183,6 +352,8 @@ def materialise_perturbed_package(
 
 
 __all__ = [
-    "perturb_initial_conditions",
+    "_parse_layer_spec",
+    "cache_default_checkpoints",
     "materialise_perturbed_package",
+    "perturb_initial_conditions",
 ]

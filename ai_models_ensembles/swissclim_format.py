@@ -63,6 +63,23 @@ E2S_TO_SWISSCLIM: dict[str, str] = {
     "tcwv": "total_column_water_vapour",
     "lsm": "land_sea_mask",
     "zsl": "geopotential_at_surface",
+    "skt": "skin_temperature",
+    "tcw": "total_column_water",
+    "tcc": "total_cloud_cover",
+    "hcc": "high_cloud_cover",
+    "mcc": "medium_cloud_cover",
+    "lcc": "low_cloud_cover",
+    "ro": "runoff",
+    "sf": "snowfall",
+    # 6h accumulated fields (suffix must be matched exactly to prevent the
+    # level parser from treating "06" as pressure level 6)
+    "tp06": "total_precipitation_6hr",
+    "cp06": "convective_precipitation_6hr",
+    "ssrd06": "surface_solar_radiation_downwards_6hr",
+    "strd06": "surface_thermal_radiation_downwards_6hr",
+    # Soil temperature levels (not pressure levels)
+    "stl1": "soil_temperature_level_1",
+    "stl2": "soil_temperature_level_2",
     # Pressure-level heads
     "t": "temperature",
     "u": "u_component_of_wind",
@@ -198,17 +215,61 @@ def _unstack_e2s_variable_axis(ds: xr.Dataset) -> xr.Dataset:
     )
 
 
+def _restack_flat_e2s_vars(ds: xr.Dataset) -> xr.Dataset:
+    """Convert flat e2s data_vars (t500, u10m, ...) to ECMWF long names with level dim.
+
+    When XarrayBackend writes each channel as a separate data_var (no 'variable'
+    dim), this groups 3D vars by ECMWF long name and stacks them along a 'level'
+    coordinate. Surface vars are simply renamed to ECMWF long names.
+    """
+    by_long: dict[str, list[tuple[int | None, str]]] = {}
+    for var_name in list(ds.data_vars):
+        long_name, level = _e2s_var_to_long(str(var_name))
+        by_long.setdefault(long_name, []).append((level, str(var_name)))
+
+    needs_transform = False
+    for long_name, entries in by_long.items():
+        if len(entries) > 1 or entries[0][1] != long_name:
+            needs_transform = True
+            break
+
+    if not needs_transform:
+        return ds
+
+    out_vars: dict[str, xr.DataArray] = {}
+    for long_name, entries in by_long.items():
+        levels = [lvl for lvl, _ in entries]
+        var_names = [tok for _, tok in entries]
+        if all(lvl is None for lvl in levels):
+            out_vars[long_name] = ds[var_names[0]]
+        else:
+            valid = [(lvl, tok) for lvl, tok in entries if lvl is not None]
+            level_values = np.array([lvl for lvl, _ in valid], dtype="int64")
+            arrays = [ds[tok] for _, tok in valid]
+            stacked = xr.concat(arrays, dim="level")
+            stacked = stacked.assign_coords(level=("level", level_values)).sortby("level")
+            out_vars[long_name] = stacked
+
+    return xr.Dataset(
+        out_vars,
+        coords={k: v for k, v in ds.coords.items() if k not in ds.data_vars},
+        attrs=ds.attrs,
+    )
+
+
 def e2s_to_swissclim(ds: xr.Dataset, ensemble_id: int = 0) -> xr.Dataset:
     """Bridge an earth2studio output dataset to SwissClim-native zarr layout.
 
     Steps:
-      1. Unstack the 'variable' axis into per-ECMWF-name data_vars.
-      2. Rename 'lat'/'lon' to 'latitude'/'longitude'.
-      3. Ensure 'ensemble' dim is present (singleton if not).
-      4. Apply `to_swissclim_forecast` for the rest (init_time/lead_time
+      1. Unstack the 'variable' axis into per-ECMWF-name data_vars (if present).
+      2. Restack flat e2s tokens (t500, u10m) into ECMWF long names + level dim.
+      3. Rename 'lat'/'lon' to 'latitude'/'longitude'.
+      4. Ensure 'ensemble' dim is present (singleton if not).
+      5. Apply `to_swissclim_forecast` for the rest (init_time/lead_time
          dtype/coord normalisation, valid_time stripping).
     """
     ds = _unstack_e2s_variable_axis(ds)
+    ds = _restack_flat_e2s_vars(ds)
     rename_dims = {k: v for k, v in {"lat": "latitude", "lon": "longitude"}.items() if k in ds.dims}
     if rename_dims:
         ds = ds.rename(rename_dims)

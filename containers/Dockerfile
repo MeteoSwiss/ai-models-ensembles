@@ -26,17 +26,36 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         curl \
     && rm -rf /var/lib/apt/lists/*
 
-# uv for fast resolves
+# uv for fast resolves (NGC 25.12+ already ships uv; update if present)
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh \
-    && ln -s /root/.local/bin/uv /usr/local/bin/uv
+    && ln -sfn /root/.local/bin/uv /usr/local/bin/uv
 
 WORKDIR /workspace/ai-models-ensembles
 COPY pyproject.toml ./
 COPY ai_models_ensembles ./ai_models_ensembles
 COPY config ./config
+COPY tools ./tools
+COPY tests ./tests
+COPY scripts ./scripts
 
-# Editable install pulls earth2studio + selected model extras + swissclim.
-RUN uv pip install --system -e .
+# NGC 25.12 marks its Python as externally managed; override that.
+ENV UV_SYSTEM_PACKAGES=1 UV_BREAK_SYSTEM_PACKAGES=1
+
+# Step 1: Install natten first without build isolation (needs NGC torch).
+RUN uv pip install --system --break-system-packages --no-build-isolation natten
+
+# Step 2: Editable install of the project (normal isolation for everything else).
+RUN uv pip install --system --break-system-packages -e .
+
+# Step 3: Fix dependency issues:
+# - warp-lang<1.13: physicsnemo 2.0 uses wp.context.Device (removed in 1.13)
+# - graphcast: PyPI "graphcast" is a wrong package (graph-DB tool); replace
+#   with DeepMind's graphcast from GitHub
+# - chex: missing transitive dep for graphcast model loading
+RUN uv pip install --system --break-system-packages "warp-lang<1.13" \
+    && uv pip uninstall --system graphcast \
+    && uv pip install --system --break-system-packages \
+        chex "graphcast @ git+https://github.com/google-deepmind/graphcast"
 
 # Pre-create cache dir so EARTH2STUDIO_CACHE is writable in the container.
 RUN mkdir -p ${EARTH2STUDIO_CACHE}
