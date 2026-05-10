@@ -565,6 +565,12 @@ def run_inference(
             cached_checkpoints=cached_checkpoints,
         )
 
+    # Clean up work directory (perturbed weight copies, etc.)
+    import shutil
+
+    if work_dir.exists():
+        shutil.rmtree(work_dir, ignore_errors=True)
+
     return output
 
 
