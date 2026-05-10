@@ -71,6 +71,8 @@ def _run_one_member(
     from earth2studio.run import deterministic
 
     _seed_rngs(seed)
+    if hasattr(model, "set_rng"):
+        model.set_rng(seed=seed, reset=True)
     init_array = np.array([np.datetime64(init_time, "ns")])
     backend = XarrayBackend()
     deterministic(init_array, steps, model, data, backend)
@@ -94,6 +96,14 @@ def _filter_levels(ds: xr.Dataset, levels: list[int] | None) -> xr.Dataset:
     if not keep:
         return ds
     return ds.sel(level=keep)
+
+
+def _filter_vars(ds: xr.Dataset, variables: list[str] | None) -> xr.Dataset:
+    """Keep only the requested data variables, dropping the rest."""
+    if not variables:
+        return ds
+    keep = [v for v in variables if v in ds.data_vars]
+    return ds[keep]
 
 
 def _data_for_member(
@@ -166,6 +176,7 @@ def _gpu_worker(
     work_dir: str,
     output_dir: str,
     output_levels: list[int] | None,
+    output_vars: list[str] | None,
     cached_checkpoints: dict[str, str] | None,
 ) -> None:
     """Run a single member on a specific GPU. Called via multiprocessing spawn.
@@ -218,6 +229,7 @@ def _gpu_worker(
     )
     ds = _run_one_member(model, data, init_time, steps, ensemble_id=m, seed=seed + m)
     ds = _filter_levels(ds, output_levels)
+    ds = _filter_vars(ds, output_vars)
 
     member_zarr = output_path / f"member_{m:03d}.zarr"
     ds.to_zarr(member_zarr, mode="w", consolidated=True)
@@ -275,13 +287,15 @@ def _merge_member_zarrs(tmp_dir: Path, output: Path, n_members: int) -> None:
     for cname in ds.coords:
         if cname not in ds.data_vars:
             ca = ds.coords[cname]
-            root.create_array(
+            values = ca.values
+            arr = root.create_array(
                 cname,
-                data=ca.values,
+                shape=values.shape,
                 dtype=str(ca.dtype),
                 dimension_names=ca.dims if ca.dims else (cname,),
                 attributes=dict(ca.attrs),
             )
+            arr[:] = values
 
     zarr.consolidate_metadata(store)
     shutil.rmtree(tmp_dir)
@@ -300,6 +314,7 @@ def _run_members_sequential(
     work_dir: Path,
     output: Path,
     output_levels: list[int] | None,
+    output_vars: list[str] | None,
     cached_checkpoints: dict[str, str] | None,
 ) -> None:
     shared_model = None if weight_magnitude > 0 else load_model(model_name)[0]
@@ -334,6 +349,7 @@ def _run_members_sequential(
         print(f"[member {m + 1}/{n_members}] running rollout")
         ds = _run_one_member(model, data, init_time, steps, ensemble_id=m, seed=seed + m)
         ds = _filter_levels(ds, output_levels)
+        ds = _filter_vars(ds, output_vars)
 
         member_zarr = tmp_dir / f"member_{m:03d}.zarr"
         ds.to_zarr(member_zarr, mode="w", consolidated=True)
@@ -358,6 +374,7 @@ def _run_members_parallel(
     work_dir: Path,
     output: Path,
     output_levels: list[int] | None,
+    output_vars: list[str] | None,
     cached_checkpoints: dict[str, str] | None,
 ) -> None:
     """Run members in parallel across GPUs, one process per member.
@@ -396,6 +413,7 @@ def _run_members_parallel(
         str(work_dir),
         str(tmp_dir),
         output_levels,
+        output_vars,
         cached_checkpoints,
     )
 
@@ -511,6 +529,7 @@ def run_inference(
     seed: int = 0,
     work_dir: Path | None = None,
     output_levels: list[int] | None = None,
+    output_vars: list[str] | None = None,
 ) -> Path:
     """Run an earth2studio model and emit a SwissClim-format zarr at `output`.
 
@@ -552,6 +571,7 @@ def run_inference(
             work_dir=work_dir,
             output=output,
             output_levels=output_levels,
+            output_vars=output_vars,
             cached_checkpoints=cached_checkpoints,
         )
     else:
@@ -568,6 +588,7 @@ def run_inference(
             work_dir=work_dir,
             output=output,
             output_levels=output_levels,
+            output_vars=output_vars,
             cached_checkpoints=cached_checkpoints,
         )
 

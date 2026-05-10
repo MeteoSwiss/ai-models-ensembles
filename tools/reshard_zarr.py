@@ -7,14 +7,17 @@ atomically (write to .tmp, rename).
 
 Usage:
     python tools/reshard_zarr.py /path/to/ablation/phase1
-    python tools/reshard_zarr.py /path/to/201801010000
+    python tools/reshard_zarr.py /path/to/baselines
+    python tools/reshard_zarr.py /path/to/ablation --workers 4
 """
 
 from __future__ import annotations
 
+import json
 import math
 import shutil
 import sys
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 
 import numpy as np
@@ -30,6 +33,24 @@ INNER_CHUNKS: dict[str, int] = {
     "latitude": 90,
     "longitude": 360,
 }
+
+
+def is_already_sharded(zarr_path: Path) -> bool:
+    meta_file = zarr_path / "zarr.json"
+    if not meta_file.exists():
+        return False
+    json.loads(meta_file.read_text())
+    first_var = next(
+        (d for d in zarr_path.iterdir() if d.is_dir() and d.name != ".zmetadata"), None
+    )
+    if not first_var:
+        return False
+    var_meta = first_var / "zarr.json"
+    if not var_meta.exists():
+        return False
+    vm = json.loads(var_meta.read_text())
+    codecs = vm.get("codecs", [])
+    return any(c.get("name") == "sharding_indexed" for c in codecs)
 
 
 def reshard(zarr_path: Path) -> None:
@@ -63,13 +84,15 @@ def reshard(zarr_path: Path) -> None:
     for cname in ds.coords:
         if cname not in ds.data_vars:
             ca = ds.coords[cname]
-            root.create_array(
+            values = ca.values
+            arr = root.create_array(
                 cname,
-                data=ca.values,
+                shape=values.shape,
                 dtype=str(ca.dtype),
                 dimension_names=ca.dims if ca.dims else (cname,),
                 attributes=dict(ca.attrs),
             )
+            arr[:] = values
 
     zarr.consolidate_metadata(store)
     ds.close()
@@ -81,34 +104,40 @@ def reshard(zarr_path: Path) -> None:
     shutil.rmtree(old_path)
 
 
+def _reshard_one(args: tuple[int, int, Path]) -> str:
+    idx, total, zp = args
+    tag = f"[{idx + 1}/{total}]"
+    if is_already_sharded(zp):
+        return f"{tag} SKIP (already sharded): {zp}"
+    reshard(zp)
+    return f"{tag} Done: {zp}"
+
+
 def main() -> None:
     root = Path(sys.argv[1])
+    workers = 1
+    if "--workers" in sys.argv:
+        workers = int(sys.argv[sys.argv.index("--workers") + 1])
+
     zarr_stores = sorted(root.rglob("forecast.zarr"))
-    print(f"Found {len(zarr_stores)} forecast.zarr stores under {root}")
+    total = len(zarr_stores)
+    print(f"Found {total} forecast.zarr stores under {root}")
 
-    for i, zp in enumerate(zarr_stores):
-        # Skip already-sharded stores (check for sharding codec in metadata)
-        meta_file = zp / "zarr.json"
-        if meta_file.exists():
-            import json
-
-            json.loads(meta_file.read_text())  # validate it's valid json
-            # Already zarr v3 group; check first data var for sharding
-            first_var = next(
-                (d for d in zp.iterdir() if d.is_dir() and d.name != ".zmetadata"), None
-            )
-            if first_var:
-                var_meta = first_var / "zarr.json"
-                if var_meta.exists():
-                    vm = json.loads(var_meta.read_text())
-                    codecs = vm.get("codecs", [])
-                    if any(c.get("name") == "sharding_indexed" for c in codecs):
-                        print(f"[{i + 1}/{len(zarr_stores)}] SKIP (already sharded): {zp}")
-                        continue
-
-        print(f"[{i + 1}/{len(zarr_stores)}] Resharding: {zp}", flush=True)
-        reshard(zp)
-        print(f"[{i + 1}/{len(zarr_stores)}] Done: {zp}", flush=True)
+    if workers <= 1:
+        for i, zp in enumerate(zarr_stores):
+            if is_already_sharded(zp):
+                print(f"[{i + 1}/{total}] SKIP (already sharded): {zp}")
+                continue
+            print(f"[{i + 1}/{total}] Resharding: {zp}", flush=True)
+            reshard(zp)
+            print(f"[{i + 1}/{total}] Done: {zp}", flush=True)
+    else:
+        print(f"Using {workers} parallel workers")
+        tasks = [(i, total, zp) for i, zp in enumerate(zarr_stores)]
+        with ProcessPoolExecutor(max_workers=workers) as pool:
+            futures = {pool.submit(_reshard_one, t): t for t in tasks}
+            for fut in as_completed(futures):
+                print(fut.result(), flush=True)
 
 
 if __name__ == "__main__":

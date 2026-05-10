@@ -213,12 +213,6 @@ submit_eval() {
     mkdir -p "$(dirname "$config_path")"
     generate_config "$eval_root" "${zarr_paths[@]}" > "$config_path"
 
-    local container="$STORE/${model}.sqsh"
-    if [[ ! -f "$container" ]]; then
-        container="$STORE/aurora.sqsh"
-    fi
-
-    local mounts="${SRC_DIR}:${WORKDIR},${STORE}:${STORE}"
     local job_tag="${phase}_${model}_${run_tag}"
 
     echo "  eval: $job_tag (${#zarr_paths[@]} init_times)"
@@ -231,15 +225,11 @@ submit_eval() {
         --ntasks=1 \
         --cpus-per-task=16 \
         --mem=128G \
-        --gres=gpu:0 \
+        --gres=gpu:4 \
         --time="$TIME_LIMIT" \
         --output="$LOG_DIR/eval_${job_tag}_%j.out" \
         --error="$LOG_DIR/eval_${job_tag}_%j.err" \
-        --container-image="$container" \
-        --container-mounts="$mounts" \
-        --container-workdir="$WORKDIR" \
-        --wrap="cd ${WORKDIR}/SwissClim_Evaluations && \
-            pip install -e . --quiet && \
+        --wrap="source ${SRC_DIR}/.venv/bin/activate && \
             python -m swissclim_evaluations.cli --config '${config_path}'"
 }
 
@@ -329,9 +319,6 @@ run_intercompare() {
             cli_paths+=" '${d}'"
         done
 
-        local container="$STORE/${model}.sqsh"
-        [[ ! -f "$container" ]] && container="$STORE/aurora.sqsh"
-        local mounts="${SRC_DIR}:${WORKDIR},${STORE}:${STORE}"
         local job_tag="icmp_${phase}_${model}"
 
         echo "  intercompare $model: ${#eval_dirs[@]} configs -> $out_dir"
@@ -344,15 +331,11 @@ run_intercompare() {
             --ntasks=1 \
             --cpus-per-task=16 \
             --mem=128G \
-            --gres=gpu:0 \
+            --gres=gpu:4 \
             --time="$TIME_LIMIT" \
             --output="$LOG_DIR/${job_tag}_%j.out" \
             --error="$LOG_DIR/${job_tag}_%j.err" \
-            --container-image="$container" \
-            --container-mounts="$mounts" \
-            --container-workdir="$WORKDIR" \
-            --wrap="cd ${WORKDIR}/SwissClim_Evaluations && \
-                pip install -e . --quiet && \
+            --wrap="source ${SRC_DIR}/.venv/bin/activate && \
                 python -m ai_models_ensembles.cli intercompare \
                     ${cli_paths} \
                     --out-dir '${out_dir}' \

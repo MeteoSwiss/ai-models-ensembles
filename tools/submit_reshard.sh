@@ -18,9 +18,9 @@ TARGET="${1:-all}"
 
 case "$TARGET" in
     ablation)   PATHS="$STORE/ablation" ;;
-    production) PATHS="$STORE/201801010000" ;;
-    all)        PATHS="$STORE/ablation $STORE/201801010000" ;;
-    *)          echo "Usage: $0 [ablation|production|all]"; exit 1 ;;
+    baselines)  PATHS="$STORE/baselines" ;;
+    all)        PATHS="$STORE/ablation $STORE/baselines" ;;
+    *)          echo "Usage: $0 [ablation|baselines|all]"; exit 1 ;;
 esac
 
 MOUNTS="${SRC_DIR}:${WORKDIR},${STORE}:${STORE}"
@@ -38,7 +38,7 @@ echo "Cleanup done."
 
 echo "=== Resharding zarr stores ==="
 for p in ${PATHS}; do
-    python ${WORKDIR}/tools/reshard_zarr.py "\$p"
+    python ${WORKDIR}/tools/reshard_zarr.py "\$p" --workers 8
 done
 echo "=== All done ==="
 SCRIPT
