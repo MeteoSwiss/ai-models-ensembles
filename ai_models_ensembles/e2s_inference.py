@@ -221,17 +221,63 @@ def _gpu_worker(
     )
 
 
+_INNER_CHUNKS: dict[str, int] = {
+    "ensemble": 1,
+    "level": 1,
+    "init_time": 1,
+    "lead_time": 6,
+    "latitude": 90,
+    "longitude": 360,
+}
+
+
 def _merge_member_zarrs(tmp_dir: Path, output: Path, n_members: int) -> None:
-    """Concatenate per-member zarr files along the ensemble dimension."""
+    """Concatenate per-member zarr files into a single sharded zarr v3 store."""
+    import math
     import shutil
 
+    import zarr
+    from zarr.storage import LocalStore
+
+    members = []
     for m in range(n_members):
         member_zarr = tmp_dir / f"member_{m:03d}.zarr"
-        ds = xr.open_zarr(member_zarr, consolidated=True)
-        if m == 0:
-            ds.to_zarr(output, mode="w", consolidated=True)
-        else:
-            ds.to_zarr(output, mode="a", append_dim="ensemble", consolidated=True)
+        members.append(xr.open_zarr(member_zarr, consolidated=True))
+    ds = xr.concat(members, dim="ensemble")
+
+    store = LocalStore(str(output))
+    root = zarr.open_group(store, mode="w", zarr_format=3)
+
+    for vname in ds.data_vars:
+        da = ds[vname]
+        shape = da.shape
+        inner = tuple(min(s, _INNER_CHUNKS.get(d, s)) for d, s in zip(da.dims, shape))
+        shards = tuple(math.ceil(s / c) * c for s, c in zip(shape, inner))
+        dtype = "float32" if da.dtype == np.float64 else str(da.dtype)
+
+        arr = root.create_array(
+            vname,
+            shape=shape,
+            chunks=inner,
+            shards=shards,
+            dtype=dtype,
+            dimension_names=da.dims,
+            attributes=dict(da.attrs),
+        )
+        arr[:] = da.values.astype(dtype)
+
+    for cname in ds.coords:
+        if cname not in ds.data_vars:
+            ca = ds.coords[cname]
+            root.create_array(
+                cname,
+                data=ca.values,
+                dtype=str(ca.dtype),
+                dimension_names=ca.dims if ca.dims else (cname,),
+                attributes=dict(ca.attrs),
+            )
+
+    zarr.consolidate_metadata(store)
     shutil.rmtree(tmp_dir)
 
 
@@ -252,6 +298,8 @@ def _run_members_sequential(
 ) -> None:
     shared_model = None if weight_magnitude > 0 else load_model(model_name)[0]
     cached_ic: xr.Dataset | None = None
+    tmp_dir = work_dir / "_seq_members"
+    tmp_dir.mkdir(parents=True, exist_ok=True)
 
     for m in range(n_members):
         print(f"[member {m + 1}/{n_members}] preparing data + model")
@@ -281,11 +329,13 @@ def _run_members_sequential(
         ds = _run_one_member(model, data, init_time, steps, ensemble_id=m, seed=seed + m)
         ds = _filter_levels(ds, output_levels)
 
-        if m == 0:
-            ds.to_zarr(output, mode="w", consolidated=True)
-        else:
-            ds.to_zarr(output, mode="a", append_dim="ensemble", consolidated=True)
-        print(f"[member {m + 1}/{n_members}] wrote ensemble={m} -> {output}")
+        member_zarr = tmp_dir / f"member_{m:03d}.zarr"
+        ds.to_zarr(member_zarr, mode="w", consolidated=True)
+        print(f"[member {m + 1}/{n_members}] wrote {member_zarr}")
+
+    print("[sequential] Merging member outputs...")
+    _merge_member_zarrs(tmp_dir, output, n_members)
+    print(f"[sequential] Final output: {output}")
 
 
 def _run_members_parallel(
