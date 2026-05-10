@@ -20,7 +20,7 @@ LOG_DIR="$STORE/ablation_logs"
 WORKDIR=/workspace/ai-models-ensembles
 
 PARTITION="${PARTITION:-normal}"
-TIME_LIMIT="02:00:00"
+TIME_LIMIT="06:00:00"
 
 # WeatherBench2 ERA5 reference data (covers 2022-2025)
 WB2_PATHS='[
@@ -113,6 +113,8 @@ selection:
     deterministic: mean
     multivariate: mean
     histograms: pooled
+    ets: members
+    fss: members
 
   check_missing: false
 
@@ -139,7 +141,8 @@ modules:
   energy_spectra: true
   vertical_profiles: false
   deterministic: true
-  ets: false
+  ets: true
+  fss: true
   probabilistic: true
   ssim: false
   multivariate: true
@@ -159,9 +162,16 @@ metrics:
     standardized_include: ["MAE", "RMSE"]
     report_per_level: true
     error_maps: false
-    fss:
-      quantile: 0.90
-      window_size: 9
+  ets:
+    thresholds: [75, 95]
+    report_per_level: true
+    aggregate_members_mean: true
+
+  fss:
+    thresholds: [75, 95]
+    window_size: 9
+    report_per_level: true
+    aggregate_members_mean: true
 
   multivariate:
     bivariate_pairs:
@@ -225,7 +235,6 @@ submit_eval() {
         --ntasks=1 \
         --cpus-per-task=16 \
         --mem=128G \
-        --gres=gpu:4 \
         --time="$TIME_LIMIT" \
         --output="$LOG_DIR/eval_${job_tag}_%j.out" \
         --error="$LOG_DIR/eval_${job_tag}_%j.err" \
@@ -339,7 +348,7 @@ run_intercompare() {
                 python -m ai_models_ensembles.cli intercompare \
                     ${cli_paths} \
                     --out-dir '${out_dir}' \
-                    --module spectra --module hist --module metrics --module prob --module multivariate"
+                    --module spectra --module hist --module metrics --module prob --module multivariate --module ets --module fss"
 
         ((count++))
     done
