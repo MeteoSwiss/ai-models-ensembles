@@ -265,11 +265,68 @@ run_eval_phase() {
 }
 
 # ---------------------------------------------------------------------------
-# Intercomparison: compare all runs of a model across magnitudes/layers
+# Intercomparison: compare runs within meaningful groups.
+#
+# Phase 1 grouping:
+#   - Per init_time: 5 magnitudes side-by-side (most readable)
+#   - Per magnitude: 4 init_times side-by-side (seasonal stability)
+#
+# Phase 2 grouping:
+#   - Per init_time: layer groups side-by-side
 # ---------------------------------------------------------------------------
+submit_intercompare_job() {
+    local model=$1
+    local out_dir=$2
+    local job_tag=$3
+    shift 3
+    local path_args=("$@")
+
+    if [[ ${#path_args[@]} -lt 2 ]]; then
+        echo "  SKIP $job_tag: need >= 2 eval dirs, got ${#path_args[@]}"
+        return 0
+    fi
+    if [[ -d "$out_dir" ]]; then
+        echo "  SKIP $job_tag: output exists"
+        return 0
+    fi
+
+    local container="$STORE/${model}.sqsh"
+    local mounts="${SRC_DIR}:${WORKDIR},${STORE}:${STORE}"
+
+    local cli_paths=""
+    for d in "${path_args[@]}"; do
+        cli_paths+=" '${d}'"
+    done
+
+    echo "  intercompare: $job_tag (${#path_args[@]} runs)"
+
+    sbatch --parsable \
+        --job-name="icmp_${job_tag}" \
+        --partition="$PARTITION" \
+        --account=a122 \
+        --nodes=1 \
+        --ntasks=1 \
+        --cpus-per-task=16 \
+        --mem=128G \
+        --gres=gpu:0 \
+        --time="$TIME_LIMIT" \
+        --output="$LOG_DIR/icmp_${job_tag}_%j.out" \
+        --error="$LOG_DIR/icmp_${job_tag}_%j.err" \
+        --container-image="$container" \
+        --container-mounts="$mounts" \
+        --container-workdir="$WORKDIR" \
+        --wrap="cd ${WORKDIR}/SwissClim_Evaluations && \
+            pip install -e . --quiet && \
+            python -m ai_models_ensembles.cli intercompare \
+                ${cli_paths} \
+                --out-dir '${out_dir}' \
+                --module spectra --module hist --module metrics --module prob --module multivariate"
+}
+
 run_intercompare() {
     local phase=$1
     local filter_model="${2:-}"
+    local count=0
 
     echo "=== Intercomparison for ${phase} ==="
 
@@ -283,58 +340,52 @@ run_intercompare() {
             continue
         fi
 
-        # Collect all swissclim_eval directories for this model
-        local eval_dirs=()
-        local eval_labels=()
-        while IFS= read -r d; do
-            eval_dirs+=("$d")
-            # Label: init_tag/run_tag
-            local run_dir
-            run_dir=$(dirname "$d")
-            local init_dir
-            init_dir=$(dirname "$run_dir")
-            eval_labels+=("$(basename "$init_dir")/$(basename "$run_dir")")
-        done < <(find "$base" -type d -name "swissclim_eval" | sort)
+        # --- Group 1: Per init_time (compare magnitudes/layers) ---
+        for init_dir in "$base"/*/; do
+            [[ ! -d "$init_dir" ]] && continue
+            local init_tag
+            init_tag=$(basename "$init_dir")
 
-        if [[ ${#eval_dirs[@]} -lt 2 ]]; then
-            echo "SKIP $model: need at least 2 evaluated runs, found ${#eval_dirs[@]}"
-            continue
-        fi
+            local dirs=()
+            for run_dir in "$init_dir"/*/; do
+                local eval_dir="${run_dir}swissclim_eval"
+                [[ -d "$eval_dir" ]] && dirs+=("$eval_dir")
+            done
 
-        local out_dir="$base/intercomparison"
-        echo "  intercompare $model: ${#eval_dirs[@]} runs -> $out_dir"
-
-        # Build CLI args
-        local path_args=""
-        for d in "${eval_dirs[@]}"; do
-            path_args+=" '$d'"
+            local out="$base/intercompare_by_init/${init_tag}"
+            submit_intercompare_job "$model" "$out" \
+                "${phase}_${model}_init_${init_tag}" "${dirs[@]}" && ((count++)) || true
         done
 
-        local container="$STORE/aurora.sqsh"
-        local mounts="${SRC_DIR}:${WORKDIR},${STORE}:${STORE}"
+        # --- Group 2: Per magnitude/layer group (compare across init_times) ---
+        # Collect unique run tags (e.g. mag_0.01_layer_all)
+        local run_tags=()
+        for run_dir in "$base"/*/*/; do
+            [[ ! -d "$run_dir" ]] && continue
+            local tag
+            tag=$(basename "$run_dir")
+            # Deduplicate
+            local found=0
+            for existing in "${run_tags[@]:-}"; do
+                [[ "$existing" == "$tag" ]] && found=1 && break
+            done
+            [[ $found -eq 0 ]] && run_tags+=("$tag")
+        done
 
-        sbatch --parsable \
-            --job-name="icmp_${phase}_${model}" \
-            --partition="$PARTITION" \
-            --account=a122 \
-            --nodes=1 \
-            --ntasks=1 \
-            --cpus-per-task=16 \
-            --mem=128G \
-            --gres=gpu:0 \
-            --time="$TIME_LIMIT" \
-            --output="$LOG_DIR/icmp_${phase}_${model}_%j.out" \
-            --error="$LOG_DIR/icmp_${phase}_${model}_%j.err" \
-            --container-image="$container" \
-            --container-mounts="$mounts" \
-            --container-workdir="$WORKDIR" \
-            --wrap="cd ${WORKDIR}/SwissClim_Evaluations && \
-                pip install -e . --quiet && \
-                python -m ai_models_ensembles.cli intercompare \
-                    ${path_args} \
-                    --out-dir '${out_dir}' \
-                    --module spectra --module hist --module metrics --module prob --module multivariate"
+        for run_tag in "${run_tags[@]}"; do
+            local dirs=()
+            for init_dir in "$base"/*/; do
+                local eval_dir="${init_dir}${run_tag}/swissclim_eval"
+                [[ -d "$eval_dir" ]] && dirs+=("$eval_dir")
+            done
+
+            local out="$base/intercompare_by_config/${run_tag}"
+            submit_intercompare_job "$model" "$out" \
+                "${phase}_${model}_cfg_${run_tag}" "${dirs[@]}" && ((count++)) || true
+        done
     done
+
+    echo "${phase}: submitted $count intercomparison jobs"
 }
 
 # ---------------------------------------------------------------------------
