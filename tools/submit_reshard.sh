@@ -25,6 +25,25 @@ esac
 
 MOUNTS="${SRC_DIR}:${WORKDIR},${STORE}:${STORE}"
 
+# Write helper script to shared storage (accessible from compute nodes)
+HELPER="$STORE/logs/reshard_helper.sh"
+cat > "$HELPER" <<SCRIPT
+#!/bin/bash
+set -eu
+echo "=== Cleaning up intermediate directories ==="
+find ${STORE} -type d -name _e2s_work -exec rm -rf {} + 2>/dev/null || true
+find ${STORE} -type d -name _seq_members -exec rm -rf {} + 2>/dev/null || true
+find ${STORE} -type d -name _par_members -exec rm -rf {} + 2>/dev/null || true
+echo "Cleanup done."
+
+echo "=== Resharding zarr stores ==="
+for p in ${PATHS}; do
+    python ${WORKDIR}/tools/reshard_zarr.py "\$p"
+done
+echo "=== All done ==="
+SCRIPT
+chmod +x "$HELPER"
+
 sbatch --parsable \
     --account=a122 \
     --partition="$PARTITION" \
@@ -39,18 +58,4 @@ sbatch --parsable \
     --container-image="$CONTAINER" \
     --container-mounts="$MOUNTS" \
     --container-workdir="$WORKDIR" \
-    --wrap="
-set -euo pipefail
-
-echo '=== Cleaning up _e2s_work directories ==='
-find $STORE -type d -name '_e2s_work' -exec rm -rf {} + 2>/dev/null || true
-find $STORE -type d -name '_seq_members' -exec rm -rf {} + 2>/dev/null || true
-find $STORE -type d -name '_par_members' -exec rm -rf {} + 2>/dev/null || true
-echo 'Cleanup done.'
-
-echo '=== Resharding zarr stores ==='
-for p in $PATHS; do
-    python tools/reshard_zarr.py \"\$p\"
-done
-echo '=== All done ==='
-"
+    --wrap="bash ${HELPER}"
