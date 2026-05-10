@@ -45,12 +45,17 @@ def _seed_rngs(seed: int) -> None:
     sample from torch's global RNG. We seed numpy too so any IC-perturbation
     or ancillary noise is reproducible per-member.
     """
+    import os
+
     import torch
 
     np.random.seed(seed)
     torch.manual_seed(seed)
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
 
 
 def _run_one_member(
@@ -104,7 +109,8 @@ def _data_for_member(
         return build_data_source(base_source), cached_ic
     if cached_ic is None:
         cached_ic = fetch_initial_conditions(base_source, init_time)
-    perturbed = perturb_initial_conditions(cached_ic, ic_magnitude, seed=seed + member_id)
+    # Offset IC seed by 10_000 to avoid sharing a seed with weight perturbation
+    perturbed = perturb_initial_conditions(cached_ic, ic_magnitude, seed=seed + member_id + 10_000)
     return XarrayDataSource(perturbed), cached_ic
 
 
