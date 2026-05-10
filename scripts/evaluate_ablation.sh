@@ -153,7 +153,7 @@ metrics:
     bins: 100
 
 performance:
-  scheduler: threaded
+  dask_scheduler: threaded
 YAML
 }
 
