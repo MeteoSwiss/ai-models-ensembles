@@ -50,29 +50,47 @@ EVAL_MODULES="energy_spectra,probabilistic,deterministic,multivariate,histograms
 mkdir -p "$LOG_DIR"
 
 # ---------------------------------------------------------------------------
-# Generate a SwissClim Evaluations YAML config for a single ablation run.
+# Generate a SwissClim Evaluations YAML config for one (model, config) combo
+# across all init_times. paths.ml is a list of forecast.zarr paths.
 # ---------------------------------------------------------------------------
 generate_config() {
-    local zarr_path=$1
-    local output_root=$2
-    local init_time=$3
+    local output_root=$1
+    shift
+    local zarr_paths=("$@")
 
-    # Validation time range: init_time to init_time + 240h (10 days)
-    local init_date="${init_time%%T*}"
-    local end_date
-    end_date=$(date -d "${init_date} + 10 days" +%Y-%m-%dT23 2>/dev/null || \
-               python3 -c "from datetime import datetime,timedelta; print((datetime.fromisoformat('${init_date}') + timedelta(days=10)).strftime('%Y-%m-%dT23'))")
+    # Build YAML list for paths.ml
+    local ml_yaml="["
+    local first=1
+    for zp in "${zarr_paths[@]}"; do
+        [[ $first -eq 0 ]] && ml_yaml+=", "
+        ml_yaml+="\"${zp}\""
+        first=0
+    done
+    ml_yaml+="]"
+
+    # Build datetime ranges for each init_time
+    local dt_yaml="["
+    first=1
+    for it in "${INIT_TIMES[@]}"; do
+        local init_date="${it%%T*}"
+        local end_date
+        end_date=$(python3 -c "from datetime import datetime,timedelta; print((datetime.fromisoformat('${init_date}') + timedelta(days=10)).strftime('%Y-%m-%dT23'))")
+        [[ $first -eq 0 ]] && dt_yaml+=", "
+        dt_yaml+="\"${it}:${end_date}\""
+        first=0
+    done
+    dt_yaml+="]"
 
     cat <<YAML
 paths:
-  ml: "${zarr_path}"
+  ml: ${ml_yaml}
   nwp: ${WB2_PATHS}
   output_root: "${output_root}"
 
 selection:
   levels: [500, 850]
   temporal_resolution_hours: null
-  datetimes: ["${init_time}:${end_date}"]
+  datetimes: ${dt_yaml}
   latitudes: [90.0, -89.75]
   longitudes: [0.0, 359.75]
 
@@ -158,37 +176,52 @@ YAML
 }
 
 # ---------------------------------------------------------------------------
-# Submit evaluation for a single ablation run
+# Evaluate one (model, run_tag) across all init_times combined.
 # ---------------------------------------------------------------------------
 submit_eval() {
-    local zarr_path=$1
-    local init_time=$2
-    local phase=$3
-    local job_tag=$4
+    local model=$1
+    local model_id=$2
+    local run_tag=$3
+    local phase=$4
+    local base=$5
 
-    local eval_root
-    eval_root="$(dirname "$zarr_path")/swissclim_eval"
+    local eval_root="$base/eval/${run_tag}"
 
     # Skip if already evaluated
     if [[ -d "$eval_root" ]]; then
-        echo "  SKIP $job_tag: eval output exists"
+        echo "  SKIP ${model} ${run_tag}: eval output exists"
         return 0
     fi
 
-    local config_path
-    config_path="$(dirname "$zarr_path")/swissclim_config.yaml"
-    generate_config "$zarr_path" "$eval_root" "$init_time" > "$config_path"
+    # Collect forecast.zarr paths across all init_times
+    local zarr_paths=()
+    for it in "${INIT_TIMES[@]}"; do
+        local init_tag="${it%%T*}"
+        init_tag="${init_tag//-/}"
+        local zp="$base/${init_tag}/${run_tag}/forecast.zarr"
+        if [[ -d "$zp" ]]; then
+            zarr_paths+=("$zp")
+        fi
+    done
 
-    # Use the first available model container (all have swissclim-evaluations)
-    local container="$STORE/aurora.sqsh"
+    if [[ ${#zarr_paths[@]} -eq 0 ]]; then
+        echo "  SKIP ${model} ${run_tag}: no forecast.zarr found"
+        return 0
+    fi
+
+    local config_path="$base/eval/${run_tag}_config.yaml"
+    mkdir -p "$(dirname "$config_path")"
+    generate_config "$eval_root" "${zarr_paths[@]}" > "$config_path"
+
+    local container="$STORE/${model}.sqsh"
     if [[ ! -f "$container" ]]; then
-        echo "  SKIP: no container found"
-        return 1
+        container="$STORE/aurora.sqsh"
     fi
 
     local mounts="${SRC_DIR}:${WORKDIR},${STORE}:${STORE}"
+    local job_tag="${phase}_${model}_${run_tag}"
 
-    echo "  eval: $job_tag"
+    echo "  eval: $job_tag (${#zarr_paths[@]} init_times)"
 
     sbatch --parsable \
         --job-name="eval_${job_tag}" \
@@ -211,7 +244,9 @@ submit_eval() {
 }
 
 # ---------------------------------------------------------------------------
-# Evaluate all runs in a phase
+# Evaluate all (model, config) combos in a phase.
+# Each eval job combines all 4 init_times for one (model, magnitude/layer).
+# Phase 1: 5 magnitudes x 3 models = 15 eval jobs
 # ---------------------------------------------------------------------------
 run_eval_phase() {
     local phase=$1
@@ -230,34 +265,21 @@ run_eval_phase() {
             continue
         fi
 
-        for init_dir in "$base"/*/; do
-            [[ ! -d "$init_dir" ]] && continue
-            local init_tag
-            init_tag=$(basename "$init_dir")
-
-            # Map init_tag back to init_time
-            local init_time=""
-            for it in "${INIT_TIMES[@]}"; do
-                local tag="${it%%T*}"
-                tag="${tag//-/}"
-                if [[ "$tag" == "$init_tag" ]]; then
-                    init_time="$it"
-                    break
-                fi
+        # Discover unique run_tags (e.g. mag_0.01_layer_all) across init_times
+        local run_tags=()
+        for run_dir in "$base"/*/*/; do
+            [[ ! -d "$run_dir" ]] && continue
+            local tag
+            tag=$(basename "$run_dir")
+            local found=0
+            for existing in "${run_tags[@]:-}"; do
+                [[ "$existing" == "$tag" ]] && found=1 && break
             done
-            [[ -z "$init_time" ]] && continue
+            [[ $found -eq 0 ]] && run_tags+=("$tag")
+        done
 
-            for run_dir in "$init_dir"/*/; do
-                [[ ! -d "$run_dir" ]] && continue
-                local zarr_path="${run_dir}forecast.zarr"
-                [[ ! -d "$zarr_path" ]] && continue
-
-                local run_tag
-                run_tag=$(basename "$run_dir")
-                local job_tag="${phase}_${model}_${init_tag}_${run_tag}"
-
-                submit_eval "$zarr_path" "$init_time" "$phase" "$job_tag" && ((count++)) || true
-            done
+        for run_tag in "${run_tags[@]}"; do
+            submit_eval "$model" "$model_id" "$run_tag" "$phase" "$base" && ((count++)) || true
         done
     done
 
@@ -265,64 +287,9 @@ run_eval_phase() {
 }
 
 # ---------------------------------------------------------------------------
-# Intercomparison: compare runs within meaningful groups.
-#
-# Phase 1 grouping:
-#   - Per init_time: 5 magnitudes side-by-side (most readable)
-#   - Per magnitude: 4 init_times side-by-side (seasonal stability)
-#
-# Phase 2 grouping:
-#   - Per init_time: layer groups side-by-side
+# Intercomparison: 1 job per model, comparing all eval outputs (e.g. 5
+# magnitudes for Phase 1). Labels are derived from run_tag.
 # ---------------------------------------------------------------------------
-submit_intercompare_job() {
-    local model=$1
-    local out_dir=$2
-    local job_tag=$3
-    shift 3
-    local path_args=("$@")
-
-    if [[ ${#path_args[@]} -lt 2 ]]; then
-        echo "  SKIP $job_tag: need >= 2 eval dirs, got ${#path_args[@]}"
-        return 0
-    fi
-    if [[ -d "$out_dir" ]]; then
-        echo "  SKIP $job_tag: output exists"
-        return 0
-    fi
-
-    local container="$STORE/${model}.sqsh"
-    local mounts="${SRC_DIR}:${WORKDIR},${STORE}:${STORE}"
-
-    local cli_paths=""
-    for d in "${path_args[@]}"; do
-        cli_paths+=" '${d}'"
-    done
-
-    echo "  intercompare: $job_tag (${#path_args[@]} runs)"
-
-    sbatch --parsable \
-        --job-name="icmp_${job_tag}" \
-        --partition="$PARTITION" \
-        --account=a122 \
-        --nodes=1 \
-        --ntasks=1 \
-        --cpus-per-task=16 \
-        --mem=128G \
-        --gres=gpu:0 \
-        --time="$TIME_LIMIT" \
-        --output="$LOG_DIR/icmp_${job_tag}_%j.out" \
-        --error="$LOG_DIR/icmp_${job_tag}_%j.err" \
-        --container-image="$container" \
-        --container-mounts="$mounts" \
-        --container-workdir="$WORKDIR" \
-        --wrap="cd ${WORKDIR}/SwissClim_Evaluations && \
-            pip install -e . --quiet && \
-            python -m ai_models_ensembles.cli intercompare \
-                ${cli_paths} \
-                --out-dir '${out_dir}' \
-                --module spectra --module hist --module metrics --module prob --module multivariate"
-}
-
 run_intercompare() {
     local phase=$1
     local filter_model="${2:-}"
@@ -334,55 +301,64 @@ run_intercompare() {
         [[ -n "$filter_model" && "$model" != "$filter_model" ]] && continue
         local model_id="${MODEL_IDS[$model]}"
         local base="$STORE/ablation/${phase}/${model_id}"
+        local eval_base="$base/eval"
 
-        if [[ ! -d "$base" ]]; then
-            echo "SKIP $model: no ${phase} outputs"
+        if [[ ! -d "$eval_base" ]]; then
+            echo "SKIP $model: no eval outputs at $eval_base"
             continue
         fi
 
-        # --- Group 1: Per init_time (compare magnitudes/layers) ---
-        for init_dir in "$base"/*/; do
-            [[ ! -d "$init_dir" ]] && continue
-            local init_tag
-            init_tag=$(basename "$init_dir")
-
-            local dirs=()
-            for run_dir in "$init_dir"/*/; do
-                local eval_dir="${run_dir}swissclim_eval"
-                [[ -d "$eval_dir" ]] && dirs+=("$eval_dir")
-            done
-
-            local out="$base/intercompare_by_init/${init_tag}"
-            submit_intercompare_job "$model" "$out" \
-                "${phase}_${model}_init_${init_tag}" "${dirs[@]}" && ((count++)) || true
+        local eval_dirs=()
+        for d in "$eval_base"/*/; do
+            [[ -d "$d" ]] && eval_dirs+=("$d")
         done
 
-        # --- Group 2: Per magnitude/layer group (compare across init_times) ---
-        # Collect unique run tags (e.g. mag_0.01_layer_all)
-        local run_tags=()
-        for run_dir in "$base"/*/*/; do
-            [[ ! -d "$run_dir" ]] && continue
-            local tag
-            tag=$(basename "$run_dir")
-            # Deduplicate
-            local found=0
-            for existing in "${run_tags[@]:-}"; do
-                [[ "$existing" == "$tag" ]] && found=1 && break
-            done
-            [[ $found -eq 0 ]] && run_tags+=("$tag")
+        if [[ ${#eval_dirs[@]} -lt 2 ]]; then
+            echo "SKIP $model: need >= 2 eval dirs, got ${#eval_dirs[@]}"
+            continue
+        fi
+
+        local out_dir="$base/intercomparison"
+        if [[ -d "$out_dir" ]]; then
+            echo "  SKIP $model: intercomparison output exists"
+            continue
+        fi
+
+        local cli_paths=""
+        for d in "${eval_dirs[@]}"; do
+            cli_paths+=" '${d}'"
         done
 
-        for run_tag in "${run_tags[@]}"; do
-            local dirs=()
-            for init_dir in "$base"/*/; do
-                local eval_dir="${init_dir}${run_tag}/swissclim_eval"
-                [[ -d "$eval_dir" ]] && dirs+=("$eval_dir")
-            done
+        local container="$STORE/${model}.sqsh"
+        [[ ! -f "$container" ]] && container="$STORE/aurora.sqsh"
+        local mounts="${SRC_DIR}:${WORKDIR},${STORE}:${STORE}"
+        local job_tag="icmp_${phase}_${model}"
 
-            local out="$base/intercompare_by_config/${run_tag}"
-            submit_intercompare_job "$model" "$out" \
-                "${phase}_${model}_cfg_${run_tag}" "${dirs[@]}" && ((count++)) || true
-        done
+        echo "  intercompare $model: ${#eval_dirs[@]} configs -> $out_dir"
+
+        sbatch --parsable \
+            --job-name="$job_tag" \
+            --partition="$PARTITION" \
+            --account=a122 \
+            --nodes=1 \
+            --ntasks=1 \
+            --cpus-per-task=16 \
+            --mem=128G \
+            --gres=gpu:0 \
+            --time="$TIME_LIMIT" \
+            --output="$LOG_DIR/${job_tag}_%j.out" \
+            --error="$LOG_DIR/${job_tag}_%j.err" \
+            --container-image="$container" \
+            --container-mounts="$mounts" \
+            --container-workdir="$WORKDIR" \
+            --wrap="cd ${WORKDIR}/SwissClim_Evaluations && \
+                pip install -e . --quiet && \
+                python -m ai_models_ensembles.cli intercompare \
+                    ${cli_paths} \
+                    --out-dir '${out_dir}' \
+                    --module spectra --module hist --module metrics --module prob --module multivariate"
+
+        ((count++))
     done
 
     echo "${phase}: submitted $count intercomparison jobs"
