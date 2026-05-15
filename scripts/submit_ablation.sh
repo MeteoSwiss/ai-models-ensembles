@@ -85,6 +85,7 @@ submit_job() {
     local wmag=$3
     local layer_spec=$4
     local phase=$5
+    local members="${6:-$NUM_MEMBERS}"
 
     if [[ ! -f "$container" ]]; then
         echo "SKIP $model: container $container not found"
@@ -139,7 +140,7 @@ submit_job() {
             --model $model_id \
             --init '$init_time' \
             --lead-hours $LEAD_HOURS \
-            --members $NUM_MEMBERS \
+            --members $members \
             --weight-magnitude $wmag \
             $layer_arg \
             --data-source $dsrc \
@@ -163,6 +164,115 @@ run_phase1() {
         done
     done
     echo "Phase 1: submitted $count jobs"
+}
+
+# Unperturbed baseline: 1 member, mag=0. Provides the deterministic reference
+# against which Phase 1 magnitude sweep scores are compared.
+# One slurm job per model -- runs all 4 init_times in parallel, one per GPU.
+run_phase1_unperturbed() {
+    local filter_model="${1:-}"
+    echo "=== Phase 1: Unperturbed baseline (mag=0, N=1, 4 inits/node) ==="
+    local count=0
+    for model in $MODELS; do
+        [[ -n "$filter_model" && "$model" != "$filter_model" ]] && continue
+        local model_id="${MODEL_IDS[$model]}"
+        local container="$STORE/${model}.sqsh"
+        local dsrc="${DATA_SRC[$model]}"
+
+        if [[ ! -f "$container" ]]; then
+            echo "SKIP $model: container $container not found"
+            continue
+        fi
+
+        # Helper script: parallel inference of 4 init_times, one per GPU.
+        # Includes a sequential checkpoint warmup so HF Hub-cached models
+        # (e.g. Aurora) don't hit a shared-cache race when 4 parallel processes
+        # try to download the same checkpoint file simultaneously.
+        local helper="$LOG_DIR/unperturbed_${model}.sh"
+        cat > "$helper" <<'WARMUP_HEADER'
+#!/bin/bash
+set -e
+WARMUP_HEADER
+        cat >> "$helper" <<SCRIPT
+echo "[warmup] caching ${model_id} checkpoint..."
+CUDA_VISIBLE_DEVICES=0 python -c "from ai_models_ensembles.e2s_models import load_model; load_model('${model_id}')" >/dev/null 2>&1 || true
+echo "[warmup] done"
+
+SCRIPT
+
+        local any_missing=false
+        local gpu_id=0
+        for init_time in "${INIT_TIMES[@]}"; do
+            local init_tag="${init_time%%T*}"
+            init_tag="${init_tag//-/}"
+            local out_dir="$STORE/ablation/phase1/${model_id}/${init_tag}/mag_0_layer_all"
+            local out_zarr="$out_dir/forecast.zarr"
+
+            if [[ -d "$out_zarr" ]]; then
+                echo "  SKIP $model $init_time: output exists" >&2
+                gpu_id=$((gpu_id + 1))
+                continue
+            fi
+            mkdir -p "$out_dir"
+            any_missing=true
+
+            cat >> "$helper" <<SCRIPT
+(
+    export CUDA_VISIBLE_DEVICES=${gpu_id}
+    echo "[GPU ${gpu_id}] starting ${init_time}"
+    python -m ai_models_ensembles.cli infer \\
+        --model $model_id \\
+        --init '${init_time}' \\
+        --lead-hours $LEAD_HOURS \\
+        --members 1 \\
+        --weight-magnitude 0 \\
+        --data-source $dsrc \\
+        --output-levels '$OUTPUT_LEVELS' \\
+        --seed $SEED \\
+        --output '${out_zarr}'
+    echo "[GPU ${gpu_id}] done ${init_time}"
+) &
+SCRIPT
+            gpu_id=$((gpu_id + 1))
+        done
+        echo "wait" >> "$helper"
+
+        if ! $any_missing; then
+            echo "  SKIP $model: all 4 unperturbed outputs exist"
+            rm -f "$helper"
+            continue
+        fi
+        chmod +x "$helper"
+
+        # Container mounts
+        local mounts="${SRC_DIR}:${WORKDIR},${STORE}:${STORE}"
+        for rc in ~/.cdsapirc ~/.ecmwfapirc; do
+            [[ -f "$rc" ]] && mounts+=",${rc}:${rc},${rc}:/root/$(basename "$rc")"
+        done
+
+        local job_tag="phase1_unperturbed_${model}"
+        echo "  $job_tag (4 init_times in parallel)"
+
+        sbatch --parsable \
+            --job-name="abl_${job_tag}" \
+            --partition="$PARTITION" \
+            --account=a122 \
+            --nodes=1 \
+            --ntasks=1 \
+            --cpus-per-task=32 \
+            --mem=444G \
+            --gres=gpu:4 \
+            --time="$TIME_LIMIT" \
+            --output="$LOG_DIR/${job_tag}_%j.out" \
+            --error="$LOG_DIR/${job_tag}_%j.err" \
+            --container-image="$container" \
+            --container-mounts="$mounts" \
+            --container-workdir="$WORKDIR" \
+            --wrap="bash ${helper}"
+
+        count=$((count + 1))
+    done
+    echo "Phase 1 unperturbed: submitted $count jobs"
 }
 
 run_phase2() {
@@ -209,6 +319,7 @@ MODEL_FILTER="${2:-}"
 
 case "$PHASE" in
     phase1)  run_phase1 "$MODEL_FILTER" ;;
+    phase1_unperturbed) run_phase1_unperturbed "$MODEL_FILTER" ;;
     phase2)  run_phase2 "$MODEL_FILTER" ;;
     phase2b) run_phase2b "$MODEL_FILTER" ;;
     all)
@@ -217,7 +328,7 @@ case "$PHASE" in
         run_phase2b "$MODEL_FILTER"
         ;;
     *)
-        echo "Usage: $0 {phase1|phase2|phase2b|all} [model]"
+        echo "Usage: $0 {phase1|phase1_unperturbed|phase2|phase2b|all} [model]"
         exit 1
         ;;
 esac
