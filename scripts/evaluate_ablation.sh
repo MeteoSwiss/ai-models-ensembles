@@ -108,11 +108,11 @@ selection:
   ensemble_members: null
 
   ensemble:
-    energy_spectra: mean
+    energy_spectra: pooled
     probabilistic: prob
     deterministic: mean
     multivariate: mean
-    histograms: pooled
+    wd_kde: pooled
     ets: members
     fss: members
 
@@ -123,10 +123,17 @@ derived_variables:
     kind: wind_speed
     u: u_component_of_wind
     v: v_component_of_wind
+  geopotential_height:
+    kind: geopotential_height
+    u: geopotential
+  geopotential_height_gradient:
+    kind: geopotential_height_gradient
+    u: geopotential_height
 
 plotting:
   random_seed: 42
   plot_datetime: null
+  plot_ensemble_members: [0]
   dpi: 48
   output_mode: both
   histograms_per_lead: false
@@ -135,16 +142,16 @@ plotting:
   probabilistic_line_plots: true
 
 modules:
-  maps: false
-  histograms: true
-  wd_kde: false
+  maps: true
+  histograms: false
+  wd_kde: true
   energy_spectra: true
   vertical_profiles: false
   deterministic: true
   ets: true
   fss: true
   probabilistic: true
-  ssim: false
+  ssim: true
   multivariate: true
 
 lead_time:
@@ -177,6 +184,7 @@ metrics:
     bivariate_pairs:
       - ["temperature", "specific_humidity"]
       - ["u_component_of_wind", "v_component_of_wind"]
+      - ["geopotential_height_gradient", "wind_speed"]
     coriolis_parameter: 1.0e-4
     bins: 100
 
@@ -293,6 +301,7 @@ run_intercompare() {
     local phase=$1
     local filter_model="${2:-}"
     local count=0
+    local after_job="${AFTER_JOB:-}"
 
     echo "=== Intercomparison for ${phase} ==="
 
@@ -332,7 +341,11 @@ run_intercompare() {
 
         echo "  intercompare $model: ${#eval_dirs[@]} configs -> $out_dir"
 
+        local dep_flag=()
+        [[ -n "$after_job" ]] && dep_flag=(--dependency="afterany:${after_job}")
+
         sbatch --parsable \
+            "${dep_flag[@]}" \
             --job-name="$job_tag" \
             --partition="$PARTITION" \
             --account=a122 \
@@ -348,9 +361,9 @@ run_intercompare() {
                 python -m ai_models_ensembles.cli intercompare \
                     ${cli_paths} \
                     --out-dir '${out_dir}' \
-                    --module spectra --module hist --module metrics --module prob --module multivariate --module ets --module fss"
+                    --module spectra --module kde --module metrics --module prob --module multivariate --module ets --module fss --module ssim --module maps"
 
-        ((count++))
+        count=$((count + 1))
     done
 
     echo "${phase}: submitted $count intercomparison jobs"
