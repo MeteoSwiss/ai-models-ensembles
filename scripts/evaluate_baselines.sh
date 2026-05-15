@@ -58,6 +58,11 @@ declare -A MODEL_KIND=( [atlas]=ai [fcn3]=ai [aifsens]=ai [ifs_ens]=ref )
 
 IFS_ENS_ZARR="/capstor/store/cscs/swissai/a122/IFS/ifs_ens.zarr"
 
+# Stratified 10-member subsample of IFS ENS (50 members total). Members are
+# generated with systematic perturbation spread across indices, so step-5
+# sampling preserves the physical diversity while matching the AI ensemble size.
+IFS_ENS_MEMBERS="[0, 5, 10, 15, 20, 25, 30, 35, 40, 45]"
+
 mkdir -p "$LOG_DIR"
 
 # ---------------------------------------------------------------------------
@@ -109,9 +114,11 @@ _dt_yaml() {
 generate_main_config() {
     local model=$1
     local output_root=$2
-    local ml_yaml dt_yaml
+    local ml_yaml dt_yaml members_yaml
     ml_yaml=$(_ml_yaml "$model")
     dt_yaml=$(_dt_yaml)
+    members_yaml="null"
+    [[ "${MODEL_KIND[$model]}" == "ref" ]] && members_yaml="${IFS_ENS_MEMBERS}"
 
     cat <<YAML
 paths:
@@ -139,7 +146,7 @@ selection:
     - "v_component_of_wind"
     - "specific_humidity"
 
-  ensemble_members: null
+  ensemble_members: ${members_yaml}
 
   ensemble:
     energy_spectra: pooled
@@ -222,9 +229,11 @@ YAML
 generate_etsfss_config() {
     local model=$1
     local output_root=$2
-    local ml_yaml dt_yaml
+    local ml_yaml dt_yaml members_yaml
     ml_yaml=$(_ml_yaml "$model")
     dt_yaml=$(_dt_yaml)
+    members_yaml="null"
+    [[ "${MODEL_KIND[$model]}" == "ref" ]] && members_yaml="${IFS_ENS_MEMBERS}"
 
     cat <<YAML
 paths:
@@ -252,7 +261,7 @@ selection:
     - "v_component_of_wind"
     - "specific_humidity"
 
-  ensemble_members: null
+  ensemble_members: ${members_yaml}
 
   ensemble:
     ets: members
