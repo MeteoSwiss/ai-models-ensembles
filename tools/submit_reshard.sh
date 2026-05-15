@@ -26,14 +26,16 @@ esac
 MOUNTS="${SRC_DIR}:${WORKDIR},${STORE}:${STORE}"
 
 # Write helper script to shared storage (accessible from compute nodes)
-HELPER="$STORE/logs/reshard_helper.sh"
+HELPER="$STORE/logs/reshard_helper_${TARGET}.sh"
 cat > "$HELPER" <<SCRIPT
 #!/bin/bash
 set -eu
 echo "=== Cleaning up intermediate directories ==="
-find ${STORE} -type d -name _e2s_work -exec rm -rf {} + 2>/dev/null || true
-find ${STORE} -type d -name _seq_members -exec rm -rf {} + 2>/dev/null || true
-find ${STORE} -type d -name _par_members -exec rm -rf {} + 2>/dev/null || true
+for p in ${PATHS}; do
+    find "\$p" -type d -name _e2s_work -exec rm -rf {} + 2>/dev/null || true
+    find "\$p" -type d -name _seq_members -exec rm -rf {} + 2>/dev/null || true
+    find "\$p" -type d -name _par_members -exec rm -rf {} + 2>/dev/null || true
+done
 echo "Cleanup done."
 
 echo "=== Resharding zarr stores ==="
