@@ -15,6 +15,11 @@
 # Usage:
 #   bash scripts/submit_all_inference.sh              # all 3 prob models
 #   bash scripts/submit_all_inference.sh fcn3 atlas    # specific models
+#
+# Options (env vars):
+#   CHAIN=1      Chain jobs sequentially per model (--dependency=afterany).
+#                Useful for CDS-based models to avoid API throttling.
+#   AFTER_JOB=N  Wait for slurm job N before starting first job per model.
 # ---------------------------------------------------------------------------
 set -euo pipefail
 
@@ -30,18 +35,24 @@ OUTPUT_VARS="10m_u_component_of_wind,10m_v_component_of_wind,2m_temperature,geop
 SEED=42
 PARTITION="${PARTITION:-normal}"
 TIME_LIMIT="12:00:00"
+CHAIN="${CHAIN:-0}"
+AFTER_JOB="${AFTER_JOB:-}"  # wait for this job before starting first job per model
 
 # Exact week starts matching ifs_ens_wb2.zarr init_times
-WEEK_STARTS=(
-    "2023-01-02"   # DJF 2023
-    "2023-04-02"   # MAM 2023
-    "2023-07-02"   # JJA 2023
-    "2023-10-02"   # SON 2023
-    "2024-01-02"   # DJF 2024
-    "2024-04-02"   # MAM 2024
-    "2024-07-02"   # JJA 2024
-    "2024-10-02"   # SON 2024
-)
+if [[ -n "${WEEKS:-}" ]]; then
+    IFS=',' read -ra WEEK_STARTS <<< "$WEEKS"
+else
+    WEEK_STARTS=(
+        "2023-01-02"   # DJF 2023
+        "2023-04-02"   # MAM 2023
+        "2023-07-02"   # JJA 2023
+        "2023-10-02"   # SON 2023
+        "2024-01-02"   # DJF 2024
+        "2024-04-02"   # MAM 2024
+        "2024-07-02"   # JJA 2024
+        "2024-10-02"   # SON 2024
+    )
+fi
 
 # Probabilistic baselines only
 MODELS="fcn3 atlas aifsens"
@@ -50,6 +61,12 @@ declare -A DATA_SRC=( [fcn3]=arco [atlas]=arco [aifsens]=cds )
 REQUESTED="${@:-$MODELS}"
 
 mkdir -p "$LOG_DIR"
+
+# Per-model last job ID for chaining (seed with AFTER_JOB if set)
+declare -A LAST_JOB=()
+if [[ -n "$AFTER_JOB" ]]; then
+    for m in $REQUESTED; do LAST_JOB[$m]="$AFTER_JOB"; done
+fi
 
 count=0
 for model in $REQUESTED; do
@@ -93,6 +110,11 @@ SCRIPT
                     continue
                 fi
 
+                # Clean up partial work dir from a previous crashed run
+                if [[ -d "$out_dir/_e2s_work" ]]; then
+                    rm -rf "$out_dir/_e2s_work"
+                fi
+
                 any_missing=true
                 cat >> "$helper" <<SCRIPT
 echo "=== ${init_time} ==="
@@ -106,6 +128,7 @@ python -m ai_models_ensembles.cli infer \\
     --output-vars '$OUTPUT_VARS' \\
     --seed $SEED \\
     --output '${out_zarr}'
+sleep 15
 SCRIPT
             done
         done
@@ -118,8 +141,8 @@ SCRIPT
 
         chmod +x "$helper"
 
-        # Container mounts
-        mounts="${SRC_DIR}:${WORKDIR},${STORE}:${STORE}"
+        # Container mounts -- overlay the installed package with bind-mounted source
+        mounts="${SRC_DIR}:${WORKDIR},${SRC_DIR}/ai_models_ensembles:/usr/local/lib/python3.12/dist-packages/ai_models_ensembles,${STORE}:${STORE}"
         for rc in ~/.cdsapirc ~/.ecmwfapirc; do
             [[ -f "$rc" ]] && mounts+=",${rc}:${rc},${rc}:/root/$(basename "$rc")"
         done
@@ -127,7 +150,13 @@ SCRIPT
         job_tag="bl_${model}_${week_tag}"
         echo "  $job_tag (14 inits)"
 
-        sbatch --parsable \
+        dep_flag=()
+        if [[ -n "${LAST_JOB[$model]:-}" ]]; then
+            dep_flag=(--dependency="afterany:${LAST_JOB[$model]}")
+        fi
+
+        jobid=$(sbatch --parsable \
+            "${dep_flag[@]}" \
             --job-name="$job_tag" \
             --partition="$PARTITION" \
             --account=a122 \
@@ -142,9 +171,10 @@ SCRIPT
             --container-image="$container" \
             --container-mounts="$mounts" \
             --container-workdir="$WORKDIR" \
-            --wrap="sh ${helper}"
+            --wrap="sh ${helper}")
 
-        ((count++)) || true
+        [[ "$CHAIN" == "1" ]] && LAST_JOB[$model]="$jobid"
+        count=$((count + 1))
     done
 done
 
