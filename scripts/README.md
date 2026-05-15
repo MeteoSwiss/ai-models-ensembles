@@ -1,158 +1,114 @@
 # Workflow Execution Scripts
 
-Slurm wrappers around `ai-ens infer` (earth2studio) and `ai-ens verify`
-(SwissClim Evaluations). Configuration lives in [config.sh](config.sh).
+Slurm submitters that wrap `python -m ai_models_ensembles.cli infer` /
+`verify` / `intercompare` and run them inside the per-model containers under
+[../containers/](../containers/). Everything is configured by editing the
+constants at the top of each script - there is no shared `config.sh`.
 
-## config.sh
+All scripts share the same hard-coded `STORE` root
+(`/capstor/store/cscs/swissai/a122/sadamov/ai-models-ensembles`) since
+`$STORE` on Clariden login nodes points at the wrong project.
 
-**Run-level inputs:**
+## submit_all_inference.sh
 
-- `OUTPUT_DIR`: base output directory
-- `DATE_TIME`: forecast init time (YYYYMMDDHHMM); converted to ISO-8601 inside
-  the inference script
-- `MODEL_NAME`: one of `graphcast_operational`, `sfno`, `aurora`, `fcn3`,
-  `atlas` (see `ai-ens models`)
-- `NUM_MEMBERS`: ensemble members per perturbation (deterministic models) or
-  per re-seeded sample (probabilistic models)
-- `LEAD_TIME`: total forecast lead in hours (must be a multiple of the model step)
-- `CROP_REGION`: passed through to the SwissClim YAML templates
-- `IFS_ENS_PATH`: absolute path to your on-disk IFS ENS zarr (SwissClim
-  format, full lead time, 50 members). Verified directly as the physical-
-  model baseline.
-- `TARGET_PATH`: ERA5 zarr used as SwissClim's verification target
-- `DATA_SOURCE`: earth2studio data source for the IC fields. Defaults to
-  `arco` (ARCO ERA5). Other valid values:
-  `arco | cds | gfs | ifs | ifs_ens | wb2 | file:/path | ifs_analysis:/path`
+Probabilistic baseline inference for the IFS ENS eval period:
 
-**Perturbations:**
-
-- `PERTURBATION_INIT`: sigma of multiplicative IC noise (0 disables)
-- `PERTURBATION_LATENT`: sigma of multiplicative weight noise (0 disables)
-- `PERTURBATION_LATENTS`: space-separated sweep values; one Slurm task per value
-- `LAYER`: integer index of the weight tensor to perturb, or empty for all
-
-**Container / SwissClim:**
-
-- `CONTAINER_IMAGE`: optional `.sqsh` produced by `containers/build.sh`. When
-  set, srun launches `ai-ens` inside the container via pyxis. When empty, runs
-  on the host's `.venv`.
-- `SWISSCLIM_CONFIG_TEMPLATE`: defaults to `config/swissclim_eval.yaml.template`
-- `SWISSCLIM_CONFIG`: optional explicit YAML; bypasses templating
-
-Slurm resource knobs are at the bottom of `config.sh` (`INF_*`, `VERIF_*`).
-
-## submit_ml_inference.sh
-
-For each value of `$PERTURBATION_LATENTS`, launches one srun running
-`ai-ens infer` with the corresponding sigma. Each srun:
-
-1. Loads the registered earth2studio model (downloading the default `Package`
-   on first use).
-2. Builds the IC source from `$DATA_SOURCE`.
-3. Optionally perturbs the IC and/or model weights per member
-   (`materialise_perturbed_package` mirrors the NGC layout under
-   `$PERTURBATION_DIR/_e2s_work/weights_member_NNN/`).
-4. Rolls `NUM_MEMBERS` members into a single SwissClim-format
-   `$PERTURBATION_DIR/forecast.zarr`.
+- 3 models: `fcn3`, `atlas`, `aifsens`
+- 8 weeks (Jan/Apr/Jul/Oct 2023 + 2024), 14 init times each
+- 10 members, 360 h lead, levels 500/850
+- One sbatch job per (model, week); 4 GPUs in parallel inside the job.
 
 ```bash
-sbatch scripts/submit_ml_inference.sh
-DRY_RUN=1 sbatch scripts/submit_ml_inference.sh   # echo srun lines only
+bash scripts/submit_all_inference.sh                  # all 3 models, all 8 weeks
+bash scripts/submit_all_inference.sh fcn3 atlas       # subset of models
+CHAIN=1 bash scripts/submit_all_inference.sh aifsens  # chain via afterany (CDS throttling)
+AFTER_JOB=2119857 bash scripts/submit_all_inference.sh fcn3
+WEEKS=2023-01-02,2024-07-02 bash scripts/submit_all_inference.sh
 ```
 
-Outputs:
+Output: `$STORE/baselines/<model_id>/<YYYYMMDD_HHMM>/forecast.zarr`. Existing
+zarrs are skipped automatically.
 
-- `$OUTPUT_DIR/$DATE_TIME/$MODEL_NAME/init_${INIT}_latent_${LAT}_layer_${LAYER}/forecast.zarr/`
-- Per-member checkpoint mirrors under `_e2s_work/` (only when
-  `PERTURBATION_LATENT > 0`)
+## submit_ablation.sh
 
-## submit_verification.sh
+Weight-perturbation ablation across 3 deterministic models (`aurora`,
+`graphcast_operational`, `sfno`), reproducible from constants in the script.
 
-Runs SwissClim Evaluations against the AI-model forecasts and the on-disk
-IFS ENS forecast in one shot:
+Phases:
 
-1. **AI models.** For each value of `$PERTURBATION_LATENTS`, renders
-   [`config/swissclim_eval.yaml.template`](../config/swissclim_eval.yaml.template)
-   into `$REGION_DIR/swissclim_eval.yaml` and runs `ai-ens verify`.
-2. **IFS ENS baseline.** Renders
-   [`config/swissclim_ifs_ens.yaml.template`](../config/swissclim_ifs_ens.yaml.template)
-   targeting `$IFS_ENS_PATH` as the prediction; output goes to
-   `$OUTPUT_DIR/$DATE_TIME/_ifs_ens/$CROP_REGION/swissclim_ifs_ens/`.
+- `phase1`: magnitude sweep (5 magnitudes x 3 models x 4 init times = 60 runs).
+- `phase2`: layer-group sweep at each model's best Phase 1 magnitude.
+- `phase2b`: fine magnitude refinement on each model's best layer group.
 
 ```bash
-sbatch scripts/submit_verification.sh
-SWISSCLIM_CONFIG=/abs/path/to/my_run.yaml sbatch scripts/submit_verification.sh
-
-# Skip IFS baseline (e.g. when re-running just the AI side):
-VERIFY_IFS_ENS=0 sbatch scripts/submit_verification.sh
+bash scripts/submit_ablation.sh phase1               # all models
+bash scripts/submit_ablation.sh phase1 aurora        # one model
+bash scripts/submit_ablation.sh phase2
+bash scripts/submit_ablation.sh all                  # phase1 + phase2 + phase2b
 ```
 
-The IFS ENS job is skipped automatically if `IFS_ENS_PATH` is still at its
-placeholder default.
+Output: `$STORE/ablation/<phase>/<model_id>/<init_tag>/<run_tag>/forecast.zarr`.
 
-Outputs (one `swissclim_*` tree per verify run):
+## evaluate_ablation.sh
 
-- `maps/`, `histograms/`, `wd_kde/`, `energy_spectra/`, `vertical_profiles/`
-- `deterministic/`, `ets/`, `probabilistic/`, `ssim/`
-
-See [the SwissClim docs](https://github.com/swiss-ai/SwissClim_Evaluations/blob/research/docs/OUTPUTS.md)
-for the full output schema.
-
-## Typical workflow sequence
+SwissClim Evaluations driver for the ablation outputs. Generates a per-run
+YAML and submits one sbatch per (model, run). After per-run eval, an
+`intercompare` mode runs cross-run comparisons.
 
 ```bash
-# 1. Configure
-vim scripts/config.sh
-
-# 2. (Optional) build the GH200 container
-./containers/build.sh
-export CONTAINER_IMAGE=$PWD/ai-ens.sqsh
-
-# 3. Validate
-bash ./tools/validate.sh
-
-# 4. Inference (one srun per PERTURBATION_LATENTS value)
-sbatch scripts/submit_ml_inference.sh
-
-# 5. Verification (SwissClim)
-sbatch scripts/submit_verification.sh
-
-# 6. Intercompare runs (recursive: AI models + IFS baselines)
-ai-ens intercompare    # auto-discovers all swissclim_* roots under $OUTPUT_DIR/$DATE_TIME
-
-# 7. Status
-./tools/check_workflow_status.sh
+bash scripts/evaluate_ablation.sh phase1                       # eval all Phase 1 runs
+bash scripts/evaluate_ablation.sh phase1 aurora                # per-model
+bash scripts/evaluate_ablation.sh intercompare phase1          # cross-run plots
+bash scripts/evaluate_ablation.sh intercompare phase1 aurora
 ```
 
-## Advanced usage
+Eval modules used:
+`energy_spectra, probabilistic, deterministic, multivariate, histograms`
+(plus `ets`, `fss`, `ssim` via the temp scripts below until merged into the
+main pipeline).
 
-**Sweep over weight perturbation magnitudes** - edit `PERTURBATION_LATENTS` in
-`config.sh`; the inference script runs all values in parallel as separate srun
-tasks.
+Output: `$STORE/ablation/<phase>/<model_id>/eval/<run_tag>/...` and
+`.../intercomparison/...`.
 
-**Different models** - set `MODEL_NAME` to any entry in `ai-ens models`. The
-data-source string in `DATA_SOURCE` is independent of model choice.
+## submit_etsfss_phase1.sh, submit_ssim_phase1.sh (temporary)
 
-**Custom IC source** - set `DATA_SOURCE=file:/path/to/era5_ic.zarr` to feed a
-locally-prepared zarr instead of pulling from ARCO/CDS.
+Phase 1 ETS/FSS and SSIM eval as standalone passes (run before these modules
+were integrated into the main pipeline). Will be removed once the next eval
+pipeline run absorbs them.
 
-**Dry run** - `DRY_RUN=1 sbatch scripts/submit_ml_inference.sh` echoes the
-srun lines without executing them.
+## Typical sequence
+
+```bash
+# 1. Build containers once (or after Dockerfile changes)
+bash containers/submit_build.sh all
+
+# 2. Ablation inference (Phase 1)
+bash scripts/submit_ablation.sh phase1
+
+# 3. Ablation eval after Phase 1 inference completes
+bash scripts/evaluate_ablation.sh phase1
+bash scripts/evaluate_ablation.sh intercompare phase1
+
+# 4. Probabilistic baselines (independent of ablation)
+bash scripts/submit_all_inference.sh
+
+# 5. Pick best magnitudes and run Phase 2 / 2b
+bash scripts/submit_ablation.sh phase2
+bash scripts/submit_ablation.sh phase2b
+```
 
 ## Troubleshooting
 
-- **Job won't start**: check `sinfo` and account access.
-- **Container launch fails**: confirm `CONTAINER_IMAGE` points at an existing
-  `.sqsh` and that pyxis is available on your partition.
-- **Out of memory during inference**: reduce `NUM_MEMBERS` or bump
-  `INF_MEM_PER_CPU_SB` in `config.sh`.
-- **`ai-ens models` not found**: activate the venv (`source .venv/bin/activate`)
-  or run inside the built container.
-- **earth2studio download stalls**: set `EARTH2STUDIO_CACHE` to a writable
-  scratch path; first model load downloads the NGC `Package` (~GB-scale).
+- **Job won't start**: check `sinfo` and account `a122` access.
+- **Container launch fails**: confirm `$STORE/<model>.sqsh` exists; rebuild
+  with `bash containers/submit_build.sh <model>`.
+- **CDS throttling on `aifsens`**: rerun with `CHAIN=1` (forces sequential
+  per-week submission via `--dependency=afterany`).
+- **Pre-fix zarrs read slowly in eval**: chunking changed; reshard with
+  [../tools/submit_reshard.sh](../tools/submit_reshard.sh).
 
 ## See also
 
 - [../README.md](../README.md) - top-level overview
-- [../tools/README.md](../tools/README.md) - environment setup + monitoring
-- [../containers/](../containers/) - GH200 container build pipeline
+- [../tools/README.md](../tools/README.md) - host venv + inspection tools
+- [../containers/](../containers/) - per-model Dockerfiles and build helpers

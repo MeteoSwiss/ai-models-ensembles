@@ -1,207 +1,162 @@
 # Quick Start Test Guide
 
-Step-by-step walkthrough of the `ai-models-ensembles` repository. All paths
-assume you're running from the repository root.
+Step-by-step walkthrough of `ai-models-ensembles`. All paths assume you're
+running from the repository root.
 
 ## Prerequisites Check
 
-1. **Activate the virtual environment:**
+1. **Activate the host venv** (see [main README](../README.md) for the
+   one-time setup):
 
    ```bash
    cd /users/sadamov/pyprojects/ai-models-ensembles
    source .venv/bin/activate
    ```
 
-2. **Verify the environment:**
+2. **Check the CLI is loadable on the host:**
 
    ```bash
-   bash ./tools/validate.sh
+   python -m ai_models_ensembles.cli --help
+   python -m ai_models_ensembles.cli models
    ```
 
-3. **Check the CLI is working:**
+   You should see the five registered models: `graphcast_operational`,
+   `sfno`, `aurora` (deterministic, weight-perturbed) and `fcn3`, `atlas`,
+   `aifsens` (probabilistic, re-seeded per member).
+
+3. **Smoke-test inside a container** (only this needs `earth2studio` etc.):
 
    ```bash
-   ai-ens --help
-   ai-ens models
-   ```
-
-   You should see the five registered models: `graphcast_operational`, `sfno`,
-   `aurora` (deterministic, weight-perturbed) and `fcn3`, `atlas`
-   (probabilistic, re-seeded per member).
-
-4. **Run sanity tests:**
-
-   ```bash
-   python tools/test_basic_functionality.py
-   ./tools/check_workflow_status.sh
+   srun --container-image=$STORE/aurora.sqsh \
+     python tools/test_basic_functionality.py
    ```
 
 ## Configuration
 
-Main config is in `scripts/config.sh`. Key settings:
+There is no shared config file. Per-experiment constants (init times,
+magnitudes, models, levels, output paths) live at the top of each slurm
+submitter under [`../scripts/`](../scripts/). Edit those constants directly
+to tweak a run.
 
-```bash
-export DATE_TIME=201801010000              # YYYYMMDDHHMM
-export MODEL_NAME=graphcast_operational    # see `ai-ens models` for all five
-export NUM_MEMBERS=10                      # 50-member IFS ENS is subsampled to 10 to match
-export LEAD_TIME=336                       # hours (14 days)
-export PERTURBATION_INIT=0.0               # IC noise sigma
-export PERTURBATION_LATENT=0.01            # weight noise sigma (deterministic models)
-export LAYER=                              # int weight-tensor index, or empty
-export IFS_ENS_PATH=/path/to/ifs_ens.zarr           # physical baseline (50 members, full lead time)
-export TARGET_PATH=/path/to/era5.zarr               # SwissClim verification target
-export DATA_SOURCE=arco                             # ARCO ERA5 (default)
-export CROP_REGION=europe
-export OUTPUT_DIR=$STORE/sadamov/ai-models-ensembles
-```
-
-Verification config lives in [config/swissclim_eval.yaml.template](../config/swissclim_eval.yaml.template).
-`submit_verification.sh` renders it with `envsubst` into
-`$REGION_DIR/swissclim_eval.yaml` and passes it to `swissclim-evaluations`
-through `ai-ens verify`.
+For ad-hoc `ai-ens infer ...` calls (outside slurm), every parameter is an
+explicit flag - see `ai-ens infer --help`.
 
 ## Step-by-Step Workflow
 
-### Step 1: Inference (single deterministic forecast)
+### Step 1: Quick smoke inference
+
+Inside an interactive job on a GPU node, using the bind-mounted source:
 
 ```bash
-source scripts/config.sh
-ai-ens infer --members 1
+srun --container-image=$STORE/aurora.sqsh \
+  python -m ai_models_ensembles.cli infer \
+  --model aurora --init 2024-02-15T00:00 \
+  --lead-hours 24 --members 1 --data-source arco \
+  --output /tmp/$USER/smoke/forecast.zarr
 ```
 
-This loads `graphcast_operational` from earth2studio's default `Package`
-(downloaded on first use), pulls the IC for `$DATE_TIME` from ARCO, runs
-the rollout for `$LEAD_TIME` hours, and writes
-`$PERTURBATION_DIR/forecast.zarr` in SwissClim format.
-
-### Step 2: Inference (perturbed ensemble)
-
-For 10 members with weight perturbation:
+### Step 2: Weight-perturbed ensemble
 
 ```bash
-ai-ens infer --members 10 --weight-magnitude 0.01 --layer 13
+srun --container-image=$STORE/graphcast.sqsh \
+  python -m ai_models_ensembles.cli infer \
+  --model graphcast_operational --init 2024-02-15T00:00 \
+  --lead-hours 240 --members 10 \
+  --weight-magnitude 0.01 --layer all \
+  --data-source arco \
+  --output $STORE/test/gc_w01/forecast.zarr
 ```
 
-For combined IC + weight perturbation:
+### Step 3: Full ablation (slurm)
 
 ```bash
-ai-ens infer --members 10 --ic-magnitude 0.005 --weight-magnitude 0.01 --layer 13
+# Phase 1: magnitude sweep across 3 deterministic models, 4 init times
+bash scripts/submit_ablation.sh phase1
+
+# Probabilistic baselines for 3 models, 8 weeks
+bash scripts/submit_all_inference.sh
 ```
 
-### Step 3: Slurm orchestration (sweep over weight magnitudes)
-
-Edit `PERTURBATION_LATENTS` in `scripts/config.sh`, then:
+### Step 4: SwissClim eval
 
 ```bash
-sbatch scripts/submit_ml_inference.sh
+bash scripts/evaluate_ablation.sh phase1
+bash scripts/evaluate_ablation.sh intercompare phase1
 ```
 
-One srun per perturbation magnitude; each srun runs the full member loop.
+The eval submitter generates per-run YAMLs and submits one sbatch each;
+`intercompare` reads every per-run output and produces cross-run plots.
 
-### Step 4: Verification (SwissClim Evaluations)
+### Step 5: Ad-hoc intercompare
 
 ```bash
-sbatch scripts/submit_verification.sh
+python -m ai_models_ensembles.cli intercompare \
+   /path/to/swissclim_aurora \
+   /path/to/swissclim_graphcast_operational \
+   /path/to/swissclim_sfno \
+   --label Aurora --label GC --label SFNO
 ```
-
-Two things happen in parallel:
-
-1. For each value of `$PERTURBATION_LATENTS`, renders
-   [config/swissclim_eval.yaml.template](../config/swissclim_eval.yaml.template)
-   into `$REGION_DIR/swissclim_eval.yaml` and verifies the AI-model forecast.
-2. Renders [config/swissclim_ifs_ens.yaml.template](../config/swissclim_ifs_ens.yaml.template)
-   targeting `$IFS_ENS_PATH`; output goes to
-   `$OUTPUT_DIR/$DATE_TIME/_ifs_ens/$CROP_REGION/swissclim_ifs_ens/`.
-
-Skip the IFS baseline if you only want the AI side:
-
-```bash
-VERIFY_IFS_ENS=0 sbatch scripts/submit_verification.sh
-```
-
-### Step 5: Compare multiple runs
-
-```bash
-# Recursively discovers every swissclim_* dir under $OUTPUT_DIR/$DATE_TIME -
-# AI models (one per perturbation latent) plus the IFS ENS baseline.
-ai-ens intercompare
-
-# Or pass paths/globs explicitly
-ai-ens intercompare \
-   "$OUTPUT_DIR/$DATE_TIME/graphcast_operational/init_*/$CROP_REGION/swissclim_*" \
-   "$OUTPUT_DIR/$DATE_TIME/sfno/init_*/$CROP_REGION/swissclim_*" \
-   "$OUTPUT_DIR/$DATE_TIME/_ifs_ens/$CROP_REGION/swissclim_ifs_ens" \
-   --out-dir $OUTPUT_DIR/comparisons/full
-```
-
-The wrapper renders an intercomparison YAML on the fly and shells out to
-`swissclim-evaluations-compare`.
 
 ## Containers (GH200)
 
 ```bash
-./containers/build.sh
-export CONTAINER_IMAGE=$PWD/ai-ens.sqsh
-sbatch scripts/submit_ml_inference.sh
+bash containers/submit_build.sh <model|all>   # writes $STORE/<model>.sqsh
 ```
 
-The Slurm scripts auto-detect `CONTAINER_IMAGE` and pass
-`--container-image=$CONTAINER_IMAGE` to `srun`.
+Six per-model images: `aurora`, `graphcast`, `sfno`, `fcn3`, `atlas`,
+`aifsens`. The slurm scripts pick `$STORE/<model>.sqsh` based on the model
+they're submitting.
 
 ## Minimal Test Without Inference
 
 ```bash
-ai-ens --help
-ai-ens models
-ai-ens verify --help
-
+# Host venv:
+python -m ai_models_ensembles.cli --help
+python -m ai_models_ensembles.cli models
 python -c "import ai_models_ensembles.cli; print('CLI OK')"
-python -c "import earth2studio; print('earth2studio OK', earth2studio.__version__)"
-python -c "import swissclim_evaluations; print('SwissClim OK')"
+
+# Inside a container (heavy deps):
+srun --container-image=$STORE/aurora.sqsh \
+  python -c "import earth2studio, swissclim_evaluations; print('container OK')"
 ```
 
 ## Troubleshooting
 
-- **`ai-ens models` empty / import errors**: earth2studio's per-model extras
-  are large; ensure `uv pip install -e .` completed without resolution errors.
+- **`import earth2studio` fails on the host**: expected. Host venv is
+  minimal; the model deps live in the per-model `.sqsh` images. Run inside
+  a container via `srun --container-image=$STORE/<model>.sqsh ...`.
 - **CDS data source fails**: needs `~/.cdsapirc`. Prefer `arco` for ERA5.
-- **`envsubst: command not found`**: install `gettext` (`apt install gettext-base`).
-- **Out of memory**: reduce `NUM_MEMBERS` or bump `INF_MEM_PER_CPU_SB` in `config.sh`.
-- **Container build fails**: needs `podman` and `enroot`; see
-  [../containers/build.sh](../containers/build.sh).
+- **Out of memory**: reduce `NUM_MEMBERS` or bump the slurm memory knob in
+  the relevant submit script.
+- **Container build fails**: must be submitted to a compute node via
+  `containers/submit_build.sh`; login nodes can't build.
+- **Eval reads zarr slowly**: pre-fix chunking. Reshard with
+  [submit_reshard.sh](submit_reshard.sh).
 
 ## Slurm shortcuts
 
 ```bash
-sbatch scripts/submit_ml_inference.sh
-sbatch scripts/submit_verification.sh
-
 squeue -u $USER
-tail -f logs/*.out
+tail -f $STORE/ablation_logs/*.out
+tail -f $STORE/baseline_logs/*.out
 ```
 
 ## Expected directory structure
 
 ```
-$OUTPUT_DIR/
-└── 201801010000/
-    ├── graphcast_operational/
-    │   └── init_0.0_latent_0.01_layer_13/
-    │       ├── forecast.zarr/
-    │       ├── _e2s_work/                # per-member perturbed checkpoints
-    │       └── europe/
-    │           ├── swissclim_eval.yaml
-    │           └── swissclim_graphcast_operational/
-    │               ├── maps/  histograms/  deterministic/  ...
-    ├── sfno/        ...
-    ├── aurora/      ...
-    ├── fcn3/        ...
-    ├── atlas/       ...
-    └── _ifs_ens/europe/swissclim_ifs_ens/         # IFS ENS baseline verify
+$STORE/
+├── baselines/<model_id>/<YYYYMMDD_HHMM>/forecast.zarr
+└── ablation/
+    └── <phase>/<model_id>/
+        ├── <init_tag>/<run_tag>/forecast.zarr
+        ├── eval/<run_tag>/
+        │   ├── maps/  histograms/  energy_spectra/
+        │   └── deterministic/  ets/  fss/  probabilistic/  ssim/
+        └── intercomparison/
 ```
 
 ## Next steps
 
 - Tune `config/swissclim_eval.yaml.template` modules / metrics / plotting.
-- Sweep `PERTURBATION_LATENTS` to study weight-perturbation sensitivity.
-- Compare runs with `ai-ens intercompare`.
+- Sweep magnitudes by editing `PHASE1_MAGNITUDES` in `submit_ablation.sh`.
+- Compare runs with `evaluate_ablation.sh intercompare <phase>`.

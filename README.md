@@ -40,65 +40,66 @@ All five AI models start from **ARCO ERA5** by default. Reasons:
 - The IFS ENS forecast on disk plays the role of the physical baseline; it's
   plugged directly into SwissClim verification, not re-initialised.
 
-To use a different IC source, override `DATA_SOURCE` in `scripts/config.sh`:
+To use a different IC source, pass `--data-source` to `ai-ens infer` or
+edit the constant at the top of the relevant slurm script:
 `arco | cds | gfs | ifs | ifs_ens | wb2 | file:/path | ifs_analysis:/path`.
 The `ifs_analysis:` source is still wired up (extracts `lead_time=0` from a
 SwissClim-format IFS zarr) for the day you have a download with t+0 analysis
 and the full variable set.
 
-## Quickstart (uv + venv)
+## Quickstart
 
-1. Create a Python 3.11 virtual env and install deps
+The heavy ML stack (`torch`, `earth2studio`, `jax`, model-specific deps) lives
+inside per-model containers under [containers/](containers/). The host venv
+holds only what's needed for editor support, slurm orchestration, and
+post-hoc analysis of zarr outputs.
+
+1. Build the per-model container(s)
 
 ```bash
-bash tools/setup_uv.sh
+bash containers/submit_build.sh <model|all>    # writes $STORE/<model>.sqsh
+```
+
+2. (Optional) Minimal host venv for editor / scripting
+
+```bash
+# Place the venv on fast scratch and symlink into the repo
+VENV_DIR=$SCRATCH/venvs/ai-models-ensembles
+uv venv --python 3.11 "$VENV_DIR"
+ln -s "$VENV_DIR" .venv
 source .venv/bin/activate
+
+uv pip install \
+  "typer>=0.12" "rich>=13.0" \
+  "zarr>=3.0" "xarray>=2024.10" dask numcodecs \
+  "numpy>=2.0" pandas matplotlib \
+  "pyyaml>=6.0" netCDF4 cfgrib \
+  "pytest>=8.0" "ruff>=0.6" "pre-commit>=3.7" ipython
+uv pip install -e . --no-deps
 ```
 
-This pulls `earth2studio` (with model extras) and `swissclim-evaluations`
-from the `research` branch of `swiss-ai/SwissClim_Evaluations`.
+`earth2studio`, `swissclim-evaluations`, `torch`, `jax`, etc. are
+deliberately not installed on the host - run anything that needs them inside
+a container via `srun --container-image=$STORE/<model>.sqsh ...`.
 
-2. Validate the environment and GPU availability
-
-```bash
-python tools/check_gpu.py
-bash ./tools/validate.sh
-```
-
-3. List available models
+3. List available models (works on the host venv)
 
 ```bash
 ai-ens models
 ```
 
-4. Submit jobs (Slurm)
+4. Submit inference and evaluation jobs
 
 ```bash
-# (Optional) build the GH200 container
-./containers/build.sh
-export CONTAINER_IMAGE=$PWD/ai-ens.sqsh
-
-sbatch scripts/submit_ml_inference.sh   # earth2studio inference
-sbatch scripts/submit_verification.sh   # SwissClim verification
-ai-ens intercompare                     # compare runs
+bash scripts/submit_all_inference.sh          # probabilistic baselines (fcn3/atlas/aifsens)
+bash scripts/submit_ablation.sh phase1        # weight-perturbation ablation
+bash scripts/evaluate_ablation.sh phase1      # SwissClim verification
+bash scripts/evaluate_ablation.sh intercompare phase1
 ```
 
-## Configure `scripts/config.sh`
-
-- `OUTPUT_DIR`, `DATE_TIME`, `MODEL_NAME` (registry name; see `ai-ens models`)
-- `NUM_MEMBERS`, `LEAD_TIME` (hours), `CROP_REGION`
-- `IFS_ENS_PATH`: absolute path to your on-disk SwissClim-format IFS ENS
-  zarr (8 weeks of init times, 50 members, full lead time). Physical-model
-  baseline for SwissClim verification.
-- `TARGET_PATH`: absolute path to the ERA5 zarr used as SwissClim's
-  verification target (e.g. WB2 ERA5).
-- `DATA_SOURCE`: `arco | cds | gfs | ifs | ifs_ens | wb2 | file:/path |
-  ifs_analysis:/path` (default: `arco`).
-- `PERTURBATION_INIT`, `PERTURBATION_LATENT`, `PERTURBATION_LATENTS`, `LAYER`
-- `CONTAINER_IMAGE`: `.sqsh` path; empty = run on host venv
-- `SWISSCLIM_CONFIG_TEMPLATE` / `SWISSCLIM_CONFIG`
-
-See [scripts/README.md](scripts/README.md) for the full set.
+See [scripts/README.md](scripts/README.md) for the full submitter docs.
+Per-run parameters are constants at the top of each script - there is no
+shared `config.sh`.
 
 ## Requirements
 
@@ -116,38 +117,40 @@ ai-ens --help
 ai-ens models           # list available earth2studio models
 ```
 
+All of the following must run inside a container (they need
+`earth2studio`). Wrap each in `srun --container-image=$STORE/<model>.sqsh ...`.
+
 ```bash
-# Single deterministic forecast (host venv)
-ai-ens infer --model graphcast_operational --init 2023-01-02T00 \
-   --lead-hours 336 --members 1 --data-source arco \
-   --output /scratch/$USER/runs/gc_op/forecast.zarr
+# Single deterministic forecast
+ai-ens infer --model graphcast_operational --init 2024-02-15T00:00 \
+   --lead-hours 240 --members 1 --data-source arco \
+   --output $STORE/test/gc_op/forecast.zarr
 
 # 10-member IC-perturbed ensemble
-ai-ens infer --model sfno --init 2023-01-02T00 --lead-hours 336 \
+ai-ens infer --model sfno --init 2024-02-15T00:00 --lead-hours 240 \
    --members 10 --ic-magnitude 0.005 --data-source arco \
-   --output $PERTURBATION_DIR/forecast.zarr
+   --output $STORE/test/sfno_ic/forecast.zarr
 
 # 10-member weight-perturbed ensemble (per-member NGC mirror)
-ai-ens infer --model graphcast_operational --init 2023-01-02T00 \
-   --lead-hours 336 --members 10 --weight-magnitude 0.01 --layer 13 \
-   --data-source arco --output $PERTURBATION_DIR/forecast.zarr
+ai-ens infer --model graphcast_operational --init 2024-02-15T00:00 \
+   --lead-hours 240 --members 10 --weight-magnitude 0.01 --layer all \
+   --data-source arco --output $STORE/test/gc_w01/forecast.zarr
 
 # Verification (delegates to swissclim-evaluations)
-ai-ens verify --config $REGION_DIR/swissclim_eval.yaml
+ai-ens verify --config /abs/path/to/swissclim_eval.yaml
 
-# Intercompare every verify output under $OUTPUT_DIR/$DATE_TIME (recursive),
-# including AI-model perturbation runs and the IFS ENS baseline.
-ai-ens intercompare
-ai-ens intercompare path/A/swissclim_graphcast_operational \
-                    path/B/swissclim_sfno \
-                    path/C/swissclim_ifs_ens \
-                    --label GC --label SFNO --label "IFS ENS"
+# Intercompare a set of swissclim_* output roots
+ai-ens intercompare /path/A/swissclim_graphcast_operational \
+                    /path/B/swissclim_sfno \
+                    /path/C/swissclim_aurora \
+                    --label GC --label SFNO --label Aurora
 ```
 
-When env vars from `config.sh` are present, almost every flag has a sensible
-default (e.g. `--model` falls back to `$MODEL_NAME`, `--init` to `$DATE_TIME`,
-`--ic-magnitude` to `$PERTURBATION_INIT`, `--weight-magnitude` to
-`$PERTURBATION_LATENT`, etc.).
+`--layer` accepts a single weight-tensor index, a `start:end` range,
+fractional `0.0:0.33`, named groups (`backbone`, `decoder`, `encoder`,
+`g2m`, `m2g`, `m2m`, `early`, `middle`, `late`), or `all`. The slurm
+submitters in `scripts/` hard-code their per-experiment defaults and pass
+them through `ai-ens infer ...`.
 
 ## Zarr format
 
@@ -167,35 +170,31 @@ The bridge from earth2studio output to SwissClim is in
 ## Outputs
 
 ```text
-$OUTPUT_DIR/
-  └─ $DATE_TIME/
-     ├─ $MODEL_NAME/                          # one tree per AI model
-     │  └─ init_{INIT}_latent_{LAT}_layer_{LAYER}/
-     │     ├─ forecast.zarr/                  # SwissClim-format ensemble forecast
-     │     ├─ _e2s_work/                      # per-member perturbed checkpoints (transient)
-     │     └─ {CROP_REGION}/
-     │        ├─ swissclim_eval.yaml          # rendered SwissClim config
-     │        └─ swissclim_{MODEL_NAME}/      # SwissClim Evaluations output_root
-     │           ├─ maps/  histograms/  wd_kde/
-     │           ├─ energy_spectra/  vertical_profiles/
-     │           └─ deterministic/  ets/  probabilistic/  ssim/
-     ├─ _ifs_ens/{CROP_REGION}/swissclim_ifs_ens/         # IFS ENS baseline
-     └─ intercomparison_{N}/                              # `ai-ens intercompare` output
+$STORE/
+  ├─ baselines/<model_id>/<YYYYMMDD_HHMM>/forecast.zarr      # probabilistic baselines
+  └─ ablation/
+     └─ <phase>/<model_id>/
+        ├─ <init_tag>/<run_tag>/forecast.zarr                # per-run forecast
+        ├─ eval/<run_tag>/                                   # SwissClim eval
+        │  ├─ maps/  histograms/  energy_spectra/
+        │  └─ deterministic/  ets/  fss/  probabilistic/  ssim/
+        └─ intercomparison/                                  # cross-run plots
 ```
 
 ## Containers (GH200)
 
-A single Dockerfile + build script live under [containers/](containers/):
+One container per model lives under [containers/](containers/), each pinned
+to the deps that model actually needs:
 
 ```bash
-./containers/build.sh                  # podman build → enroot import → ai-ens.sqsh
-IMAGE_TAG=ai-ens:dev OUTPUT=ai-ens-dev.sqsh ./containers/build.sh
+bash containers/submit_build.sh <model|all> [partition]
+# writes $STORE/<model>.sqsh for: aurora, graphcast, sfno, fcn3, atlas, aifsens
 ```
 
-The image is based on `nvcr.io/nvidia/pytorch:25.12-py3`, installs uv, and
-editable-installs this repo with all earth2studio model extras enabled. Use
-it via `srun --container-image=$PWD/ai-ens.sqsh -- ai-ens infer ...`. The
-Slurm scripts pick up the image automatically when `CONTAINER_IMAGE` is set.
+Base images are NGC PyTorch 25.12 (or 26.01 for `atlas`). Inside the
+container, run with the bind-mounted source via
+`python -m ai_models_ensembles.cli ...` (the baked-in `ai-ens` entrypoint
+uses the image's installed package).
 
 ## Architecture
 
@@ -214,9 +213,9 @@ Slurm scripts pick up the image automatically when `CONTAINER_IMAGE` is set.
 - **`ai_models_ensembles/swissclim_format.py`** - schema bridge
   (`e2s_to_swissclim`, `to_swissclim_forecast`, `to_swissclim_target`)
 - **`config/`** - SwissClim YAML template + intercomparison config
-- **`scripts/`** - Slurm wrappers + `config.sh`
-- **`containers/`** - GH200 container build pipeline
-- **`tools/`** - environment setup, validation, status checks
+- **`scripts/`** - Slurm submitters for inference and SwissClim eval
+- **`containers/`** - per-model Dockerfiles and `submit_build.sh`
+- **`tools/`** - host venv helpers, weight inspection, zarr resharding
 
 ## Pre-commit & Ruff
 
@@ -226,11 +225,8 @@ pre-commit run --all-files
 ```
 
 Hooks: Ruff lint + format, end-of-file fixer, trailing-whitespace cleanup,
-merge-conflict checks.
-
-```bash
-uv pip install -e .[dev]
-```
+merge-conflict checks. `ruff` and `pre-commit` are part of the minimal host
+venv install above.
 
 ## Testing
 
@@ -243,11 +239,12 @@ inference + perturbation are exercised end-to-end on a GPU node.
 
 ## Troubleshooting
 
-- **`ai-ens models` empty / import errors**: earth2studio's per-model extras
-  are large; ensure `uv pip install -e .` completed without resolution errors.
+- **`import earth2studio` fails on the host**: expected. `earth2studio` and
+  the model deps only live inside containers; the host venv is intentionally
+  minimal. Run inside `$STORE/<model>.sqsh` via `srun --container-image=...`.
 - **CDS data source fails**: needs `~/.cdsapirc`. Prefer `arco` for ERA5.
 - **`envsubst: command not found`**: install `gettext-base`.
-- **Container build fails**: `containers/build.sh` requires `podman` and
-  `enroot` on the build host.
-- **Numpy 2 incompatibility**: report and pin in `pyproject.toml`. earth2studio
-  and swissclim both require numpy >= 2.
+- **Container build fails**: must be submitted to a compute node via
+  `containers/submit_build.sh`; the login nodes can't build.
+- **Numpy 2 incompatibility**: pin in `pyproject.toml`. earth2studio and
+  swissclim both require `numpy >= 2`.

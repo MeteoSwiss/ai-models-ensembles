@@ -1,182 +1,81 @@
 # Development Tools
 
-This directory contains setup scripts, testing utilities, and monitoring tools for the `ai-models-ensembles` repository.
+Inspection, testing, and zarr-maintenance utilities for
+`ai-models-ensembles`. Environment setup lives in the main
+[README](../README.md) (host venv on iopsstor, plus per-model containers
+under [containers/](../containers/)).
 
-## Setup Scripts
-
-### setup_uv.sh
-
-Initial environment setup using uv package manager.
-
-**Usage:**
+## Host venv (one-time)
 
 ```bash
-bash tools/setup_uv.sh
-source .venv/bin/activate
+VENV_DIR=$SCRATCH/venvs/ai-models-ensembles
+uv venv --python 3.11 "$VENV_DIR"
+ln -s "$VENV_DIR" ../.venv
+source ../.venv/bin/activate
+
+uv pip install \
+  "typer>=0.12" "rich>=13.0" \
+  "zarr>=3.0" "xarray>=2024.10" dask numcodecs \
+  "numpy>=2.0" pandas matplotlib \
+  "pyyaml>=6.0" netCDF4 cfgrib \
+  "pytest>=8.0" "ruff>=0.6" "pre-commit>=3.7" ipython
+uv pip install -e .. --no-deps
 ```
 
-**What it does:**
+This venv is for editor support, slurm orchestration, and reading zarr
+outputs. `earth2studio`, `torch`, `jax`, and model deps are deliberately
+absent - they live in the per-model `.sqsh` containers.
 
-- Creates Python 3.11 virtual environment
-- Installs all dependencies via uv
-- Configures JAX and PyTorch for GPU support
-- Handles platform-specific installations (ARM/x86_64)
+## check_gpu.py
 
-### check_gpu.py
-
-Verify GPU availability and configuration.
-
-**Usage:**
+Verify CUDA / GPU visibility from inside a container.
 
 ```bash
-python tools/check_gpu.py
+srun --container-image=$STORE/aurora.sqsh python tools/check_gpu.py
 ```
 
-**What it checks:**
+## test_basic_functionality.py
 
-- CUDA availability
-- GPU device count and names
-- GPU memory
-- Driver versions
-
-## Validation & Testing
-
-### validate.sh
-
-Comprehensive environment and configuration validation.
-
-**Usage:**
+Smoke test for imports + CLI loadability. Must be run inside a model
+container, since it imports `earth2studio` and `swissclim_evaluations`.
 
 ```bash
-bash ./tools/validate.sh
+srun --container-image=$STORE/aurora.sqsh \
+  python tools/test_basic_functionality.py
 ```
 
-**What it validates:**
+## inspect_weights.py
 
-- Configuration variables (OUTPUT_DIR, DATE_TIME, MODEL_NAME, etc.)
-- Python version (3.11.x recommended; required by earth2studio + SwissClim)
-- Required Python packages (xarray, zarr, typer, earth2studio, swissclim_evaluations)
-- External tools (envsubst)
-- CONTAINER_IMAGE existence (when set)
-- Directory permissions
+Walks a model checkpoint and reports tensor shapes / dtypes. Used to derive
+the layer-group indices recorded in `_MODEL_LAYER_GROUPS`
+([ai_models_ensembles/e2s_perturbation.py](../ai_models_ensembles/e2s_perturbation.py)).
 
-**Expected output:** "Validation completed; please review any warnings above."
+## reshard_zarr.py + submit_reshard.sh
 
-### test_basic_functionality.py
-
-Comprehensive functionality test without requiring data or GPU.
-
-**Usage:**
+Rewrite an existing zarr store to the SwissClim-compatible chunking /
+sharding layout. See the `_INNER_CHUNKS` constants in
+[e2s_inference.py](../ai_models_ensembles/e2s_inference.py) and
+[reshard_zarr.py](reshard_zarr.py) for the target shape.
 
 ```bash
-source .venv/bin/activate
-python tools/test_basic_functionality.py
+bash tools/submit_reshard.sh <path/to/forecast.zarr>
 ```
 
-**Tests performed:**
+## run_model_tests.sh / submit_model_tests.sh / test_model.py
 
-- Python package imports (CLI + e2s_models / e2s_data / e2s_perturbation /
-  e2s_inference)
-- `earth2studio` and `swissclim_evaluations` are importable
-- CLI command accessibility (`models`, `infer`, `verify`, `intercompare`)
-- Dependency versions
-- Configuration file existence
-
-**Expected output:** All tests pass with ✓ marks
-
-### run_minimal_test.sh
-
-Quick end-to-end validation.
-
-**Usage:**
+Per-model smoke tests that exercise a short rollout inside a container.
 
 ```bash
-./tools/run_minimal_test.sh
+bash tools/run_model_tests.sh <model|all>
 ```
 
-**Steps executed:**
+## debug_e2e.py
 
-- Activate virtual environment
-- Load configuration
-- Create output directories
-- Test CLI commands
-- List available models
-- Generate fields file
+End-to-end debug script: short rollout + SwissClim format conversion. Use
+when chasing a regression in the inference or schema-bridge code.
 
-**Expected output:** Summary showing all checks passing
+## See also
 
-## Workflow Monitoring
-
-### check_workflow_status.sh
-
-Monitor workflow progress and completion status.
-
-**Usage:**
-
-```bash
-./tools/check_workflow_status.sh
-```
-
-**Information displayed:**
-
-- Current configuration settings
-- Forecast Zarr presence under `$PERTURBATION_DIR/`
-- Per-perturbation completion status across `$PERTURBATION_LATENTS`
-- Verification (SwissClim) output presence under `$REGION_DIR/`
-- Recommended next step
-
-**Example output:**
-
-```
-==========================================
-Workflow Status Check
-==========================================
-
-Configuration:
-  DATE_TIME:          201801010000
-  MODEL_NAME:         graphcast
-  NUM_MEMBERS:        50
-  ...
-
-Step 1: Initial Conditions (ERA5)
-✓ Initial field GRIB
-  Location: /path/to/init_field.grib
-  Size: 45M
-
-...
-
-Status: Complete! ✓
-```
-
-## Quick Reference
-
-```bash
-# First-time setup
-bash tools/setup_uv.sh && source .venv/bin/activate
-
-# Validate environment
-bash ./tools/validate.sh
-
-# Test installation
-python tools/test_basic_functionality.py
-
-# Monitor progress
-./tools/check_workflow_status.sh
-```
-
-For a complete step-by-step workflow example, see **[QUICKSTART_TEST.md](QUICKSTART_TEST.md)**.
-
-## Troubleshooting
-
-- **Setup fails**: Ensure uv is installed (`curl -LsSf https://astral.sh/uv/install.sh | sh`)
-- **Missing packages**: Reinstall with `uv pip install -e .` after activating environment
-- **No GPUs detected**: Verify with `nvidia-smi` and check driver version >= 525
-- **Status shows no data**: Ensure you've sourced `scripts/config.sh` and run download steps
-
-For workflow execution issues, see [scripts/README.md](../scripts/README.md).
-
-## See Also
-
-- [Main README](../README.md) - Full repository documentation
-- [scripts/config.sh](../scripts/config.sh) - Configuration settings
-- [scripts/](../scripts/) - Workflow execution scripts (submit_*.sh)
+- [Main README](../README.md)
+- [scripts/README.md](../scripts/README.md) - slurm submission scripts
+- [containers/](../containers/) - per-model Dockerfiles and build helpers
