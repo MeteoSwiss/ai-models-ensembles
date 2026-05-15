@@ -153,11 +153,31 @@ def _model_for_member(
 
 
 def _available_gpus() -> int:
-    try:
-        import torch
+    """Detect the number of GPUs without initializing the CUDA runtime.
 
-        return torch.cuda.device_count()
-    except (ImportError, RuntimeError):
+    Importing torch and calling torch.cuda.device_count() would initialize a
+    CUDA context in the parent process. Spawned children then inherit a
+    corrupted copy of the driver state, which causes SIGSEGV in later rounds.
+    """
+    import os
+    import subprocess
+
+    # 1. Honour explicit env-var override
+    vis = os.environ.get("CUDA_VISIBLE_DEVICES", "")
+    if vis:
+        ids = [x for x in vis.split(",") if x.strip()]
+        if ids:
+            return len(ids)
+
+    # 2. Ask nvidia-smi (no CUDA runtime init)
+    try:
+        out = subprocess.check_output(
+            ["nvidia-smi", "--query-gpu=index", "--format=csv,noheader"],
+            text=True,
+            timeout=10,
+        )
+        return max(len(out.strip().splitlines()), 1)
+    except Exception:
         return 1
 
 
@@ -232,20 +252,38 @@ def _gpu_worker(
     ds = _filter_vars(ds, output_vars)
 
     member_zarr = output_path / f"member_{m:03d}.zarr"
-    ds.to_zarr(member_zarr, mode="w", consolidated=True)
+    encoding = {}
+    for vname, da in ds.data_vars.items():
+        encoding[vname] = {
+            "chunks": tuple(
+                s if _INNER_CHUNKS.get(d, -1) == -1 else min(s, _INNER_CHUNKS[d])
+                for d, s in zip(da.dims, da.shape)
+            )
+        }
+    ds.to_zarr(member_zarr, mode="w", consolidated=True, encoding=encoding)
     print(
         f"[GPU {gpu_id}][member {m + 1}/{n_members_total}] wrote {member_zarr}",
         flush=True,
     )
 
+    # Explicit GPU cleanup so the driver fully releases resources before
+    # the next round's processes claim the same GPU (prevents SIGSEGV on GH200).
+    del model, data, ds
+    torch.cuda.synchronize()
+    torch.cuda.empty_cache()
+    torch.cuda.ipc_collect()
+    import gc
+
+    gc.collect()
+
 
 _INNER_CHUNKS: dict[str, int] = {
-    "ensemble": 1,
+    "ensemble": -1,
     "level": 1,
     "init_time": 1,
-    "lead_time": 6,
-    "latitude": 90,
-    "longitude": 360,
+    "lead_time": 1,
+    "latitude": -1,
+    "longitude": -1,
 }
 
 
@@ -269,7 +307,10 @@ def _merge_member_zarrs(tmp_dir: Path, output: Path, n_members: int) -> None:
     for vname in ds.data_vars:
         da = ds[vname]
         shape = da.shape
-        inner = tuple(min(s, _INNER_CHUNKS.get(d, s)) for d, s in zip(da.dims, shape))
+        inner = tuple(
+            s if _INNER_CHUNKS.get(d, -1) == -1 else min(s, _INNER_CHUNKS[d])
+            for d, s in zip(da.dims, shape)
+        )
         shards = tuple(math.ceil(s / c) * c for s, c in zip(shape, inner))
         dtype = "float32" if da.dtype == np.float64 else str(da.dtype)
 
@@ -399,7 +440,6 @@ def _run_members_parallel(
 
     print(f"[main] Launching {n_members} members across {n_gpus} GPUs in {len(rounds)} rounds")
 
-    ctx = mp.get_context("spawn")
     worker_args = (
         model_name,
         init_time,
@@ -417,12 +457,19 @@ def _run_members_parallel(
         cached_checkpoints,
     )
 
+    import gc
+
     for round_idx, round_members in enumerate(rounds):
         print(
             f"[main] Round {round_idx + 1}/{len(rounds)}: "
             f"members {[m for _, m in round_members]}",
             flush=True,
         )
+
+        # Fresh spawn context per round to avoid accumulating leaked
+        # semaphores from previous rounds' exited children.
+        ctx = mp.get_context("spawn")
+
         processes = []
         for gpu_id, member_id in round_members:
             p = ctx.Process(
@@ -438,10 +485,22 @@ def _run_members_parallel(
             if p.exitcode != 0:
                 errors.append(f"GPU {gpu_id} member {member_id} exited with code {p.exitcode}")
 
+        for _, _, p in processes:
+            p.close()
+        del processes, ctx
+        gc.collect()
+
         if errors:
             raise RuntimeError(
                 f"Parallel inference failed in round {round_idx + 1}:\n" + "\n".join(errors)
             )
+
+        # Brief pause between rounds to let the GPU driver fully release
+        # contexts from exited children (prevents SIGSEGV on GH200/NATTEN).
+        if round_idx < len(rounds) - 1:
+            import time
+
+            time.sleep(5)
 
     print("[main] Merging member outputs...")
     _merge_member_zarrs(tmp_dir, output, n_members)
