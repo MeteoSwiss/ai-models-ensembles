@@ -26,20 +26,22 @@ import zarr
 from zarr.storage import LocalStore
 
 INNER_CHUNKS: dict[str, int] = {
-    "ensemble": 1,
+    "ensemble": -1,
     "level": 1,
     "init_time": 1,
-    "lead_time": 6,
-    "latitude": 90,
-    "longitude": 360,
+    "lead_time": 1,
+    "latitude": -1,
+    "longitude": -1,
 }
 
 
 def is_already_sharded(zarr_path: Path) -> bool:
+    """Check if zarr is already sharded with the correct inner chunk sizes."""
     meta_file = zarr_path / "zarr.json"
     if not meta_file.exists():
         return False
-    json.loads(meta_file.read_text())
+
+    # Find first data variable (skip coordinate-only arrays)
     first_var = next(
         (d for d in zarr_path.iterdir() if d.is_dir() and d.name != ".zmetadata"), None
     )
@@ -50,11 +52,26 @@ def is_already_sharded(zarr_path: Path) -> bool:
         return False
     vm = json.loads(var_meta.read_text())
     codecs = vm.get("codecs", [])
-    return any(c.get("name") == "sharding_indexed" for c in codecs)
+    sharding = next((c for c in codecs if c.get("name") == "sharding_indexed"), None)
+    if not sharding:
+        return False
+
+    # Verify inner chunk sizes match current policy
+    inner_shape = sharding["configuration"]["chunk_shape"]
+    dim_names = vm.get("dimension_names", [])
+    var_shape = vm.get("shape", [])
+    if len(dim_names) != len(inner_shape):
+        return False
+    for dim, ichunk, full in zip(dim_names, inner_shape, var_shape):
+        desired = INNER_CHUNKS.get(dim, -1)
+        expected = full if desired == -1 else min(full, desired)
+        if ichunk != expected:
+            return False
+    return True
 
 
 def reshard(zarr_path: Path) -> None:
-    ds = xr.open_zarr(str(zarr_path), consolidated=True)
+    ds = xr.open_zarr(str(zarr_path), consolidated=False)
 
     tmp_path = zarr_path.parent / f"{zarr_path.name}.tmp"
     if tmp_path.exists():
@@ -66,7 +83,10 @@ def reshard(zarr_path: Path) -> None:
     for vname in ds.data_vars:
         da = ds[vname]
         shape = da.shape
-        inner = tuple(min(s, INNER_CHUNKS.get(d, s)) for d, s in zip(da.dims, shape))
+        inner = tuple(
+            s if INNER_CHUNKS.get(d, -1) == -1 else min(s, INNER_CHUNKS[d])
+            for d, s in zip(da.dims, shape)
+        )
         shards = tuple(math.ceil(s / c) * c for s, c in zip(shape, inner))
         dtype = "float32" if da.dtype == np.float64 else str(da.dtype)
 
@@ -134,10 +154,17 @@ def main() -> None:
     else:
         print(f"Using {workers} parallel workers")
         tasks = [(i, total, zp) for i, zp in enumerate(zarr_stores)]
+        failed = 0
         with ProcessPoolExecutor(max_workers=workers) as pool:
             futures = {pool.submit(_reshard_one, t): t for t in tasks}
             for fut in as_completed(futures):
-                print(fut.result(), flush=True)
+                t = futures[fut]
+                try:
+                    print(fut.result(), flush=True)
+                except Exception as e:
+                    failed += 1
+                    print(f"[{t[0] + 1}/{t[1]}] FAILED: {t[2]}: {e}", flush=True)
+        print(f"Done. {failed}/{total} failed.", flush=True)
 
 
 if __name__ == "__main__":
