@@ -317,8 +317,14 @@ run_intercompare() {
         fi
 
         local eval_dirs=()
+        # Put the unperturbed reference (mag_0_layer_all) first when present
+        # so it appears as the leftmost panel in intercomparison plots.
+        local mag0_dir="$eval_base/mag_0_layer_all/"
+        [[ -d "$mag0_dir" ]] && eval_dirs+=("$mag0_dir")
         for d in "$eval_base"/*/; do
-            [[ -d "$d" ]] && eval_dirs+=("$d")
+            [[ -d "$d" ]] || continue
+            [[ "$d" == "$mag0_dir" ]] && continue
+            eval_dirs+=("$d")
         done
 
         if [[ ${#eval_dirs[@]} -lt 2 ]]; then
