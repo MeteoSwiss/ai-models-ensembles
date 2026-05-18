@@ -10,3 +10,4 @@ rechunk.py
 ai_models_ensembles.egg-info/
 .venv
 SwissClim_Evaluations/
+.claude/
