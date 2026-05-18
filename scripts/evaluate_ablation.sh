@@ -235,7 +235,12 @@ submit_eval() {
 
     echo "  eval: $job_tag (${#zarr_paths[@]} init_times)"
 
+    local after_job="${AFTER_JOB:-}"
+    local dep_flag=()
+    [[ -n "$after_job" ]] && dep_flag=(--dependency="afterany:${after_job}")
+
     sbatch --parsable \
+        "${dep_flag[@]}" \
         --job-name="eval_${job_tag}" \
         --partition="$PARTITION" \
         --account=a122 \
