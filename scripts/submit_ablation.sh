@@ -53,16 +53,28 @@ PHASE1_MAGNITUDES="0.001 0.003 0.01 0.03 0.1"
 # Layer groups: model-specific architectural components.
 # Named groups are resolved by _MODEL_LAYER_GROUPS in e2s_perturbation.py.
 #
-# Aurora (644 tensors):  backbone (594) | decoder (17) | encoder (33)
-# GraphCast (267 tensors): g2m (36) | m2g (30) | m2m (198)
-# SFNO (79 tensors):    early (26) | middle (27) | late (26)
+# Tensor counts verified from checkpoint dumps 2026-05-18; see
+# memory/checkpoint_perturbation_audit.md.
+# Aurora (644 tensors):    backbone (594) | decoder (17) | encoder (33)
+# GraphCast (264 tensors): g2m (36) | m2g (30) | m2m (198)
+# SFNO (87 tensors):       processor (80) | decoder (3) | encoder (3) | residual (1)
 # ---------------------------------------------------------------------------
 declare -A PHASE2_GROUPS_aurora=( [0]=encoder [1]=backbone [2]=decoder )
 declare -A PHASE2_GROUPS_graphcast=( [0]=g2m [1]=m2m [2]=m2g )
-declare -A PHASE2_GROUPS_sfno=( [0]=early [1]=middle [2]=late )
+declare -A PHASE2_GROUPS_sfno=( [0]=encoder [1]=processor [2]=decoder )
 
-# Best magnitudes from Phase 1 -- UPDATE AFTER PHASE 1 ANALYSIS
-declare -A PHASE2_BEST_MAG=( [aurora]=0.01 [graphcast]=0.01 [sfno]=0.01 )
+# N_TOTAL = number of perturbable tensors when --layer all is used.
+# N_GROUP_<model>[<group>] = number of perturbable tensors in that group.
+# Used to apply sqrt(N_TOTAL / N_GROUP) variance scaling so partial-weight
+# perturbations match the full-weight output-variance budget at sigma_full.
+declare -A N_TOTAL=( [aurora]=644 [graphcast]=264 [sfno]=87 )
+declare -A N_GROUP_aurora=( [encoder]=33 [backbone]=594 [decoder]=17 )
+declare -A N_GROUP_graphcast=( [g2m]=36 [m2g]=30 [m2m]=198 )
+declare -A N_GROUP_sfno=( [encoder]=3 [processor]=80 [decoder]=3 )
+
+# Consolidated sigma_full from Phase 1 analysis. Phase 2 partial-group runs
+# scale this by sqrt(N_TOTAL / N_GROUP).
+declare -A PHASE2_SIGMA_FULL=( [aurora]=0.01 [graphcast]=0.01 [sfno]=0.01 )
 
 # ---------------------------------------------------------------------------
 # Phase 2b: Refinement (3 fine magnitudes x 3 models x 4 inits = 36 runs)
@@ -277,19 +289,27 @@ SCRIPT
 
 run_phase2() {
     local filter_model="${1:-}"
-    echo "=== Phase 2: Layer-group sweep ==="
+    echo "=== Phase 2: Layer-group sweep (with sqrt(N) variance scaling) ==="
     local count=0
     for model in $MODELS; do
         [[ -n "$filter_model" && "$model" != "$filter_model" ]] && continue
-        local wmag="${PHASE2_BEST_MAG[$model]}"
+        local sigma_full="${PHASE2_SIGMA_FULL[$model]}"
+        local n_total="${N_TOTAL[$model]}"
 
-        # Get model-specific layer groups via nameref
+        # Model-specific layer groups and per-group tensor counts via nameref
         local -n groups="PHASE2_GROUPS_${model}"
+        local -n group_counts="N_GROUP_${model}"
 
         for init_time in "${INIT_TIMES[@]}"; do
             for idx in "${!groups[@]}"; do
                 local layer_spec="${groups[$idx]}"
-                submit_job "$model" "$init_time" "$wmag" "$layer_spec" "phase2" && ((count++)) || true
+                local n_partial="${group_counts[$layer_spec]}"
+                # sigma_partial = sigma_full * sqrt(n_total / n_partial)
+                local sigma_scaled
+                sigma_scaled=$(python3 -c \
+                    "import math; print(f'{$sigma_full * math.sqrt($n_total / $n_partial):.6f}')")
+                echo "  ${model} ${layer_spec}: N=${n_partial}/${n_total} -> sigma=${sigma_scaled}"
+                submit_job "$model" "$init_time" "$sigma_scaled" "$layer_spec" "phase2" && ((count++)) || true
             done
         done
     done
