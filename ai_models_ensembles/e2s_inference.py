@@ -459,19 +459,23 @@ def _run_members_parallel(
 
     import gc
 
-    for round_idx, round_members in enumerate(rounds):
-        print(
-            f"[main] Round {round_idx + 1}/{len(rounds)}: "
-            f"members {[m for _, m in round_members]}",
-            flush=True,
-        )
+    # GH200 multi-process CUDA startup occasionally returns SIGSEGV (-11)
+    # in transient races (e.g. HF Hub cache, NCCL init, torch_harmonics
+    # state). One retry of the *failed members only* is enough to recover
+    # in the vast majority of cases. After that we give up and let the
+    # whole job fail so the user investigates rather than burning compute.
+    RETRY_BACKOFF_SEC = 30
+    import time
 
-        # Fresh spawn context per round to avoid accumulating leaked
-        # semaphores from previous rounds' exited children.
+    def _launch_round(members: list[tuple[int, int]]) -> list[tuple[tuple[int, int], int]]:
+        """Spawn one process per (gpu_id, member_id), join, return failures.
+
+        Returns a list of ((gpu_id, member_id), exitcode) for every member
+        whose process exited non-zero. Empty list means full success.
+        """
         ctx = mp.get_context("spawn")
-
         processes = []
-        for gpu_id, member_id in round_members:
+        for gpu_id, member_id in members:
             p = ctx.Process(
                 target=_gpu_worker,
                 args=(gpu_id, member_id, *worker_args),
@@ -479,27 +483,53 @@ def _run_members_parallel(
             p.start()
             processes.append((gpu_id, member_id, p))
 
-        errors = []
+        failures = []
         for gpu_id, member_id, p in processes:
             p.join()
             if p.exitcode != 0:
-                errors.append(f"GPU {gpu_id} member {member_id} exited with code {p.exitcode}")
+                failures.append(((gpu_id, member_id), p.exitcode))
 
         for _, _, p in processes:
             p.close()
         del processes, ctx
         gc.collect()
+        return failures
 
-        if errors:
-            raise RuntimeError(
-                f"Parallel inference failed in round {round_idx + 1}:\n" + "\n".join(errors)
+    for round_idx, round_members in enumerate(rounds):
+        print(
+            f"[main] Round {round_idx + 1}/{len(rounds)}: "
+            f"members {[m for _, m in round_members]}",
+            flush=True,
+        )
+
+        failures = _launch_round(round_members)
+
+        if failures:
+            err_lines = [
+                f"GPU {gpu_id} member {member_id} exited with code {ec}"
+                for (gpu_id, member_id), ec in failures
+            ]
+            print(
+                f"[main] Round {round_idx + 1} had {len(failures)} failure(s); "
+                f"retrying ONCE after {RETRY_BACKOFF_SEC}s. Errors:\n  " + "\n  ".join(err_lines),
+                flush=True,
             )
+            time.sleep(RETRY_BACKOFF_SEC)
+            retry_members = [m for m, _ in failures]
+            failures = _launch_round(retry_members)
+            if failures:
+                err_lines = [
+                    f"GPU {gpu_id} member {member_id} exited with code {ec}"
+                    for (gpu_id, member_id), ec in failures
+                ]
+                raise RuntimeError(
+                    f"Parallel inference failed in round {round_idx + 1} "
+                    f"after 1 retry:\n" + "\n".join(err_lines)
+                )
 
         # Brief pause between rounds to let the GPU driver fully release
         # contexts from exited children (prevents SIGSEGV on GH200/NATTEN).
         if round_idx < len(rounds) - 1:
-            import time
-
             time.sleep(5)
 
     print("[main] Merging member outputs...")
