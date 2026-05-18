@@ -80,15 +80,36 @@ def _copy_package_to_local(package: Any, dest: Path, suffixes: set[str] | None =
 
 
 def _perturb_array(arr: np.ndarray, sigma: float, rng: np.random.Generator) -> np.ndarray:
-    if not np.issubdtype(arr.dtype, np.floating):
+    # np.inexact covers both np.floating and np.complexfloating, so complex
+    # spectral conv weights (e.g. SFNO `*.filter.filter.weight`) get perturbed.
+    if not np.issubdtype(arr.dtype, np.inexact):
         return arr
-    noise = rng.standard_normal(size=arr.shape).astype(arr.dtype)
-    return arr * (1.0 + sigma * noise)
+    if np.issubdtype(arr.dtype, np.complexfloating):
+        # CN(0,1) complex noise: real and imaginary parts iid N(0, 1/2) so
+        # E[|noise|^2] = 1, matching the real case statistically.
+        real_dtype = np.float32 if arr.dtype == np.complex64 else np.float64
+        inv_sqrt2 = (
+            np.float32(1.0 / np.sqrt(2.0)) if real_dtype is np.float32 else 1.0 / np.sqrt(2.0)
+        )
+        noise_re = (rng.standard_normal(size=arr.shape).astype(real_dtype)) * inv_sqrt2
+        noise_im = (rng.standard_normal(size=arr.shape).astype(real_dtype)) * inv_sqrt2
+        noise = np.empty(arr.shape, dtype=arr.dtype)
+        noise.real = noise_re
+        noise.imag = noise_im
+    else:
+        noise = rng.standard_normal(size=arr.shape).astype(arr.dtype)
+    # Force result back to arr.dtype to defeat numpy's silent upcasting
+    # of Python scalars in mixed arithmetic (matters for complex64).
+    return (arr * (1.0 + sigma * noise)).astype(arr.dtype, copy=False)
 
 
 # Model-specific architectural layer groups.
-# Keys in checkpoint files are sorted alphabetically; indices refer to that order.
-# Determined empirically via tools/inspect_weights.py.
+# For .ckpt/.tar/.pt/.pth/.safetensors: keys are sorted alphabetically;
+# indices refer to that order over tensors with `.numpy()` (includes complex).
+# For .npz: keys are in stored order (`f.files`), all dtypes counted but
+# non-float and `model_config:`/`task_config:` keys are passed through.
+# Determined empirically from actual checkpoint dumps; see
+# memory/checkpoint_perturbation_audit.md.
 _MODEL_LAYER_GROUPS: dict[str, dict[str, tuple[int, int]]] = {
     "aurora": {
         # 644 float tensors: backbone (594) | decoder (17) | encoder (33)
@@ -97,18 +118,27 @@ _MODEL_LAYER_GROUPS: dict[str, dict[str, tuple[int, int]]] = {
         "encoder": (611, 644),
     },
     "graphcast_operational": {
-        # 267 float tensors: grid2mesh (36) | mesh2grid (30) | mesh_gnn (198)
-        # Note: alphabetical sort puts mesh2grid before mesh_gnn
-        "g2m": (0, 36),
-        "m2g": (36, 66),
-        "m2m": (66, 264),
+        # 320 NPZ stored keys: 264 weight tensors + 3 buggy hyperparam floats
+        # + 53 non-float config keys. STORED order (np.savez f.files), not
+        # sorted. `_perturb_npz` now skips `model_config:` / `task_config:`
+        # prefixed keys, so the 3 hyperparam floats at stored indices
+        # 264, 269, 270 are excluded by name rather than by index range.
+        "g2m": (0, 36),  # params:grid2mesh_gnn
+        "m2g": (36, 66),  # params:mesh2grid_gnn
+        "m2m": (66, 264),  # params:mesh_gnn
     },
     "sfno": {
-        # 79 float tensors: all under module.model, no sub-architecture split.
-        # Use even thirds of the FNO layer stack.
-        "early": (0, 26),
-        "middle": (26, 53),
-        "late": (53, 79),
+        # 87 tensors total (79 float32 + 8 complex64 spectral conv filters).
+        # Architectural split confirmed from direct checkpoint dump 2026-05-18.
+        # Sorted-key order:
+        #   blocks (8 SFNO blocks x 10 tensors each)            -> 0..79
+        #   decoder.fwd.* (3 tensors)                            -> 80..82
+        #   encoder.fwd.* (3 tensors)                            -> 83..85
+        #   residual_transform.weight (1 tensor)                 -> 86
+        "encoder": (83, 86),
+        "processor": (0, 80),
+        "decoder": (80, 83),
+        "residual": (86, 87),
     },
 }
 
@@ -176,7 +206,13 @@ def _perturb_npz(path: Path, sigma: float, rng: np.random.Generator, layer: str 
         arrays = {k: f[k] for k in keys}
     targets = _select_indices(len(keys), layer)
     for i in targets:
-        arrays[keys[i]] = _perturb_array(arrays[keys[i]], sigma, rng)
+        k = keys[i]
+        # GraphCast .npz includes float-typed model_config/task_config
+        # scalars (resolution, edge-normalisation factors etc.) that define
+        # graph topology, not learned weights. Skip them.
+        if k.startswith(("model_config:", "task_config:")):
+            continue
+        arrays[k] = _perturb_array(arrays[k], sigma, rng)
     np.savez(path, **arrays)
 
 
