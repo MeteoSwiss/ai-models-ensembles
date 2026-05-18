@@ -238,10 +238,16 @@ def cli_intercompare(
     else:
         if label_from == "leaf":
             final_labels = [Path(p).name for p in discovered]
+        elif label_from == "parent":
+            final_labels = [Path(p).parent.name for p in discovered]
         elif label_from == "tail2":
             final_labels = [f"{Path(p).parent.name}/{Path(p).name}" for p in discovered]
-        else:
+        elif label_from == "grandparent":
             final_labels = [Path(p).parent.parent.name for p in discovered]
+        else:
+            raise typer.BadParameter(
+                f"Unknown --label-from {label_from!r}; expected one of leaf, parent, tail2, grandparent."
+            )
 
     if out_dir is None:
         out_dir = str(Path(discovered[0]).parent.parent / f"intercomparison_{len(discovered)}")

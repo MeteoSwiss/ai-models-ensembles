@@ -418,6 +418,7 @@ run_intercompare() {
             python -m ai_models_ensembles.cli intercompare \
                 ${cli_paths} \
                 --out-dir '${out_dir}' \
+                --label-from parent \
                 --module spectra --module kde --module metrics --module prob --module multivariate --module ets --module fss --module ssim --module maps"
 }
 
