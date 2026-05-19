@@ -11,3 +11,6 @@ ai_models_ensembles.egg-info/
 .venv
 SwissClim_Evaluations/
 .claude/
+figures/*.png
+figures/*.pdf
+figures/*.svg
