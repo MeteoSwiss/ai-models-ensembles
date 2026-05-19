@@ -299,9 +299,53 @@ run_eval_phase() {
 }
 
 # ---------------------------------------------------------------------------
-# Intercomparison: 1 job per model, comparing all eval outputs (e.g. 5
-# magnitudes for Phase 1). Labels are derived from run_tag.
+# Intercomparison: 2 sbatch jobs per model, both writing to the same
+# intercomparison/ output dir.
+#
+#   Job A (non-prob, WITH mag_0):
+#       compares all run_tags including the unperturbed reference
+#       (mag_0_layer_all, N=1). Modules: spectra, kde, metrics, multivariate,
+#       ets, fss, ssim, maps.
+#
+#   Job B (prob-only, WITHOUT mag_0):
+#       compares only the N>=2 runs (perturbed mags). Module: prob.
+#       Required because SwissClim's `common_files()` intersects across
+#       every supplied path; mag_0 has no `probabilistic/` subdir, so
+#       including it would zero out the intersection and skip CRPS maps,
+#       PIT histograms, spaghetti plots, etc.
 # ---------------------------------------------------------------------------
+NONPROB_MODULES="spectra kde metrics multivariate ets fss ssim maps"
+PROB_MODULES="prob"
+
+_submit_intercompare_sbatch() {
+    local job_tag=$1 out_dir=$2 cli_paths=$3 modules=$4 after_job=$5
+    local module_flags=""
+    for m in $modules; do
+        module_flags+=" --module $m"
+    done
+    local dep_flag=()
+    [[ -n "$after_job" ]] && dep_flag=(--dependency="afterany:${after_job}")
+
+    sbatch --parsable \
+        "${dep_flag[@]}" \
+        --job-name="$job_tag" \
+        --partition="$PARTITION" \
+        --account=a122 \
+        --nodes=1 \
+        --ntasks=1 \
+        --cpus-per-task=16 \
+        --mem=128G \
+        --gres=gpu:4 \
+        --time="$TIME_LIMIT" \
+        --output="$LOG_DIR/${job_tag}_%j.out" \
+        --error="$LOG_DIR/${job_tag}_%j.err" \
+        --wrap="source ${SRC_DIR}/.venv/bin/activate && \
+            python -m ai_models_ensembles.cli intercompare \
+                ${cli_paths} \
+                --out-dir '${out_dir}' \
+                ${module_flags}"
+}
+
 run_intercompare() {
     local phase=$1
     local filter_model="${2:-}"
@@ -321,19 +365,20 @@ run_intercompare() {
             continue
         fi
 
-        local eval_dirs=()
-        # Put the unperturbed reference (mag_0_layer_all) first when present
-        # so it appears as the leftmost panel in intercomparison plots.
+        # Build two path lists: with mag_0 (for non-prob) and without (for prob).
         local mag0_dir="$eval_base/mag_0_layer_all/"
-        [[ -d "$mag0_dir" ]] && eval_dirs+=("$mag0_dir")
+        local with_mag0=()
+        local without_mag0=()
+        [[ -d "$mag0_dir" ]] && with_mag0+=("$mag0_dir")
         for d in "$eval_base"/*/; do
             [[ -d "$d" ]] || continue
             [[ "$d" == "$mag0_dir" ]] && continue
-            eval_dirs+=("$d")
+            with_mag0+=("$d")
+            without_mag0+=("$d")
         done
 
-        if [[ ${#eval_dirs[@]} -lt 2 ]]; then
-            echo "SKIP $model: need >= 2 eval dirs, got ${#eval_dirs[@]}"
+        if [[ ${#with_mag0[@]} -lt 2 ]]; then
+            echo "SKIP $model: need >= 2 eval dirs, got ${#with_mag0[@]}"
             continue
         fi
 
@@ -343,38 +388,32 @@ run_intercompare() {
             continue
         fi
 
-        local cli_paths=""
-        for d in "${eval_dirs[@]}"; do
-            cli_paths+=" '${d}'"
+        local paths_with=""
+        for d in "${with_mag0[@]}"; do
+            paths_with+=" '${d}'"
+        done
+        local paths_without=""
+        for d in "${without_mag0[@]}"; do
+            paths_without+=" '${d}'"
         done
 
-        local job_tag="icmp_${phase}_${model}"
+        echo "  intercompare $model: A=non-prob (${#with_mag0[@]} dirs incl. mag_0), B=prob (${#without_mag0[@]} dirs no mag_0) -> $out_dir"
 
-        echo "  intercompare $model: ${#eval_dirs[@]} configs -> $out_dir"
-
-        local dep_flag=()
-        [[ -n "$after_job" ]] && dep_flag=(--dependency="afterany:${after_job}")
-
-        sbatch --parsable \
-            "${dep_flag[@]}" \
-            --job-name="$job_tag" \
-            --partition="$PARTITION" \
-            --account=a122 \
-            --nodes=1 \
-            --ntasks=1 \
-            --cpus-per-task=16 \
-            --mem=128G \
-            --gres=gpu:4 \
-            --time="$TIME_LIMIT" \
-            --output="$LOG_DIR/${job_tag}_%j.out" \
-            --error="$LOG_DIR/${job_tag}_%j.err" \
-            --wrap="source ${SRC_DIR}/.venv/bin/activate && \
-                python -m ai_models_ensembles.cli intercompare \
-                    ${cli_paths} \
-                    --out-dir '${out_dir}' \
-                    --module spectra --module kde --module metrics --module prob --module multivariate --module ets --module fss --module ssim --module maps"
-
+        # Job A: non-probabilistic modules, WITH mag_0
+        _submit_intercompare_sbatch \
+            "icmp_${phase}_${model}_nonprob" \
+            "$out_dir" "$paths_with" "$NONPROB_MODULES" "$after_job"
         count=$((count + 1))
+
+        # Job B: probabilistic only, WITHOUT mag_0 (skipped if not enough perturbed runs)
+        if [[ ${#without_mag0[@]} -ge 2 ]]; then
+            _submit_intercompare_sbatch \
+                "icmp_${phase}_${model}_prob" \
+                "$out_dir" "$paths_without" "$PROB_MODULES" "$after_job"
+            count=$((count + 1))
+        else
+            echo "  SKIP $model prob intercomp: need >= 2 perturbed eval dirs (mag_0 excluded)"
+        fi
     done
 
     echo "${phase}: submitted $count intercomparison jobs"
