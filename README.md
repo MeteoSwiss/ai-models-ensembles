@@ -24,9 +24,39 @@ This repo is a thin orchestration layer over [NVIDIA earth2studio](https://githu
 | `aurora` | `Aurora` | 0.25° | 6 h | deterministic, weight-perturbed |
 | `fcn3` | `FCN3` | 0.25° | 6 h | probabilistic, re-seeded per member |
 | `atlas` | `Atlas` | 0.25° | 6 h | probabilistic, re-seeded per member |
+| `aifsens` | `AIFSENS` | 0.25° | 6 h | probabilistic, re-seeded per member |
 
 `ai-ens models` prints the live registry. Adding a model means appending one
 `ModelSpec` in [ai_models_ensembles/e2s_models.py](ai_models_ensembles/e2s_models.py).
+
+## Perturbation strategy
+
+Weight perturbation is applied in four ablation phases, each progressively
+more physically-motivated.
+
+### Phase 2 — architectural layer groups
+
+Per model, partition the learnable weights into encoder / processor /
+decoder groups (model-specific naming). Apply Gaussian multiplicative
+noise to a single group at a time, with `sqrt(N_total / N_partial)`
+variance scaling so the partial-group output spread matches the full-weight
+reference at `σ_full = 0.01`.
+
+![Phase 2 schematic](figures/perturbation_schematic.png)
+
+### Phase 3 — physics-inspired coarse-scale targeting
+
+Perturb only the parameters responsible for spatial scales `λ ≳ 3000 km`
+(planetary / large-synoptic). Each model uses a different mechanism for the
+same physical objective: spectral-mode sub-slice (SFNO), bottleneck-layer
+selection (Aurora), or runtime edge-embedding hook on long mesh edges
+(GraphCast).
+
+![Phase 3 schematic](figures/phase3_schematic.png)
+
+Tensor counts and group definitions were verified empirically from
+checkpoint dumps; see [tools/dump_*_keys.py](tools/) and the audit notes
+in the team memory.
 
 ## Initial conditions
 
@@ -147,10 +177,18 @@ ai-ens intercompare /path/A/swissclim_graphcast_operational \
 ```
 
 `--layer` accepts a single weight-tensor index, a `start:end` range,
-fractional `0.0:0.33`, named groups (`backbone`, `decoder`, `encoder`,
-`g2m`, `m2g`, `m2m`, `early`, `middle`, `late`), or `all`. The slurm
-submitters in `scripts/` hard-code their per-experiment defaults and pass
-them through `ai-ens infer ...`.
+fractional `0.0:0.33`, named architectural groups, or `all`. The named
+groups are model-specific (defined in `_MODEL_LAYER_GROUPS` in
+[ai_models_ensembles/e2s_perturbation.py](ai_models_ensembles/e2s_perturbation.py)):
+
+| Model | Named groups |
+|---|---|
+| `aurora` | `encoder`, `backbone`, `decoder` |
+| `graphcast_operational` | `g2m`, `m2m`, `m2g` |
+| `sfno` | `encoder`, `processor`, `decoder`, `residual` |
+
+The slurm submitters in `scripts/` hard-code their per-experiment defaults
+and pass them through `ai-ens infer ...`.
 
 ## Zarr format
 
@@ -175,9 +213,9 @@ $STORE/
   └─ ablation/
      └─ <phase>/<model_id>/
         ├─ <init_tag>/<run_tag>/forecast.zarr                # per-run forecast
-        ├─ eval/<run_tag>/                                   # SwissClim eval
-        │  ├─ maps/  histograms/  energy_spectra/
-        │  └─ deterministic/  ets/  fss/  probabilistic/  ssim/
+        ├─ eval/<run_tag>/                                   # SwissClim eval modules
+        │  ├─ maps/  wd_kde/  energy_spectra/  multivariate/
+        │  └─ deterministic/  probabilistic/  ets/  fss/  ssim/
         └─ intercomparison/                                  # cross-run plots
 ```
 
@@ -216,6 +254,7 @@ uses the image's installed package).
 - **`scripts/`** - Slurm submitters for inference and SwissClim eval
 - **`containers/`** - per-model Dockerfiles and `submit_build.sh`
 - **`tools/`** - host venv helpers, weight inspection, zarr resharding
+- **`figures/`** - perturbation schematics (regenerable SVG/PDF/PNG)
 
 ## Pre-commit & Ruff
 
