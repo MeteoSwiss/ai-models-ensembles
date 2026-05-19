@@ -46,17 +46,24 @@ reference at `σ_full = 0.01`.
 
 ### Phase 3 — physics-inspired coarse-scale targeting
 
-Perturb only the parameters responsible for spatial scales `λ ≳ 3000 km`
-(planetary / large-synoptic). Each model uses a different mechanism for the
-same physical objective: spectral-mode sub-slice (SFNO), bottleneck-layer
-selection (Aurora), or runtime edge-embedding hook on long mesh edges
-(GraphCast).
+Perturb only the parameters responsible for upper-synoptic-and-above
+spatial scales (`λ ≳ 3000 km`, per the SwissClim band conventions:
+synoptic 1–5 Mm, planetary 5–20 Mm). Each model uses a different
+mechanism for the same physical objective:
+
+- **SFNO** — sub-slice perturbation of the spherical-harmonic spectral
+  weights at `l ≤ 10` (`λ ≥ 4000 km`).
+- **Aurora** — perturb only the bottleneck Swin layers (`encoder_layers.2`
+  + `decoder_layers.0`). The bottleneck operates on ~450 km tokens with
+  an attention-window receptive field of ~5000 km, so the effective scale
+  reaches well into the synoptic-to-planetary range.
+- **GraphCast** — runtime hook on edge embeddings of mesh refinement
+  levels 0–1 (edge lengths ≈ 6700 km and 3300 km respectively).
 
 ![Phase 3 schematic](figures/phase3_schematic.png)
 
-Tensor counts and group definitions were verified empirically from
-checkpoint dumps; see [tools/dump_*_keys.py](tools/) and the audit notes
-in the team memory.
+Tensor counts, channel dimensions and group definitions were verified
+empirically from checkpoint dumps ([tools/dump_*_keys.py](tools/)).
 
 ## Initial conditions
 
