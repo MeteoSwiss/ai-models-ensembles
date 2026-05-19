@@ -46,11 +46,11 @@ COL_GRID = "#E9ECEF"
 
 # Layout
 LEFT_COL_X = 0.02
-LEFT_COL_W = 0.22
-VIZ_AREA_X = LEFT_COL_X + LEFT_COL_W + 0.02
-VIZ_AREA_W = 1.0 - VIZ_AREA_X - 0.02
-ROW_HEIGHT = 0.21
-ROW_CENTERS = [0.74, 0.46, 0.18]
+LEFT_COL_W = 0.21
+VIZ_AREA_X = LEFT_COL_X + LEFT_COL_W + 0.020
+VIZ_AREA_W = 1.0 - VIZ_AREA_X - 0.015
+ROW_HEIGHT = 0.225
+ROW_CENTERS = [0.755, 0.475, 0.195]
 
 
 # -- Model-specific visualizations -------------------------------------------
@@ -154,11 +154,11 @@ def draw_sfno_spectral_lattice(ax, x, y, w, h):
         rotation=90,
     )
 
-    # Panel title (top)
+    # Panel caption: what the bars mean (no architecture name repetition)
     ax.text(
         x + w / 2,
         y + h - 0.012,
-        "spectral weight modes  (per SFNO block, ×8 blocks)",
+        "modes per block × 8 blocks  ·  bar height = 2l+1 modes per l",
         ha="center",
         va="top",
         fontsize=8.5,
@@ -168,74 +168,90 @@ def draw_sfno_spectral_lattice(ax, x, y, w, h):
 
 
 def draw_aurora_unet_bottleneck(ax, x, y, w, h):
-    """U-Net cross-section with the bottleneck layers highlighted."""
+    """U-Net cross-section with bottleneck layers highlighted, exact dims.
+
+    Aurora has 3 encoder + 3 decoder Swin-3D layers. Channels double per
+    downsample (512 / 1024 / 2048), spatial resolution halves per stage
+    (1° / 2° / 4° tokens given the 4x4 patch embed on a 0.25° input grid).
+    The deepest two (enc_2 + dec_0) are the targeted bottleneck.
+    """
     pad = 0.018
-    pad_top = 0.030  # room for title strip
-    pad_bot = 0.030  # room for labels
+    pad_top = 0.024
+    pad_bot = 0.052  # taller bottom to fit two-line block annotations
 
     inner_w = w - 2 * pad
     inner_h = h - pad_top - pad_bot
-    n_levels = 4
-    col_w = inner_w / (2 * n_levels - 1)
-    heights = [
-        inner_h,
-        inner_h * 0.72,
-        inner_h * 0.50,
-        inner_h * 0.30,
-        inner_h * 0.50,
-        inner_h * 0.72,
-        inner_h,
+    # 6 blocks
+    blocks = [
+        {"name": "enc_0", "ch": 512, "res_deg": 1, "res_km": 112, "frac": 1.00},
+        {"name": "enc_1", "ch": 1024, "res_deg": 2, "res_km": 224, "frac": 0.72},
+        {"name": "enc_2", "ch": 2048, "res_deg": 4, "res_km": 448, "frac": 0.42, "tgt": True},
+        {"name": "dec_0", "ch": 2048, "res_deg": 4, "res_km": 448, "frac": 0.42, "tgt": True},
+        {"name": "dec_1", "ch": 1024, "res_deg": 2, "res_km": 224, "frac": 0.72},
+        {"name": "dec_2", "ch": 512, "res_deg": 1, "res_km": 112, "frac": 1.00},
     ]
-    labels = ["enc_0", "enc_1", "enc_2", "btnk", "dec_0", "dec_1", "dec_2"]
-    targeted_idx = {2, 4}
-
+    n = len(blocks)
+    col_w = inner_w / n
     base_x = x + pad
     cy = y + pad_bot + inner_h / 2
 
-    for i, (rh, lab) in enumerate(zip(heights, labels)):
+    for i, blk in enumerate(blocks):
         rx = base_x + i * col_w
+        rh = blk["frac"] * inner_h
         ry = cy - rh / 2
-        targ = i in targeted_idx
+        targ = blk.get("tgt", False)
         col = COL_TARGET if targ else COL_MUTED_REG
         alpha = 0.95 if targ else 0.55
-        rect = FancyBboxPatch(
-            (rx + col_w * 0.10, ry),
-            col_w * 0.80,
-            rh,
-            boxstyle="round,pad=0,rounding_size=0.008",
-            facecolor=col,
-            edgecolor=col,
-            linewidth=0.4,
-            alpha=alpha,
-            zorder=2,
-        )
-        ax.add_patch(rect)
-        if targ:
-            glow = FancyBboxPatch(
-                (rx + col_w * 0.06, ry - 0.006),
-                col_w * 0.88,
-                rh + 0.012,
-                boxstyle="round,pad=0,rounding_size=0.010",
-                facecolor="none",
-                edgecolor=COL_GLOW,
-                linewidth=1.5,
-                alpha=0.9,
-                zorder=1,
+        ax.add_patch(
+            FancyBboxPatch(
+                (rx + col_w * 0.10, ry),
+                col_w * 0.80,
+                rh,
+                boxstyle="round,pad=0,rounding_size=0.008",
+                facecolor=col,
+                edgecolor=col,
+                linewidth=0.4,
+                alpha=alpha,
+                zorder=2,
             )
-            ax.add_patch(glow)
+        )
+        if targ:
+            ax.add_patch(
+                FancyBboxPatch(
+                    (rx + col_w * 0.06, ry - 0.006),
+                    col_w * 0.88,
+                    rh + 0.012,
+                    boxstyle="round,pad=0,rounding_size=0.010",
+                    facecolor="none",
+                    edgecolor=COL_GLOW,
+                    linewidth=1.5,
+                    alpha=0.9,
+                    zorder=1,
+                )
+            )
+        # Single-line annotation under the block: name + compact dims
         ax.text(
             rx + col_w / 2,
-            y + 0.008,
-            lab,
+            y + pad_bot - 0.005,
+            blk["name"],
             ha="center",
-            va="bottom",
-            fontsize=7,
-            color=COL_TEXT if targ else COL_FAINT,
+            va="top",
+            fontsize=7.5,
+            color=COL_TARGET if targ else COL_TEXT,
             fontweight="bold" if targ else "normal",
         )
+        ax.text(
+            rx + col_w / 2,
+            y + pad_bot - 0.020,
+            f"{blk['ch']}c · {blk['res_deg']}°",
+            ha="center",
+            va="top",
+            fontsize=6.8,
+            color=COL_FAINT,
+        )
 
-    # Faint arrows between consecutive layers
-    for i in range(len(labels) - 1):
+    # Faint arrows between consecutive blocks
+    for i in range(n - 1):
         rx = base_x + i * col_w + col_w * 0.90
         rx2 = base_x + (i + 1) * col_w + col_w * 0.10
         ax.annotate(
@@ -246,163 +262,353 @@ def draw_aurora_unet_bottleneck(ax, x, y, w, h):
             zorder=1,
         )
 
-    # Panel title (top, no overlap)
+    # Panel caption (single line; bottleneck info compressed into it)
     ax.text(
         x + w / 2,
         y + h - 0.012,
-        "Swin-3D U-Net depth  (block widths illustrate spatial resolution)",
+        "block widths ∝ spatial resolution  ·  c = channels  ·  "
+        "bottleneck attn window ≈ 5000 km",
         ha="center",
         va="top",
-        fontsize=8.5,
+        fontsize=8.0,
         color=COL_TEXT,
         style="italic",
     )
 
-    # Highlighted regions get one inline annotation each, NOT crossing the title.
-    enc2_cx = base_x + 2 * col_w + col_w / 2
-    dec0_cx = base_x + 4 * col_w + col_w / 2
-    ax.text(
-        enc2_cx,
-        cy + heights[2] / 2 + 0.013,
-        "encoder_layers.2",
-        ha="center",
-        va="bottom",
-        fontsize=7.5,
-        fontweight="bold",
-        color=COL_TARGET,
+
+def _icosahedron_verts_3d() -> np.ndarray:
+    """Return the 12 vertices of a unit-radius regular icosahedron."""
+    phi = (1 + np.sqrt(5)) / 2
+    verts = np.array(
+        [
+            [-1, phi, 0],
+            [1, phi, 0],
+            [-1, -phi, 0],
+            [1, -phi, 0],
+            [0, -1, phi],
+            [0, 1, phi],
+            [0, -1, -phi],
+            [0, 1, -phi],
+            [phi, 0, -1],
+            [phi, 0, 1],
+            [-phi, 0, -1],
+            [-phi, 0, 1],
+        ],
+        dtype=float,
     )
-    ax.text(
-        dec0_cx,
-        cy + heights[4] / 2 + 0.013,
-        "decoder_layers.0",
-        ha="center",
-        va="bottom",
-        fontsize=7.5,
-        fontweight="bold",
-        color=COL_TARGET,
+    return verts / np.linalg.norm(verts[0])
+
+
+def _icosahedron_edges() -> list[tuple[int, int]]:
+    """Return the 30 edges of an icosahedron (pairs of indices into the 12 verts)."""
+    verts = _icosahedron_verts_3d()
+    # Each edge length = nearest-neighbour distance
+    edges = []
+    for i in range(12):
+        dists = np.linalg.norm(verts - verts[i], axis=1)
+        # exactly 5 nearest neighbours per vertex (icosahedron property)
+        nbrs = np.argsort(dists)[1:6]
+        for j in nbrs:
+            if (i, int(j)) not in edges and (int(j), i) not in edges:
+                edges.append((i, int(j)))
+    return edges
+
+
+def _icosahedron_subdivided() -> tuple[np.ndarray, list[tuple[int, int]]]:
+    """Return (42 verts, 120 edges) for one Loop-style subdivision of the icosahedron.
+
+    Each original edge gets a new midpoint vertex (normalised to the unit
+    sphere). Each original triangle becomes 4 smaller triangles whose new
+    edges form the next refinement level.
+    """
+    verts0 = _icosahedron_verts_3d()
+    edges0 = _icosahedron_edges()
+
+    # 20 triangular faces of an icosahedron
+    nbrs = {i: set() for i in range(12)}
+    for a, b in edges0:
+        nbrs[a].add(b)
+        nbrs[b].add(a)
+    faces = set()
+    for a, b in edges0:
+        for c in nbrs[a] & nbrs[b]:
+            faces.add(tuple(sorted([a, b, c])))
+    faces = list(faces)
+
+    # Midpoint of each original edge, normalised back to the unit sphere
+    mid_index = {}
+    mid_verts = []
+    for a, b in edges0:
+        key = (min(a, b), max(a, b))
+        m = (verts0[a] + verts0[b]) / 2
+        m = m / np.linalg.norm(m)
+        mid_index[key] = 12 + len(mid_verts)
+        mid_verts.append(m)
+    verts1 = np.vstack([verts0, np.array(mid_verts)])
+
+    # Each original triangle (a, b, c) -> 4 sub-triangles with new edges.
+    new_edges = set()
+
+    def _add(p, q):
+        new_edges.add((min(p, q), max(p, q)))
+
+    for a, b, c in faces:
+        mab = mid_index[(min(a, b), max(a, b))]
+        mbc = mid_index[(min(b, c), max(b, c))]
+        mca = mid_index[(min(c, a), max(c, a))]
+        # 4 sub-triangles: (a, mab, mca), (mab, b, mbc), (mca, mbc, c),
+        # (mab, mbc, mca). Each contributes 3 edges (some shared).
+        for tri in [(a, mab, mca), (mab, b, mbc), (mca, mbc, c), (mab, mbc, mca)]:
+            for i in range(3):
+                _add(tri[i], tri[(i + 1) % 3])
+    return verts1, list(new_edges)
+
+
+def _fibonacci_sphere_points(n: int) -> np.ndarray:
+    """Return n quasi-uniform (x, y, z) points on a unit sphere (Fibonacci spiral)."""
+    if n <= 0:
+        return np.zeros((0, 3))
+    indices = np.arange(n) + 0.5
+    phi = np.arccos(1 - 2 * indices / n)  # latitude
+    theta = np.pi * (1 + np.sqrt(5)) * indices  # longitude
+    return np.column_stack([np.sin(phi) * np.cos(theta), np.sin(phi) * np.sin(theta), np.cos(phi)])
+
+
+def _orthographic_project(verts: np.ndarray, view_z: float = 0.85) -> tuple[np.ndarray, np.ndarray]:
+    """Rotate the sphere slightly for a 3/4 view, then project to (x, y).
+
+    Returns (2D coords, z-depth in [-1, 1]).
+    """
+    # Rotate so the camera looks down a slightly off-axis direction. This
+    # avoids the degenerate "pentagon dead-on" view that hides the icosahedral
+    # face pattern.
+    theta = 0.32  # ~18° tilt around x-axis
+    R = np.array(
+        [
+            [1, 0, 0],
+            [0, np.cos(theta), -np.sin(theta)],
+            [0, np.sin(theta), np.cos(theta)],
+        ]
     )
+    rotated = verts @ R.T
+    return rotated[:, :2], rotated[:, 2]
+
+
+def _draw_single_mesh_globe(ax, cx, cy, r, level_k, edge_col, edge_lw, node_col, node_size, alpha):
+    """Draw one small mesh globe at the given centre / radius.
+
+    For levels 0 and 1: use the exact icosahedron / first-subdivision
+    geometry so the pentagonal/hexagonal pattern is visible.
+    For higher levels: Fibonacci-uniform points + Delaunay triangulation
+    (cheap visual proxy; individual edges aren't readable anyway).
+    """
+    from matplotlib.tri import Triangulation
+
+    # Sphere outline
+    ax.add_patch(
+        Circle(
+            (cx, cy),
+            r,
+            facecolor="#F4F8FB",
+            edgecolor=COL_ACCENT,
+            linewidth=0.7,
+            alpha=0.95,
+            zorder=2,
+        )
+    )
+
+    if level_k == 0:
+        verts3d = _icosahedron_verts_3d()
+        edges = _icosahedron_edges()
+        verts2d, zs = _orthographic_project(verts3d)
+        px = cx + verts2d[:, 0] * r * 0.94
+        py = cy + verts2d[:, 1] * r * 0.94
+        # Edges: draw back-hemisphere edges faded
+        for a, b in edges:
+            z_avg = (zs[a] + zs[b]) / 2
+            front = z_avg > -0.05
+            a_alpha = alpha if front else alpha * 0.35
+            ax.plot(
+                [px[a], px[b]],
+                [py[a], py[b]],
+                color=edge_col,
+                lw=edge_lw if front else edge_lw * 0.7,
+                alpha=a_alpha,
+                zorder=3 if front else 2.5,
+                solid_capstyle="round",
+            )
+        if node_size > 0:
+            for i in range(len(verts3d)):
+                front = zs[i] > -0.05
+                ax.scatter(
+                    px[i],
+                    py[i],
+                    s=node_size if front else node_size * 0.55,
+                    color=node_col,
+                    edgecolors="white",
+                    linewidths=0.35,
+                    alpha=alpha if front else alpha * 0.5,
+                    zorder=5 if front else 4,
+                )
+
+    elif level_k == 1:
+        verts3d, edges = _icosahedron_subdivided()
+        verts2d, zs = _orthographic_project(verts3d)
+        px = cx + verts2d[:, 0] * r * 0.94
+        py = cy + verts2d[:, 1] * r * 0.94
+        for a, b in edges:
+            z_avg = (zs[a] + zs[b]) / 2
+            front = z_avg > -0.08
+            a_alpha = alpha if front else alpha * 0.30
+            ax.plot(
+                [px[a], px[b]],
+                [py[a], py[b]],
+                color=edge_col,
+                lw=edge_lw if front else edge_lw * 0.7,
+                alpha=a_alpha,
+                zorder=3 if front else 2.5,
+                solid_capstyle="round",
+            )
+        if node_size > 0:
+            for i in range(len(verts3d)):
+                front = zs[i] > -0.08
+                ax.scatter(
+                    px[i],
+                    py[i],
+                    s=node_size if front else node_size * 0.55,
+                    color=node_col,
+                    edgecolors="white",
+                    linewidths=0.35,
+                    alpha=alpha if front else alpha * 0.5,
+                    zorder=5 if front else 4,
+                )
+
+    else:
+        # Higher refinement: visual approximation only
+        n_draw = {2: 80, 3: 140, 4: 240, 5: 420}.get(level_k, 100)
+        sphere_pts = _fibonacci_sphere_points(n_draw)
+        verts2d, zs = _orthographic_project(sphere_pts)
+        # Keep only front hemisphere for cleaner look
+        front_mask = zs > -0.05
+        px = cx + verts2d[front_mask, 0] * r * 0.94
+        py = cy + verts2d[front_mask, 1] * r * 0.94
+        if len(px) >= 3:
+            tri = Triangulation(px, py)
+            max_edge = 4.0 * r / np.sqrt(max(len(px), 1))
+            for t in tri.triangles:
+                for i in range(3):
+                    a, b = t[i], t[(i + 1) % 3]
+                    d = np.hypot(px[a] - px[b], py[a] - py[b])
+                    if d > max_edge or d > r * 0.85:
+                        continue
+                    ax.plot(
+                        [px[a], px[b]],
+                        [py[a], py[b]],
+                        color=edge_col,
+                        lw=edge_lw,
+                        alpha=alpha,
+                        zorder=3,
+                        solid_capstyle="round",
+                    )
+        if node_size > 0:
+            ax.scatter(
+                px,
+                py,
+                s=node_size,
+                color=node_col,
+                edgecolors="white",
+                linewidths=0.35,
+                alpha=alpha,
+                zorder=4,
+            )
 
 
 def draw_graphcast_multimesh(ax, x, y, w, h):
-    """Icosahedral multi-mesh: long edges (lvl 0-1) highlighted, multi-level rings."""
-    pad_top = 0.030  # room for panel title
-    pad_bot = 0.018
+    """Row of small icosahedral mesh-refinement globes.
 
-    cx_g = x + w / 2
-    cy_g = y + pad_bot + (h - pad_top - pad_bot) / 2
+    Visual quote of GraphCast paper figure 2: a series of small spheres
+    showing successive refinement of the icosahedron, from coarse (level 0,
+    targeted) to fine (level 5, untouched).
+    """
+    pad_x = 0.012
+    pad_top = 0.012
+    pad_bot = 0.040  # leave room for per-globe labels
 
-    r_outer = min(w - 0.04, h - pad_top - pad_bot) / 2 - 0.005
-    sphere = Circle(
-        (cx_g, cy_g),
-        r_outer,
-        facecolor="#F4F8FB",
-        edgecolor=COL_ACCENT,
-        linewidth=0.8,
-        alpha=0.9,
-    )
-    ax.add_patch(sphere)
+    inner_x = x + pad_x
+    inner_w = w - 2 * pad_x
+    inner_h = h - pad_top - pad_bot
 
-    # --- Level 0: 5 vertices in pentagon, edges between them = ~6700 km ---
-    n0 = 5
-    v0 = np.column_stack(
-        [
-            cx_g + r_outer * 0.85 * np.cos(2 * np.pi * np.arange(n0) / n0 + np.pi / 2),
-            cy_g + r_outer * 0.85 * np.sin(2 * np.pi * np.arange(n0) / n0 + np.pi / 2),
-        ]
-    )
+    # 6 refinement levels (0..5). Level k has roughly 10*4^k + 2 vertices,
+    # but we cap n_points for visual clarity at higher levels.
+    levels = [
+        {"k": 0, "n_actual": 12, "n_draw": 12, "edge_km": "~6700"},
+        {"k": 1, "n_actual": 42, "n_draw": 38, "edge_km": "~3300"},
+        {"k": 2, "n_actual": 162, "n_draw": 80, "edge_km": "~1700"},
+        {"k": 3, "n_actual": 642, "n_draw": 140, "edge_km": "~830"},
+        {"k": 4, "n_actual": 2562, "n_draw": 240, "edge_km": "~410"},
+        {"k": 5, "n_actual": 10242, "n_draw": 420, "edge_km": "~210"},
+    ]
+    n_globes = len(levels)
+    gap_frac = 0.06  # gap between globes as fraction of globe diameter
+    globe_d = inner_w / (n_globes * (1 + gap_frac) - gap_frac)
+    globe_d = min(globe_d, inner_h * 0.95)
+    r = globe_d / 2
+    gap = globe_d * gap_frac
 
-    # All-to-all edges among level-0 vertices (longest edges in the mesh)
-    for i in range(n0):
-        for j in range(i + 1, n0):
-            ax.plot(
-                [v0[i, 0], v0[j, 0]],
-                [v0[i, 1], v0[j, 1]],
-                color=COL_TARGET,
-                lw=2.6,
-                alpha=0.95,
-                zorder=4,
-                solid_capstyle="round",
-            )
+    # Centre the row vertically and horizontally
+    total_w = n_globes * globe_d + (n_globes - 1) * gap
+    x_start = inner_x + (inner_w - total_w) / 2
+    cy = y + pad_bot + inner_h / 2
 
-    # --- Level 1: midpoints of level-0 edges = ~3300 km ---
-    mid_pairs = [(i, (i + 1) % n0) for i in range(n0)]
-    v1 = np.array([(v0[i] + v0[j]) / 2 for i, j in mid_pairs])
-    # Edges between adjacent level-1 vertices
-    for i in range(n0):
-        a, b = v1[i], v1[(i + 1) % n0]
-        ax.plot(
-            [a[0], b[0]],
-            [a[1], b[1]],
-            color=COL_GLOW,
-            lw=1.8,
-            alpha=0.95,
-            zorder=3,
+    targeted_levels = {0, 1}
+
+    for i, lvl in enumerate(levels):
+        cx = x_start + r + i * (globe_d + gap)
+        target = lvl["k"] in targeted_levels
+        if lvl["k"] == 0:
+            edge_col, edge_lw, node_col, node_sz = COL_TARGET, 2.4, COL_TARGET, 22
+            alpha = 0.95
+        elif lvl["k"] == 1:
+            edge_col, edge_lw, node_col, node_sz = COL_GLOW, 1.7, COL_GLOW, 12
+            alpha = 0.95
+        else:
+            edge_col, edge_lw, node_col, node_sz = COL_MUTED_REG, 0.45, COL_MUTED_REG, 2
+            alpha = 0.55
+
+        _draw_single_mesh_globe(
+            ax,
+            cx,
+            cy,
+            r,
+            lvl["k"],
+            edge_col,
+            edge_lw,
+            node_col,
+            node_sz,
+            alpha,
         )
-    # Level-1 edges back to nearest level-0 vertex (also long)
-    for i in range(n0):
-        ax.plot(
-            [v1[i, 0], v0[i, 0]],
-            [v1[i, 1], v0[i, 1]],
-            color=COL_GLOW,
-            lw=1.5,
-            alpha=0.85,
-            zorder=3,
+
+        # Per-globe label below
+        ax.text(
+            cx,
+            cy - r - 0.011,
+            f"level {lvl['k']}",
+            ha="center",
+            va="top",
+            fontsize=8.0,
+            fontweight="bold" if target else "normal",
+            color=COL_TARGET if lvl["k"] == 0 else (COL_GLOW if lvl["k"] == 1 else COL_TEXT),
         )
-
-    # --- Level 2+ : background scatter of short-edge mesh (untouched) ---
-    rng = np.random.default_rng(7)
-    n_bg = 70
-    angles = rng.uniform(0, 2 * np.pi, n_bg)
-    radii = rng.uniform(0.15, 0.92, n_bg) * r_outer
-    bg_x = cx_g + radii * np.cos(angles)
-    bg_y = cy_g + radii * np.sin(angles)
-    # Connect each background point to its 2 nearest neighbours
-    pts = np.column_stack([bg_x, bg_y])
-    for i in range(n_bg):
-        dists = np.linalg.norm(pts - pts[i], axis=1)
-        dists[i] = np.inf
-        for j in np.argsort(dists)[:2]:
-            ax.plot(
-                [pts[i, 0], pts[j, 0]],
-                [pts[i, 1], pts[j, 1]],
-                color=COL_MUTED_REG,
-                lw=0.35,
-                alpha=0.45,
-                zorder=2,
-            )
-    ax.scatter(bg_x, bg_y, s=4, color=COL_MUTED_REG, alpha=0.6, edgecolors="none", zorder=2)
-
-    # Highlighted nodes on top
-    ax.scatter(
-        v1[:, 0], v1[:, 1], s=40, color=COL_GLOW, edgecolors="white", linewidths=0.6, zorder=5
-    )
-    ax.scatter(
-        v0[:, 0], v0[:, 1], s=70, color=COL_TARGET, edgecolors="white", linewidths=0.6, zorder=6
-    )
-
-    # Panel title (top of panel)
-    ax.text(
-        x + w / 2,
-        y + h - 0.012,
-        "Multi-mesh icosahedron  (longer edges = coarser scales)",
-        ha="center",
-        va="top",
-        fontsize=8.5,
-        color=COL_TEXT,
-        style="italic",
-    )
-
-    # Single compact edge-length legend in the bottom-right corner of panel
-    ax.text(
-        x + w - 0.015,
-        y + pad_bot + 0.005,
-        "edge length:  level 0 ~ 6700 km    level 1 ~ 3300 km    level 6 ~ 100 km",
-        ha="right",
-        va="bottom",
-        fontsize=7.5,
-        color=COL_FAINT,
-        style="italic",
-    )
+        ax.text(
+            cx,
+            cy - r - 0.028,
+            f"{lvl['n_actual']} nodes\nλ {lvl['edge_km']} km",
+            ha="center",
+            va="top",
+            fontsize=7,
+            color=COL_FAINT,
+            linespacing=1.2,
+        )
 
 
 # -- Architectural icon (reused from Phase 2 figure for consistency) ---------
@@ -497,7 +703,7 @@ MODELS = [
         "subtitle": "Spherical Fourier Neural Operator",
         "mechanism": "spectral weight sub-slice perturbation",
         "target": "l ≤ 10 modes of every block's filter weight",
-        "scale": "λ ≥ 4000 km  (planetary)",
+        "scale": "λ ≥ 4000 km  (upper synoptic → planetary)",
         "viz": draw_sfno_spectral_lattice,
     },
     {
@@ -505,7 +711,7 @@ MODELS = [
         "subtitle": "Swin-Transformer 3D U-Net",
         "mechanism": "bottleneck-layer weight perturbation",
         "target": "encoder_layers.2 + decoder_layers.0",
-        "scale": "λ ≈ 1000–3000 km  (large synoptic)",
+        "scale": "λ ≈ 0.5–5 Mm  (synoptic → planetary)",
         "viz": draw_aurora_unet_bottleneck,
     },
     {
@@ -513,7 +719,7 @@ MODELS = [
         "subtitle": "Multi-Mesh Graph Neural Network",
         "mechanism": "runtime hook on edge embeddings",
         "target": "edges at mesh refinement levels 0–1",
-        "scale": "λ ≥ 3300 km  (planetary)",
+        "scale": "λ ≥ 3300 km  (upper synoptic → planetary)",
         "viz": draw_graphcast_multimesh,
     },
 ]
@@ -522,15 +728,20 @@ MODELS = [
 def draw_row(ax, y_center, model):
     row_h = ROW_HEIGHT
     y_box_bottom = y_center - row_h / 2
+    y_box_top = y_center + row_h / 2
 
-    # Left column
+    # Left column -- top-aligned with the viz panel.
     lx = LEFT_COL_X
+    # Icon sits just above the model name, near the panel top.
     icon_fn = ICONS.get(model["name"])
     if icon_fn:
-        icon_fn(ax, lx, y_center + 0.038, 0.07, 0.05)
+        icon_fn(ax, lx, y_box_top - 0.058, 0.07, 0.05)
+
+    # Model name aligned just below the icon.
+    name_y = y_box_top - 0.07
     ax.text(
         lx,
-        y_center,
+        name_y,
         model["name"],
         ha="left",
         va="top",
@@ -540,7 +751,7 @@ def draw_row(ax, y_center, model):
     )
     ax.text(
         lx,
-        y_center - 0.034,
+        name_y - 0.030,
         model["subtitle"],
         ha="left",
         va="top",
@@ -550,7 +761,7 @@ def draw_row(ax, y_center, model):
     )
     ax.text(
         lx,
-        y_center - 0.062,
+        name_y - 0.060,
         "Mechanism:",
         ha="left",
         va="top",
@@ -559,8 +770,8 @@ def draw_row(ax, y_center, model):
         fontweight="bold",
     )
     ax.text(
-        lx + 0.0,
-        y_center - 0.080,
+        lx,
+        name_y - 0.077,
         model["mechanism"],
         ha="left",
         va="top",
@@ -569,7 +780,7 @@ def draw_row(ax, y_center, model):
     )
     ax.text(
         lx,
-        y_center - 0.103,
+        name_y - 0.100,
         "Target slice:",
         ha="left",
         va="top",
@@ -579,7 +790,7 @@ def draw_row(ax, y_center, model):
     )
     ax.text(
         lx,
-        y_center - 0.121,
+        name_y - 0.117,
         model["target"],
         ha="left",
         va="top",
@@ -648,9 +859,9 @@ def main():
     ax.text(
         LEFT_COL_X,
         0.940,
-        "Phase 3 ablation: target the parameters responsible for "
-        r"wavelengths $\lambda \gtrsim 3000$ km (planetary / large synoptic).  "
-        "Each model uses a different mechanism for the same physical objective.",
+        r"Phase 3 ablation: target the parameters at wavelengths "
+        r"$\lambda \gtrsim 3000$ km (upper synoptic and above).  "
+        "A different mechanism per model, same physical objective.",
         ha="left",
         va="top",
         fontsize=9.5,
@@ -660,14 +871,14 @@ def main():
     for y, model in zip(ROW_CENTERS, MODELS):
         draw_row(ax, y, model)
 
-    # Bottom legend
+    # Bottom legend -- left-aligned with the viz panels, not the figure edge
     foot_y = 0.012
     swatches = [
         ("targeted (perturbed)", COL_TARGET),
         ("intermediate scale", COL_GLOW),
         ("untouched (small-scale)", COL_MUTED_REG),
     ]
-    lx = LEFT_COL_X
+    lx = VIZ_AREA_X
     for label, col in swatches:
         # Color dot
         ax.scatter(lx, foot_y + 0.012, s=80, color=col, edgecolor="white", linewidth=0.5, zorder=5)
