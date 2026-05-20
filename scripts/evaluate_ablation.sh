@@ -20,7 +20,7 @@ LOG_DIR="$STORE/ablation_logs"
 WORKDIR=/workspace/ai-models-ensembles
 
 PARTITION="${PARTITION:-normal}"
-TIME_LIMIT="06:00:00"
+TIME_LIMIT="${TIME_LIMIT:-06:00:00}"
 
 # WeatherBench2 ERA5 reference data (covers 2022-2025)
 WB2_PATHS='[
@@ -426,7 +426,7 @@ PHASE_OR_MODEL="${2:-}"
 MODEL_FILTER="${3:-}"
 
 case "$ACTION" in
-    phase1|phase2|phase2b)
+    phase1|phase2|phase2b|phase3)
         run_eval_phase "$ACTION" "$PHASE_OR_MODEL"
         ;;
     intercompare)
@@ -434,8 +434,8 @@ case "$ACTION" in
         ;;
     *)
         echo "Usage:"
-        echo "  $0 {phase1|phase2|phase2b} [model]         # evaluate runs"
-        echo "  $0 intercompare {phase1|phase2|phase2b} [model]  # compare runs"
+        echo "  $0 {phase1|phase2|phase2b|phase3} [model]         # evaluate runs"
+        echo "  $0 intercompare {phase1|phase2|phase2b|phase3} [model]  # compare runs"
         exit 1
         ;;
 esac

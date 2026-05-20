@@ -132,20 +132,44 @@ def _model_for_member(
     seed: int,
     work_dir: Path,
     cached_checkpoints: dict[str, str] | None = None,
+    coarse_mode_cut: int | None = None,
+    graph_coarse_sigma: float = 0.0,
+    graph_coarse_nodes: int = 0,
 ) -> Any:
+    # GraphCast Phase 3: install the coarse-perturbation subclass BEFORE
+    # load_model() runs. The subclass is monkey-patched onto
+    # graphcast.GraphCast, which earth2studio's loader then instantiates.
+    if graph_coarse_sigma > 0 and graph_coarse_nodes > 0:
+        if not model_name.startswith("graphcast"):
+            raise ValueError(
+                "--graph-coarse-sigma only applies to graphcast models, "
+                f"got model_name={model_name!r}"
+            )
+        from .graphcast_coarse_perturbation import install as _install_coarse_gc
+
+        _install_coarse_gc(graph_coarse_sigma, graph_coarse_nodes)
+
     if weight_magnitude <= 0:
         model, _ = load_model(model_name)
-        return model
-    pkg_dir = work_dir / f"weights_member_{member_id:03d}"
-    package_root = materialise_perturbed_package(
-        model_name=model_name,
-        magnitude=weight_magnitude,
-        layer=layer,
-        seed=seed + member_id,
-        out_dir=pkg_dir,
-        cached_checkpoints=cached_checkpoints,
-    )
-    model, _ = load_model(model_name, package_root=package_root)
+    else:
+        pkg_dir = work_dir / f"weights_member_{member_id:03d}"
+        package_root = materialise_perturbed_package(
+            model_name=model_name,
+            magnitude=weight_magnitude,
+            layer=layer,
+            seed=seed + member_id,
+            out_dir=pkg_dir,
+            cached_checkpoints=cached_checkpoints,
+            coarse_mode_cut=coarse_mode_cut,
+        )
+        model, _ = load_model(model_name, package_root=package_root)
+
+    # Per-member RNG seed for GraphCast coarse perturbation (JAX PRNGKey).
+    if graph_coarse_sigma > 0 and graph_coarse_nodes > 0:
+        import jax
+
+        if hasattr(model, "prng_key"):
+            model.prng_key = jax.random.PRNGKey(seed + member_id)
     return model
 
 
@@ -198,6 +222,9 @@ def _gpu_worker(
     output_levels: list[int] | None,
     output_vars: list[str] | None,
     cached_checkpoints: dict[str, str] | None,
+    coarse_mode_cut: int | None = None,
+    graph_coarse_sigma: float = 0.0,
+    graph_coarse_nodes: int = 0,
 ) -> None:
     """Run a single member on a specific GPU. Called via multiprocessing spawn.
 
@@ -230,7 +257,7 @@ def _gpu_worker(
         seed=seed,
         cached_ic=None,
     )
-    if weight_magnitude > 0:
+    if weight_magnitude > 0 or graph_coarse_sigma > 0:
         model = _model_for_member(
             model_name=model_name,
             weight_magnitude=weight_magnitude,
@@ -239,6 +266,9 @@ def _gpu_worker(
             seed=seed,
             work_dir=work_path,
             cached_checkpoints=cached_checkpoints,
+            coarse_mode_cut=coarse_mode_cut,
+            graph_coarse_sigma=graph_coarse_sigma,
+            graph_coarse_nodes=graph_coarse_nodes,
         )
     else:
         model, _ = load_model(model_name)
@@ -357,8 +387,14 @@ def _run_members_sequential(
     output_levels: list[int] | None,
     output_vars: list[str] | None,
     cached_checkpoints: dict[str, str] | None,
+    coarse_mode_cut: int | None = None,
+    graph_coarse_sigma: float = 0.0,
+    graph_coarse_nodes: int = 0,
 ) -> None:
-    shared_model = None if weight_magnitude > 0 else load_model(model_name)[0]
+    # GraphCast Phase 3 (graph_coarse_sigma > 0) needs per-member RNG even
+    # though weights are unperturbed, so we cannot use shared_model.
+    use_shared_model = weight_magnitude <= 0 and graph_coarse_sigma <= 0
+    shared_model = load_model(model_name)[0] if use_shared_model else None
     cached_ic: xr.Dataset | None = None
     tmp_dir = work_dir / "_seq_members"
     tmp_dir.mkdir(parents=True, exist_ok=True)
@@ -384,6 +420,9 @@ def _run_members_sequential(
                 seed=seed,
                 work_dir=work_dir,
                 cached_checkpoints=cached_checkpoints,
+                coarse_mode_cut=coarse_mode_cut,
+                graph_coarse_sigma=graph_coarse_sigma,
+                graph_coarse_nodes=graph_coarse_nodes,
             )
         )
 
@@ -417,6 +456,9 @@ def _run_members_parallel(
     output_levels: list[int] | None,
     output_vars: list[str] | None,
     cached_checkpoints: dict[str, str] | None,
+    coarse_mode_cut: int | None = None,
+    graph_coarse_sigma: float = 0.0,
+    graph_coarse_nodes: int = 0,
 ) -> None:
     """Run members in parallel across GPUs, one process per member.
 
@@ -455,6 +497,9 @@ def _run_members_parallel(
         output_levels,
         output_vars,
         cached_checkpoints,
+        coarse_mode_cut,
+        graph_coarse_sigma,
+        graph_coarse_nodes,
     )
 
     import gc
@@ -619,6 +664,9 @@ def run_inference(
     work_dir: Path | None = None,
     output_levels: list[int] | None = None,
     output_vars: list[str] | None = None,
+    coarse_mode_cut: int | None = None,
+    graph_coarse_sigma: float = 0.0,
+    graph_coarse_nodes: int = 0,
 ) -> Path:
     """Run an earth2studio model and emit a SwissClim-format zarr at `output`.
 
@@ -662,6 +710,9 @@ def run_inference(
             output_levels=output_levels,
             output_vars=output_vars,
             cached_checkpoints=cached_checkpoints,
+            coarse_mode_cut=coarse_mode_cut,
+            graph_coarse_sigma=graph_coarse_sigma,
+            graph_coarse_nodes=graph_coarse_nodes,
         )
     else:
         _run_members_sequential(
@@ -679,6 +730,9 @@ def run_inference(
             output_levels=output_levels,
             output_vars=output_vars,
             cached_checkpoints=cached_checkpoints,
+            coarse_mode_cut=coarse_mode_cut,
+            graph_coarse_sigma=graph_coarse_sigma,
+            graph_coarse_nodes=graph_coarse_nodes,
         )
 
     # Clean up work directory (perturbed weight copies, etc.)

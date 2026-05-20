@@ -46,24 +46,40 @@ reference at `σ_full = 0.01`.
 
 ### Phase 3 — physics-inspired coarse-scale targeting
 
-Perturb only the parameters responsible for upper-synoptic-and-above
-spatial scales (`λ ≳ 3000 km`, per the SwissClim band conventions:
-synoptic 1–5 Mm, planetary 5–20 Mm). Each model uses a different
-mechanism for the same physical objective:
+Perturb only the parameters/activations responsible for
+upper-synoptic-and-above spatial scales (`λ ≳ 3000 km`, per the SwissClim
+band conventions: synoptic 1–5 Mm, planetary 5–20 Mm). Each model uses a
+different mechanism for the same physical objective:
 
-- **SFNO** — sub-slice perturbation of the spherical-harmonic spectral
-  weights at `l ≤ 10` (`λ ≥ 4000 km`).
-- **Aurora** — perturb only the bottleneck Swin layers (`encoder_layers.2`
-  + `decoder_layers.0`). The bottleneck operates on ~450 km tokens with
-  an attention-window receptive field of ~5000 km, so the effective scale
-  reaches well into the synoptic-to-planetary range.
-- **GraphCast** — runtime hook on edge embeddings of mesh refinement
-  levels 0–1 (edge lengths ≈ 6700 km and 3300 km respectively).
+- **SFNO** — sub-axis slice perturbation of the spherical-harmonic
+  spectral conv weights at `l ≤ 10` (`λ ≥ 4000 km`). CLI flag
+  `--coarse-mode-cut 10` perturbs only `W[..., :10]` of the 8
+  `*.filter.filter.weight` tensors (dhconv operator, 240-mode axis is the
+  total wavenumber l directly; confirmed by runtime diagnostic). σ scaling
+  uses parameter-count DOF: `σ = 0.01 × √(572.5M / 23.6M) ≈ 0.049`.
+- **Aurora** — perturb the coarse-resolution encoder block only,
+  `net.backbone.encoder_layers.2.*` (96 tensors, indices 494:590). The
+  decoder side was dropped after Phase 2 evidence that encoder
+  perturbation produces much larger ensemble spread than decoder. enc_2
+  operates on ~450 km tokens with a Swin attention-window receptive field
+  of ~5000 km, reaching synoptic-to-planetary scales. σ scaling uses
+  tensor count: `σ = 0.01 × √(644 / 96) ≈ 0.026`.
+- **GraphCast** — runtime activation hook on coarse mesh-node features:
+  after the grid2mesh encoder, the latent features of the first 42 mesh
+  nodes (icosahedral refinement levels 0+1, ~3300 km separation) are
+  multiplied by `(1 + σ × N(0,1))`. Implementation monkey-patches
+  `graphcast.GraphCast` with a subclass before model load. Sigma scaling
+  is empirical (sqrt-N rule would give σ ≈ 0.31, likely too aggressive
+  for activation perturbation on a tiny spatial subset), so this phase
+  runs as a **4-σ sweep across `{0.01, 0.03, 0.10, 0.312}`** to find the
+  right magnitude.
 
 ![Phase 3 schematic](figures/phase3_schematic.png)
 
-Tensor counts, channel dimensions and group definitions were verified
-empirically from checkpoint dumps ([tools/dump_*_keys.py](tools/)).
+Tensor counts, channel dimensions, group definitions and the 240-mode
+layout were verified empirically from checkpoint dumps + a runtime
+diagnostic ([tools/dump_*_keys.py](tools/),
+[tools/diagnose_sfno_modes.py](tools/diagnose_sfno_modes.py)).
 
 ## Initial conditions
 

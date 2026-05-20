@@ -73,6 +73,35 @@ def cli_infer(
             "or 'all' (default)."
         ),
     ),
+    coarse_mode_cut: Optional[int] = typer.Option(
+        None,
+        "--coarse-mode-cut",
+        help=(
+            "Phase 3 SFNO only. Restrict perturbation to the first N entries of "
+            "the last axis of `*.filter.filter.weight` tensors (spectral conv "
+            "weights). Other tensors are passed through. For SFNO 73ch_small, "
+            "last axis = 240 latitudinal modes; N=10 targets wavelengths "
+            ">= 4000 km (planetary / large-synoptic)."
+        ),
+    ),
+    graph_coarse_sigma: float = typer.Option(
+        0.0,
+        "--graph-coarse-sigma",
+        help=(
+            "Phase 3 GraphCast only. Activation perturbation magnitude on the "
+            "first --graph-coarse-nodes mesh-node latent features (after the "
+            "grid2mesh encoder, before the mesh GNN). 0 disables."
+        ),
+    ),
+    graph_coarse_nodes: int = typer.Option(
+        42,
+        "--graph-coarse-nodes",
+        help=(
+            "Phase 3 GraphCast only. Number of leading mesh nodes to perturb. "
+            "12 = level-0 only (~6700 km), 42 = level-0+1 (~3300 km), "
+            "162 = level-0+1+2 (~1700 km)."
+        ),
+    ),
     data_source: str = typer.Option(
         "arco",
         "--data-source",
@@ -124,7 +153,10 @@ def cli_infer(
     typer.echo(
         f"Inference: model={model_name} init={init_time.isoformat()} "
         f"lead={lead_hours}h members={members} ic={ic_magnitude} "
-        f"weight={weight_magnitude} layer={layer} source={data_source} "
+        f"weight={weight_magnitude} layer={layer} "
+        f"coarse_mode_cut={coarse_mode_cut} "
+        f"graph_coarse_sigma={graph_coarse_sigma} "
+        f"graph_coarse_nodes={graph_coarse_nodes} source={data_source} "
         f"levels={levels_list or 'all'} vars={vars_list or 'all'}"
     )
     run_inference(
@@ -140,6 +172,9 @@ def cli_infer(
         seed=seed,
         output_levels=levels_list,
         output_vars=vars_list,
+        coarse_mode_cut=coarse_mode_cut,
+        graph_coarse_sigma=graph_coarse_sigma,
+        graph_coarse_nodes=graph_coarse_nodes,
     )
     typer.echo("*****DONE*****")
 

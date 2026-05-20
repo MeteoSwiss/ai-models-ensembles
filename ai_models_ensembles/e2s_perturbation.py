@@ -103,6 +103,37 @@ def _perturb_array(arr: np.ndarray, sigma: float, rng: np.random.Generator) -> n
     return (arr * (1.0 + sigma * noise)).astype(arr.dtype, copy=False)
 
 
+def _is_spectral_conv_tensor(name: str) -> bool:
+    """Return True if `name` matches SFNO's spherical spectral convolution weight.
+
+    Used by Phase 3 to restrict coarse-mode perturbation to those tensors.
+    """
+    return name.endswith(".filter.filter.weight")
+
+
+def _perturb_array_low_modes(
+    arr: np.ndarray, sigma: float, rng: np.random.Generator, mode_cut: int
+) -> np.ndarray:
+    """Perturb only the first `mode_cut` entries of the last axis of `arr`.
+
+    Used by Phase 3 SFNO: spectral conv weights have shape (..., lmax) and
+    we want to perturb only the low-l (planetary / large-synoptic) modes.
+    The remaining modes are left untouched, preserving the model's
+    representation of finer scales.
+    """
+    if not np.issubdtype(arr.dtype, np.inexact):
+        return arr
+    if mode_cut <= 0 or mode_cut > arr.shape[-1]:
+        raise ValueError(
+            f"mode_cut={mode_cut} out of range for tensor with last axis = {arr.shape[-1]}"
+        )
+    sub = arr[..., :mode_cut].copy()
+    perturbed = _perturb_array(sub, sigma, rng)
+    out = arr.copy()
+    out[..., :mode_cut] = perturbed
+    return out
+
+
 # Model-specific architectural layer groups.
 # For .ckpt/.tar/.pt/.pth/.safetensors: keys are sorted alphabetically;
 # indices refer to that order over tensors with `.numpy()` (includes complex).
@@ -116,6 +147,11 @@ _MODEL_LAYER_GROUPS: dict[str, dict[str, tuple[int, int]]] = {
         "backbone": (0, 594),
         "decoder": (594, 611),
         "encoder": (611, 644),
+        # Phase 3 coarse-scale target: the deepest encoder block of the
+        # Swin-3D U-net (backbone.encoder_layers.2), 2048-channel /
+        # 4 deg tokens. Indices 494:590 (96 tensors) verified from
+        # aurora_keys.log -- contiguous slice within "backbone".
+        "coarse_encoder": (494, 590),
     },
     "graphcast_operational": {
         # 320 NPZ stored keys: 264 weight tensors + 3 buggy hyperparam floats
@@ -200,7 +236,17 @@ def _select_indices(total: int, layer: str | None) -> list[int]:
     return [idx]
 
 
-def _perturb_npz(path: Path, sigma: float, rng: np.random.Generator, layer: str | None) -> None:
+def _perturb_npz(
+    path: Path,
+    sigma: float,
+    rng: np.random.Generator,
+    layer: str | None,
+    coarse_mode_cut: int | None = None,
+) -> None:
+    if coarse_mode_cut is not None:
+        raise NotImplementedError(
+            ".npz format (GraphCast) does not currently support --coarse-mode-cut"
+        )
     with np.load(path, allow_pickle=False) as f:
         keys = list(f.files)
         arrays = {k: f[k] for k in keys}
@@ -241,7 +287,13 @@ def _extract_state_dict(obj: Any) -> dict:
     return obj
 
 
-def _perturb_torch(path: Path, sigma: float, rng: np.random.Generator, layer: str | None) -> None:
+def _perturb_torch(
+    path: Path,
+    sigma: float,
+    rng: np.random.Generator,
+    layer: str | None,
+    coarse_mode_cut: int | None = None,
+) -> None:
     import torch
 
     obj = torch.load(path, map_location="cpu", weights_only=False)
@@ -253,17 +305,41 @@ def _perturb_torch(path: Path, sigma: float, rng: np.random.Generator, layer: st
             f"Top-level keys: {sorted(state.keys())[:10]}"
         )
     targets = _select_indices(len(keys), layer)
+    n_spectral_touched = 0
     for i in targets:
         k = keys[i]
         arr = state[k].detach().cpu().numpy()
-        new = _perturb_array(arr, sigma, rng)
+        if coarse_mode_cut is not None:
+            # Phase 3 SFNO mode: skip tensors that aren't spectral conv
+            # weights; for those that are, perturb only the first
+            # `coarse_mode_cut` entries of the last (l) axis.
+            if not _is_spectral_conv_tensor(k):
+                continue
+            new = _perturb_array_low_modes(arr, sigma, rng, coarse_mode_cut)
+            n_spectral_touched += 1
+        else:
+            new = _perturb_array(arr, sigma, rng)
         state[k] = torch.from_numpy(new)
+    if coarse_mode_cut is not None and n_spectral_touched == 0:
+        raise RuntimeError(
+            f"--coarse-mode-cut set but no spectral conv tensors "
+            f"(*.filter.filter.weight) found in {path.name}. "
+            f"Selected {len(targets)} of {len(keys)} keys; widen --layer or check model."
+        )
     torch.save(obj, path)
 
 
 def _perturb_safetensors(
-    path: Path, sigma: float, rng: np.random.Generator, layer: str | None
+    path: Path,
+    sigma: float,
+    rng: np.random.Generator,
+    layer: str | None,
+    coarse_mode_cut: int | None = None,
 ) -> None:
+    if coarse_mode_cut is not None:
+        raise NotImplementedError(
+            ".safetensors format does not currently support --coarse-mode-cut"
+        )
     from safetensors.numpy import load_file, save_file
 
     tensors = load_file(str(path))
@@ -352,6 +428,7 @@ def materialise_perturbed_package(
     seed: int,
     out_dir: Path,
     cached_checkpoints: dict[str, str] | None = None,
+    coarse_mode_cut: int | None = None,
 ) -> str:
     """Download + perturb + write a model's checkpoint package locally.
 
@@ -360,6 +437,11 @@ def materialise_perturbed_package(
 
     If ``cached_checkpoints`` is provided (from `cache_default_checkpoints`),
     files are copied from the local cache instead of re-downloading.
+
+    If ``coarse_mode_cut`` is set (Phase 3 SFNO), perturbation is restricted
+    to tensors whose names match `*.filter.filter.weight` and to the first
+    ``coarse_mode_cut`` entries of their last axis. Other tensors are
+    passed through unchanged regardless of ``layer``.
     """
     out_dir = Path(out_dir)
     if out_dir.exists():
@@ -383,7 +465,7 @@ def materialise_perturbed_package(
         )
     for ckpt in ckpts:
         handler = _HANDLERS[ckpt.suffix.lower()]
-        handler(ckpt, magnitude, rng, layer)
+        handler(ckpt, magnitude, rng, layer, coarse_mode_cut=coarse_mode_cut)
     return str(out_dir)
 
 

@@ -6,7 +6,7 @@ targeting the same physical scale band -- wavelengths >= ~3000-4000 km
 (planetary / large-synoptic):
 
   SFNO       low spherical-harmonic modes (l <= 10) in spectral conv weights
-  Aurora     bottleneck Swin layers (encoder_layers.2 + decoder_layers.0)
+  Aurora     coarse encoder block only (encoder_layers.2)
   GraphCast  long edges of the multi-mesh (refinement levels 0-1)
 
 Output: figures/phase3_schematic.{svg,pdf,png}
@@ -168,12 +168,15 @@ def draw_sfno_spectral_lattice(ax, x, y, w, h):
 
 
 def draw_aurora_unet_bottleneck(ax, x, y, w, h):
-    """U-Net cross-section with bottleneck layers highlighted, exact dims.
+    """U-Net cross-section with the deepest *encoder* block highlighted.
 
     Aurora has 3 encoder + 3 decoder Swin-3D layers. Channels double per
     downsample (512 / 1024 / 2048), spatial resolution halves per stage
     (1° / 2° / 4° tokens given the 4x4 patch embed on a 0.25° input grid).
-    The deepest two (enc_2 + dec_0) are the targeted bottleneck.
+    Only `encoder_layers.2` (enc_2) is the Phase 3 target. Decoder side
+    not perturbed: Phase 2 showed encoder perturbation produces much
+    larger ensemble spread than decoder, so doubling down on the encoder
+    side is cleaner than mixing dec_0 in.
     """
     pad = 0.018
     pad_top = 0.024
@@ -181,12 +184,12 @@ def draw_aurora_unet_bottleneck(ax, x, y, w, h):
 
     inner_w = w - 2 * pad
     inner_h = h - pad_top - pad_bot
-    # 6 blocks
+    # 6 blocks -- only enc_2 is the Phase 3 target
     blocks = [
         {"name": "enc_0", "ch": 512, "res_deg": 1, "res_km": 112, "frac": 1.00},
         {"name": "enc_1", "ch": 1024, "res_deg": 2, "res_km": 224, "frac": 0.72},
         {"name": "enc_2", "ch": 2048, "res_deg": 4, "res_km": 448, "frac": 0.42, "tgt": True},
-        {"name": "dec_0", "ch": 2048, "res_deg": 4, "res_km": 448, "frac": 0.42, "tgt": True},
+        {"name": "dec_0", "ch": 2048, "res_deg": 4, "res_km": 448, "frac": 0.42},
         {"name": "dec_1", "ch": 1024, "res_deg": 2, "res_km": 224, "frac": 0.72},
         {"name": "dec_2", "ch": 512, "res_deg": 1, "res_km": 112, "frac": 1.00},
     ]
@@ -266,8 +269,7 @@ def draw_aurora_unet_bottleneck(ax, x, y, w, h):
     ax.text(
         x + w / 2,
         y + h - 0.012,
-        "block widths ∝ spatial resolution  ·  c = channels  ·  "
-        "bottleneck attn window ≈ 5000 km",
+        "block widths ∝ spatial resolution  ·  c = channels  ·  " "enc_2 attn window ≈ 5000 km",
         ha="center",
         va="top",
         fontsize=8.0,
@@ -709,16 +711,16 @@ MODELS = [
     {
         "name": "Aurora",
         "subtitle": "Swin-Transformer 3D U-Net",
-        "mechanism": "bottleneck-layer weight perturbation",
-        "target": "encoder_layers.2 + decoder_layers.0",
+        "mechanism": "coarse-encoder weight perturbation",
+        "target": "encoder_layers.2 only",
         "scale": "λ ≈ 0.5–5 Mm  (synoptic → planetary)",
         "viz": draw_aurora_unet_bottleneck,
     },
     {
         "name": "GraphCast",
         "subtitle": "Multi-Mesh Graph Neural Network",
-        "mechanism": "runtime hook on edge embeddings",
-        "target": "edges at mesh refinement levels 0–1",
+        "mechanism": "runtime hook on coarse mesh-node activations",
+        "target": "mesh nodes at refinement levels 0–1 (first 42)",
         "scale": "λ ≥ 3300 km  (upper synoptic → planetary)",
         "viz": draw_graphcast_multimesh,
     },
