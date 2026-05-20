@@ -420,11 +420,15 @@ def draw_model_row(ax, y_center, model, n_max_global):
     # ---- Left-column model label block ------------------------------------
     lx = LEFT_COL_X
 
+    # Left-column label block, nudged up so the icon sits closer to the
+    # top of the row (the boxes occupy the centre/bottom).
+    LEFT_COL_OFFSET = 0.015
+
     # Icon above model name (small schematic)
     icon_w = 0.07
     icon_h = 0.05
     icon_x = lx
-    icon_y = y_center + 0.030
+    icon_y = y_center + 0.030 + LEFT_COL_OFFSET
     icon_fn = ICON_DISPATCH.get(model["name"])
     if icon_fn:
         icon_fn(ax, icon_x, icon_y, icon_w, icon_h)
@@ -432,7 +436,7 @@ def draw_model_row(ax, y_center, model, n_max_global):
     # Model name (large)
     ax.text(
         lx,
-        y_center - 0.005,
+        y_center - 0.005 + LEFT_COL_OFFSET,
         model["name"],
         ha="left",
         va="top",
@@ -443,7 +447,7 @@ def draw_model_row(ax, y_center, model, n_max_global):
     # Subtitle (italic, muted)
     ax.text(
         lx,
-        y_center - 0.040,
+        y_center - 0.040 + LEFT_COL_OFFSET,
         model["subtitle"],
         ha="left",
         va="top",
@@ -454,7 +458,7 @@ def draw_model_row(ax, y_center, model, n_max_global):
     # Total parameter count
     ax.text(
         lx,
-        y_center - 0.075,
+        y_center - 0.075 + LEFT_COL_OFFSET,
         f"N_total = {model['n_total']}",
         ha="left",
         va="top",
