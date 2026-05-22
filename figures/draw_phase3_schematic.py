@@ -711,7 +711,7 @@ MODELS = [
     {
         "name": "Aurora",
         "subtitle": "Swin-Transformer 3D U-Net",
-        "mechanism": "coarse-encoder weight perturbation",
+        "mechanism": "U-net-bottom weight perturbation",
         "target": "encoder_layers.2 only",
         "scale": "λ ≈ 0.5–5 Mm  (synoptic → planetary)",
         "viz": draw_aurora_unet_bottleneck,

@@ -52,29 +52,55 @@ band conventions: synoptic 1–5 Mm, planetary 5–20 Mm). Each model uses a
 different mechanism for the same physical objective:
 
 - **SFNO** — sub-axis slice perturbation of the spherical-harmonic
-  spectral conv weights at `l ≤ 10` (`λ ≥ 4000 km`). CLI flag
-  `--coarse-mode-cut 10` perturbs only `W[..., :10]` of the 8
-  `*.filter.filter.weight` tensors (dhconv operator, 240-mode axis is the
-  total wavenumber l directly; confirmed by runtime diagnostic). σ scaling
-  uses parameter-count DOF: `σ = 0.01 × √(572.5M / 23.6M) ≈ 0.049`.
-- **Aurora** — perturb the coarse-resolution encoder block only,
-  `net.backbone.encoder_layers.2.*` (96 tensors, indices 494:590). The
-  decoder side was dropped after Phase 2 evidence that encoder
-  perturbation produces much larger ensemble spread than decoder. enc_2
-  operates on ~450 km tokens with a Swin attention-window receptive field
-  of ~5000 km, reaching synoptic-to-planetary scales. σ scaling uses
-  tensor count: `σ = 0.01 × √(644 / 96) ≈ 0.026`.
+  spectral conv weights at `l ≤ L_cut` (CLI flag `--coarse-mode-cut N`).
+  Perturbs only `W[..., :N]` of the 8 `*.filter.filter.weight` tensors
+  (dhconv operator, 240-mode axis is the total wavenumber l directly;
+  confirmed by runtime diagnostic). Phase 3 anchor `L_cut=10`
+  (`λ ≥ 4000 km`).
+- **Aurora** — perturb the deepest Swin-3D downsampling block of the
+  U-net backbone, `net.backbone.encoder_layers.2.*` (96 tensors,
+  indices 494:590; named group `unet_bottom`). Operates on ~450 km
+  tokens with a Swin attention-window receptive field of ~5000 km,
+  reaching synoptic-to-planetary scales. The decoder side was dropped
+  after Phase 2 evidence that encoder perturbation produces much larger
+  ensemble spread than decoder.
 - **GraphCast** — runtime activation hook on coarse mesh-node features:
   after the grid2mesh encoder, the latent features of the first 42 mesh
   nodes (icosahedral refinement levels 0+1, ~3300 km separation) are
   multiplied by `(1 + σ × N(0,1))`. Implementation monkey-patches
-  `graphcast.GraphCast` with a subclass before model load. Sigma scaling
-  is empirical (sqrt-N rule would give σ ≈ 0.31, likely too aggressive
-  for activation perturbation on a tiny spatial subset), so this phase
-  runs as a **4-σ sweep across `{0.01, 0.03, 0.10, 0.312}`** to find the
-  right magnitude.
+  `graphcast.GraphCast` with a subclass before model load.
+
+Phase 3 is run as a **per-model σ sweep at fixed scale threshold**
+because the sqrt(N) baseline alone produced near-zero spread for
+SFNO/Aurora (backbone-robustness inherited from Phase 2) and would have
+destroyed the forecast for GraphCast. Final per-model σ is chosen
+empirically from the cross-phase intercomparison plots
+(`phase3/<model>/intercomparison/`).
 
 ![Phase 3 schematic](figures/phase3_schematic.png)
+
+### Phase 3b — orthogonal threshold sweep at sqrt(N) σ
+
+Phase 3 varies σ at fixed scale threshold. Phase 3b is the orthogonal
+ablation: it varies the **scale threshold** at the per-(model, threshold)
+sqrt(N) σ, holding the variance budget constant. Tests whether broader
+spatial reach at modest σ is more effective than narrow reach at high σ
+(especially relevant for Aurora's backbone-robustness regime).
+
+Wavelength bins aligned across models:
+
+| λ bin | SFNO | Aurora | GraphCast |
+|---|---|---|---|
+| ~3000–5000 km (Phase 3 anchor) | L_cut=10, σ=0.049 | `unet_bottom`, σ=0.026 | level 0+1 (42 nodes), σ=0.312 |
+| ~2000 km | L_cut=20, σ=0.035 | `enc_12`, σ=0.017 | level 0+1+2 (162 nodes), σ=0.159 |
+| ~800–1000 km | L_cut=40, σ=0.025 | `enc_012`, σ=0.015 | level 0+1+2+3 (642 nodes), σ=0.080 |
+
+Each σ is `0.01 × √(N_total / N_partial)` for that (model, threshold).
+Aurora named groups `enc_12` = encoder_layers.{1,2} and `enc_012` =
+encoder_layers.{0,1,2}; defined in
+[`_MODEL_LAYER_GROUPS["aurora"]`](ai_models_ensembles/e2s_perturbation.py).
+Phase 3b cross-intercomp pulls Phase 1 `mag_0` + Phase 1 `mag_0.01` +
+Phase 2 winner + Phase 3 sqrt(N) anchor + the 2 Phase 3b rows.
 
 Tensor counts, channel dimensions, group definitions and the 240-mode
 layout were verified empirically from checkpoint dumps + a runtime
@@ -144,11 +170,18 @@ ai-ens models
 4. Submit inference and evaluation jobs
 
 ```bash
-bash scripts/submit_all_inference.sh          # probabilistic baselines (fcn3/atlas/aifsens)
-bash scripts/submit_ablation.sh phase1        # weight-perturbation ablation
-bash scripts/evaluate_ablation.sh phase1      # SwissClim verification
-bash scripts/evaluate_ablation.sh intercompare phase1
+bash scripts/submit_all_inference.sh                          # probabilistic baselines (fcn3/atlas/aifsens)
+bash scripts/submit_ablation.sh {phase1|phase2|phase3|phase3b} [model]   # weight-perturbation ablation
+bash scripts/evaluate_ablation.sh {phase1|phase2|phase3|phase3b} [model] # SwissClim verification
+bash scripts/evaluate_ablation.sh intercompare {phase1|phase2|phase3|phase3b} [model]
 ```
+
+The `intercompare` action pulls Phase 1 `mag_0_layer_all` (unperturbed)
+and `mag_0.01_layer_all` (Phase 1 best) as reference panels for phase2+;
+phase3 and phase3b also pull the Phase 2 winner per model (configured via
+`PHASE2_BEST_TAG`), and phase3b additionally pulls the Phase 3 sqrt(N)
+anchor per model (`PHASE3_SQRTN_TAG`), both at the top of
+`scripts/evaluate_ablation.sh`.
 
 See [scripts/README.md](scripts/README.md) for the full submitter docs.
 Per-run parameters are constants at the top of each script - there is no

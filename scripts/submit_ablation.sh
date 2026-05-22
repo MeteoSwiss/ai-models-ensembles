@@ -95,9 +95,17 @@ declare -A PHASE2B_BEST_LAYER=( [aurora]=all [graphcast]=all [sfno]=all )
 # SFNO:   BLOCKED -- needs 240-dim spectral mode layout from makani source.
 # GraphCast: BLOCKED -- needs runtime activation hook (edge weights shared).
 # ---------------------------------------------------------------------------
-declare -A PHASE3_GROUP=( [aurora]=coarse_encoder )
+declare -A PHASE3_GROUP=( [aurora]=unet_bottom )
 declare -A PHASE3_N_GROUP=( [aurora]=96 )
 declare -A PHASE3_SIGMA_FULL=( [aurora]=0.01 )
+# Aurora sigma sweep on unet_bottom (= net.backbone.encoder_layers.2.*, the
+# deepest Swin downsampling block). The strict sqrt(N) sigma (0.025900)
+# gives near-zero spread because backbone weights are robust (see Phase 2
+# backbone finding). Sweep multiples of sqrt(N) baseline upward to find
+# where meaningful spread emerges. At sigma > ~3 the weight perturbation
+# becomes "heavily corrupted" (factor std dwarfs the original weight); the
+# top end of this sweep approaches that regime.
+PHASE3_AURORA_SIGMAS="0.025900 0.05 0.15 0.40 0.80 1.50"
 
 # SFNO Phase 3 uses a different mechanism (sub-axis slice perturbation, not
 # named layer group). Driven by --coarse-mode-cut N applied to the 8 SFNO
@@ -107,7 +115,12 @@ declare -A PHASE3_SIGMA_FULL=( [aurora]=0.01 )
 #   N_full = 572.5M DOF (87 tensors, complex counts 2x), N_partial = 23.6M
 #   DOF (8 * 384*384*10 complex elements * 2 DOF each) -> sigma = 0.04926.
 declare -A PHASE3_SFNO_MODE_CUT=( [sfno]=10 )
-declare -A PHASE3_SFNO_SIGMA=( [sfno]=0.049261 )
+# SFNO sigma sweep on the low-l spectral conv slice. The sqrt(N) baseline
+# (0.049261) gave near-zero spread -- consistent with the Aurora backbone
+# finding, suggesting low-l modes mostly drive backbone-side processing that
+# dampens small perturbations. Sweep multiples of baseline (1x / 2x / 5x /
+# 12x) to find where meaningful spread emerges without destroying forecast.
+PHASE3_SFNO_SIGMAS="0.049261 0.10 0.25 0.60"
 
 # GraphCast Phase 3 uses runtime activation perturbation on the first 42 mesh
 # nodes (levels 0+1 of the multi-mesh, ~3300 km separation). Cannot use
@@ -118,8 +131,25 @@ declare -A PHASE3_SFNO_SIGMA=( [sfno]=0.049261 )
 #   0.03  = ~3x baseline
 #   0.10  = ~10x baseline
 #   0.312 = strict sqrt(40962/42) sqrt-N scaling -- likely upper bound
-PHASE3_GC_SIGMAS="0.01 0.03 0.10 0.312"
+PHASE3_GC_SIGMAS="0.01 0.03 0.10 0.312 0.60 1.00 1.80"
 PHASE3_GC_NODES=42  # level-0 + level-1 mesh vertices
+
+# ---------------------------------------------------------------------------
+# Phase 3b: Threshold sweep at sqrt(N) sigma.
+# Varies the spatial reach of the coarse-scale target at the variance-budget
+# (sqrt(N)) sigma -- orthogonal axis to Phase 3 which varies sigma at fixed
+# threshold. Each row uses the model's own sqrt(N_total/N_partial) sigma.
+# Wavelength bins aligned across models: ~2000 km and ~800-1000 km.
+# (The first row ~3000-5000 km is already covered by Phase 3 sqrt(N) baseline.)
+#
+# Format per CONFIG line: "<threshold_param>:<sigma>"
+#   Aurora threshold_param = named layer group
+#   SFNO   threshold_param = --coarse-mode-cut value
+#   GC     threshold_param = --graph-coarse-nodes value
+# ---------------------------------------------------------------------------
+PHASE3B_AURORA_CONFIGS="enc_12:0.017 enc_012:0.015"
+PHASE3B_SFNO_CONFIGS="20:0.035 40:0.025"
+PHASE3B_GC_CONFIGS="162:0.159 642:0.080"
 
 # ---------------------------------------------------------------------------
 mkdir -p "$LOG_DIR"
@@ -398,20 +428,21 @@ run_phase3() {
         [[ -n "$filter_model" && "$model" != "$filter_model" ]] && continue
 
         # SFNO uses a different mechanism: sub-axis mode-cut on spectral conv
-        # weights, no named layer group. Branch here.
+        # weights, no named layer group. Sweep PHASE3_SFNO_SIGMAS.
         if [[ "$model" == "sfno" ]]; then
             local mode_cut="${PHASE3_SFNO_MODE_CUT[$model]:-}"
-            local sigma_scaled="${PHASE3_SFNO_SIGMA[$model]:-}"
-            if [[ -z "$mode_cut" || -z "$sigma_scaled" ]]; then
+            if [[ -z "$mode_cut" ]]; then
                 echo "  SKIP $model: Phase 3 mode-cut config missing"
                 continue
             fi
-            echo "  ${model}: --coarse-mode-cut=${mode_cut} sigma=${sigma_scaled}"
+            echo "  ${model}: --coarse-mode-cut=${mode_cut} sigmas=${PHASE3_SFNO_SIGMAS}"
             for init_time in "${INIT_TIMES[@]}"; do
-                # layer_spec "all": no --layer flag needed; --coarse-mode-cut
-                # restricts the perturbed set to spectral conv tensors.
-                submit_job "$model" "$init_time" "$sigma_scaled" "all" "phase3" \
-                    "$NUM_MEMBERS" "$mode_cut" && ((count++)) || true
+                for sf_sigma in $PHASE3_SFNO_SIGMAS; do
+                    # layer_spec "all": no --layer flag needed; --coarse-mode-cut
+                    # restricts the perturbed set to spectral conv tensors.
+                    submit_job "$model" "$init_time" "$sf_sigma" "all" "phase3" \
+                        "$NUM_MEMBERS" "$mode_cut" && ((count++)) || true
+                done
             done
             continue
         fi
@@ -437,6 +468,21 @@ run_phase3() {
             continue
         fi
         local layer_spec="${PHASE3_GROUP[$model]}"
+
+        # Aurora sweeps PHASE3_AURORA_SIGMAS to test if a sigma above the
+        # strict sqrt(N) baseline produces meaningful spread on the
+        # backbone-side coarse encoder.
+        if [[ "$model" == "aurora" ]]; then
+            echo "  ${model} ${layer_spec}: sigma sweep ${PHASE3_AURORA_SIGMAS}"
+            for init_time in "${INIT_TIMES[@]}"; do
+                for au_sigma in $PHASE3_AURORA_SIGMAS; do
+                    submit_job "$model" "$init_time" "$au_sigma" "$layer_spec" "phase3" \
+                        && ((count++)) || true
+                done
+            done
+            continue
+        fi
+
         local n_partial="${PHASE3_N_GROUP[$model]}"
         local n_total="${N_TOTAL[$model]}"
         local sigma_full="${PHASE3_SIGMA_FULL[$model]}"
@@ -451,6 +497,56 @@ run_phase3() {
     echo "Phase 3: submitted $count jobs"
 }
 
+run_phase3b() {
+    local filter_model="${1:-}"
+    echo "=== Phase 3b: Threshold sweep at sqrt(N) sigma ==="
+    local count=0
+    for model in $MODELS; do
+        [[ -n "$filter_model" && "$model" != "$filter_model" ]] && continue
+
+        if [[ "$model" == "aurora" ]]; then
+            echo "  ${model}: configs ${PHASE3B_AURORA_CONFIGS}"
+            for init_time in "${INIT_TIMES[@]}"; do
+                for cfg in $PHASE3B_AURORA_CONFIGS; do
+                    local layer_spec="${cfg%%:*}"
+                    local sigma="${cfg##*:}"
+                    submit_job "$model" "$init_time" "$sigma" "$layer_spec" "phase3b" \
+                        && ((count++)) || true
+                done
+            done
+            continue
+        fi
+
+        if [[ "$model" == "sfno" ]]; then
+            echo "  ${model}: configs ${PHASE3B_SFNO_CONFIGS}"
+            for init_time in "${INIT_TIMES[@]}"; do
+                for cfg in $PHASE3B_SFNO_CONFIGS; do
+                    local mode_cut="${cfg%%:*}"
+                    local sigma="${cfg##*:}"
+                    submit_job "$model" "$init_time" "$sigma" "all" "phase3b" \
+                        "$NUM_MEMBERS" "$mode_cut" && ((count++)) || true
+                done
+            done
+            continue
+        fi
+
+        if [[ "$model" == "graphcast" ]]; then
+            echo "  ${model}: configs ${PHASE3B_GC_CONFIGS}"
+            for init_time in "${INIT_TIMES[@]}"; do
+                for cfg in $PHASE3B_GC_CONFIGS; do
+                    local gc_nodes="${cfg%%:*}"
+                    local gc_sigma="${cfg##*:}"
+                    submit_job "$model" "$init_time" "0" "all" "phase3b" \
+                        "$NUM_MEMBERS" "" "$gc_sigma" "$gc_nodes" \
+                        && ((count++)) || true
+                done
+            done
+            continue
+        fi
+    done
+    echo "Phase 3b: submitted $count jobs"
+}
+
 # ---------------------------------------------------------------------------
 
 PHASE="${1:-all}"
@@ -462,14 +558,16 @@ case "$PHASE" in
     phase2)  run_phase2 "$MODEL_FILTER" ;;
     phase2b) run_phase2b "$MODEL_FILTER" ;;
     phase3)  run_phase3 "$MODEL_FILTER" ;;
+    phase3b) run_phase3b "$MODEL_FILTER" ;;
     all)
         run_phase1 "$MODEL_FILTER"
         run_phase2 "$MODEL_FILTER"
         run_phase2b "$MODEL_FILTER"
         run_phase3 "$MODEL_FILTER"
+        run_phase3b "$MODEL_FILTER"
         ;;
     *)
-        echo "Usage: $0 {phase1|phase1_unperturbed|phase2|phase2b|phase3|all} [model]"
+        echo "Usage: $0 {phase1|phase1_unperturbed|phase2|phase2b|phase3|phase3b|all} [model]"
         exit 1
         ;;
 esac

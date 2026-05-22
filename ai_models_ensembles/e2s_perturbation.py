@@ -143,15 +143,27 @@ def _perturb_array_low_modes(
 # memory/checkpoint_perturbation_audit.md.
 _MODEL_LAYER_GROUPS: dict[str, dict[str, tuple[int, int]]] = {
     "aurora": {
-        # 644 float tensors: backbone (594) | decoder (17) | encoder (33)
+        # 644 float tensors: backbone (594) | decoder (17) | encoder (33).
+        # The two named-group "encoders" are distinct:
+        #   "encoder"     = net.encoder.* (input projection: perceiver,
+        #                   level_embed, token_embeds, scale_embed; 33 tensors)
+        #   "unet_bottom" = net.backbone.encoder_layers.2.* (the deepest
+        #                   downsampling block of the Swin U-net; 96 tensors)
         "backbone": (0, 594),
         "decoder": (594, 611),
         "encoder": (611, 644),
-        # Phase 3 coarse-scale target: the deepest encoder block of the
+        # Phase 3 coarse-scale target: deepest downsampling block of the
         # Swin-3D U-net (backbone.encoder_layers.2), 2048-channel /
-        # 4 deg tokens. Indices 494:590 (96 tensors) verified from
-        # aurora_keys.log -- contiguous slice within "backbone".
-        "coarse_encoder": (494, 590),
+        # 4 deg tokens, ~5000 km attention receptive field.
+        # Indices 494:590 (96 tensors) verified from aurora_keys.log --
+        # contiguous slice WITHIN the "backbone" group.
+        "unet_bottom": (494, 590),
+        # Phase 3b threshold sweep: progressively broaden the U-net
+        # downsampling reach by including shallower encoder blocks.
+        # enc_12  = encoder_layers.1 + encoder_layers.2 (~2700 km Swin reach)
+        # enc_012 = all 3 backbone encoder layers           (~1350 km reach)
+        "enc_12": (371, 590),
+        "enc_012": (296, 590),
     },
     "graphcast_operational": {
         # 320 NPZ stored keys: 264 weight tensors + 3 buggy hyperparam floats

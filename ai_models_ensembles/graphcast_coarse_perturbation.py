@@ -46,7 +46,6 @@ def install(sigma: float, n_coarse_nodes: int) -> None:
 
     import haiku as hk
     import jax
-    import jax.numpy as jnp
     from graphcast import graphcast as _gc
 
     if _ORIGINAL_GRAPHCAST_CLS is None:
@@ -61,14 +60,17 @@ def install(sigma: float, n_coarse_nodes: int) -> None:
             noise_key = hk.next_rng_key()
             n_total = latent_mesh_nodes.shape[0]
             n = min(n_coarse_const, n_total)
+            # latent_mesh_nodes shape: [n_mesh_nodes, ..., latent_dim] (typically
+            # [40962, 1, 512] for the operational mesh). Noise must match the
+            # full slice shape, not just the leading axis.
+            coarse_slice = latent_mesh_nodes[:n]
             noise = jax.random.normal(
                 noise_key,
-                shape=(n, latent_mesh_nodes.shape[1]),
+                shape=coarse_slice.shape,
                 dtype=latent_mesh_nodes.dtype,
             )
-            factor = jnp.ones_like(latent_mesh_nodes)
-            factor = factor.at[:n].multiply(1.0 + sigma_const * noise)
-            latent_mesh_nodes = latent_mesh_nodes * factor
+            perturbed = coarse_slice * (1.0 + sigma_const * noise)
+            latent_mesh_nodes = latent_mesh_nodes.at[:n].set(perturbed)
             return latent_mesh_nodes, latent_grid_nodes
 
     _gc.GraphCast = CoarsePerturbedGraphCast

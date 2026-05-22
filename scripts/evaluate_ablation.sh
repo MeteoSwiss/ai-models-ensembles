@@ -317,6 +317,23 @@ run_eval_phase() {
 NONPROB_MODULES="spectra kde metrics multivariate ets fss ssim maps"
 PROB_MODULES="prob"
 
+# Best Phase 2 layer-group run_tag per model. Used by run_intercompare for
+# phase3 and phase3b to pull the Phase 2 winner as a context panel.
+declare -A PHASE2_BEST_TAG=(
+    [aurora]=mag_0.044176_layer_encoder
+    [graphcast]=mag_0.029665_layer_m2g
+    [sfno]=mag_0.053852_layer_encoder
+)
+
+# Phase 3 sqrt(N) baseline run_tag per model -- the threshold-1 (~3000-5000 km
+# wavelength) anchor at variance-budget sigma. Used by run_intercompare for
+# phase3b to include it as the leftmost Phase 3 reference panel.
+declare -A PHASE3_SQRTN_TAG=(
+    [aurora]=mag_0.025900_layer_unet_bottom
+    [graphcast]=gcsigma_0.312_gcnodes42
+    [sfno]=mag_0.049261_modes10
+)
+
 _submit_intercompare_sbatch() {
     local job_tag=$1 out_dir=$2 cli_paths=$3 modules=$4 after_job=$5
     local module_flags=""
@@ -366,13 +383,53 @@ run_intercompare() {
         fi
 
         # Build two path lists: with mag_0 (for non-prob) and without (for prob).
-        local mag0_dir="$eval_base/mag_0_layer_all/"
+        # Reference panels for phase2+:
+        #   * mag_0_layer_all   (unperturbed, N=1)   -- pulled from phase1/eval/
+        #   * mag_0.01_layer_all (Phase 1 best, N=10) -- pulled from phase1/eval/
+        #   * Phase 2 winner per PHASE2_BEST_TAG       -- pulled from phase2/eval/ when phase=phase3
+        local mag0_dir_self="$eval_base/mag_0_layer_all/"
+        local p1_eval="$STORE/ablation/phase1/${model_id}/eval"
+        local p2_eval="$STORE/ablation/phase2/${model_id}/eval"
+        local mag0_dir_p1="$p1_eval/mag_0_layer_all/"
+        local mag001_dir_p1="$p1_eval/mag_0.01_layer_all/"
+        local mag0_dir=""
+        if [[ -d "$mag0_dir_self" ]]; then
+            mag0_dir="$mag0_dir_self"
+        elif [[ -d "$mag0_dir_p1" ]]; then
+            mag0_dir="$mag0_dir_p1"
+        fi
         local with_mag0=()
         local without_mag0=()
-        [[ -d "$mag0_dir" ]] && with_mag0+=("$mag0_dir")
+        [[ -n "$mag0_dir" ]] && with_mag0+=("$mag0_dir")
+        if [[ "$phase" != "phase1" && -d "$mag001_dir_p1" ]]; then
+            with_mag0+=("$mag001_dir_p1")
+            without_mag0+=("$mag001_dir_p1")
+        fi
+        if [[ "$phase" == "phase3" || "$phase" == "phase3b" ]]; then
+            local p2_best="${PHASE2_BEST_TAG[$model]:-}"
+            if [[ -n "$p2_best" && -d "$p2_eval/${p2_best}/" ]]; then
+                with_mag0+=("$p2_eval/${p2_best}/")
+                without_mag0+=("$p2_eval/${p2_best}/")
+            elif [[ -n "$p2_best" ]]; then
+                echo "  WARN $model: PHASE2_BEST_TAG '${p2_best}' not found at $p2_eval"
+            fi
+        fi
+        # phase3b also reaches into phase3/ for the sqrt(N) baseline anchor
+        # (threshold-1 entry at variance-budget sigma) so the threshold sweep
+        # is intercompared against its own first threshold row.
+        if [[ "$phase" == "phase3b" ]]; then
+            local p3_sqrtn="${PHASE3_SQRTN_TAG[$model]:-}"
+            local p3_eval="$STORE/ablation/phase3/${model_id}/eval"
+            if [[ -n "$p3_sqrtn" && -d "$p3_eval/${p3_sqrtn}/" ]]; then
+                with_mag0+=("$p3_eval/${p3_sqrtn}/")
+                without_mag0+=("$p3_eval/${p3_sqrtn}/")
+            elif [[ -n "$p3_sqrtn" ]]; then
+                echo "  WARN $model: PHASE3_SQRTN_TAG '${p3_sqrtn}' not found at $p3_eval"
+            fi
+        fi
         for d in "$eval_base"/*/; do
             [[ -d "$d" ]] || continue
-            [[ "$d" == "$mag0_dir" ]] && continue
+            [[ "$d" == "$mag0_dir_self" ]] && continue
             with_mag0+=("$d")
             without_mag0+=("$d")
         done
@@ -426,7 +483,7 @@ PHASE_OR_MODEL="${2:-}"
 MODEL_FILTER="${3:-}"
 
 case "$ACTION" in
-    phase1|phase2|phase2b|phase3)
+    phase1|phase2|phase2b|phase3|phase3b)
         run_eval_phase "$ACTION" "$PHASE_OR_MODEL"
         ;;
     intercompare)
@@ -434,8 +491,8 @@ case "$ACTION" in
         ;;
     *)
         echo "Usage:"
-        echo "  $0 {phase1|phase2|phase2b|phase3} [model]         # evaluate runs"
-        echo "  $0 intercompare {phase1|phase2|phase2b|phase3} [model]  # compare runs"
+        echo "  $0 {phase1|phase2|phase2b|phase3|phase3b} [model]                # evaluate runs"
+        echo "  $0 intercompare {phase1|phase2|phase2b|phase3|phase3b} [model]   # compare runs"
         exit 1
         ;;
 esac
