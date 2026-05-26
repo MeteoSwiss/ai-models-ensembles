@@ -79,6 +79,13 @@ empirically from the cross-phase intercomparison plots
 
 ![Phase 3 schematic](figures/phase3_schematic.png)
 
+### Phase 2c — sigma sweep around Phase 2 winners
+
+Phase 2c brackets each model's Phase 2 winning layer group with 4 extra
+sigma points (e.g. Aurora encoder {0.025, 0.060}; GraphCast g2m {0.014,
+0.045}; SFNO encoder {0.035, 0.080}) to characterize the CRPS-vs-σ curve
+near the SSR=1 crossing. Outputs at `phase2c/<model>/intercomparison/`.
+
 ### Phase 3b — orthogonal threshold sweep at sqrt(N) σ
 
 Phase 3 varies σ at fixed scale threshold. Phase 3b is the orthogonal
@@ -106,6 +113,21 @@ Tensor counts, channel dimensions, group definitions and the 240-mode
 layout were verified empirically from checkpoint dumps + a runtime
 diagnostic ([tools/dump_*_keys.py](tools/),
 [tools/diagnose_sfno_modes.py](tools/diagnose_sfno_modes.py)).
+
+### Per-model winners (argmin CRPS across all phases, lead 240h)
+
+| Model | Mechanism | Layer/scale | σ | CRPS | SSR | Source |
+|---|---|---|---|---|---|---|
+| Aurora | layer_group | `encoder` (input projection) | 0.025 | 46.4 | 1.05 | Phase 2c |
+| GraphCast | layer_group | `g2m` (grid-to-mesh encoder) | 0.014 | 44.4 | 1.27 | Phase 2c |
+| SFNO | coarse_modes | spectral degree `l < 10` | 0.25 | 46.8 | 1.09 | Phase 3 |
+
+Two of three models reward architectural targeting of the input
+projection / message-passing layer; only SFNO benefits from the
+physics-motivated low-frequency-modes story. The SFNO modes10 winner is
+also run as a 5th probabilistic baseline on the full 112-init grid for
+direct comparison against trained probabilistic models (output at
+`$STORE/baselines/sfno_modes10/`).
 
 ## Initial conditions
 
@@ -170,11 +192,21 @@ ai-ens models
 4. Submit inference and evaluation jobs
 
 ```bash
-bash scripts/submit_all_inference.sh                          # probabilistic baselines (fcn3/atlas/aifsens)
-bash scripts/submit_ablation.sh {phase1|phase2|phase3|phase3b} [model]   # weight-perturbation ablation
-bash scripts/evaluate_ablation.sh {phase1|phase2|phase3|phase3b} [model] # SwissClim verification
-bash scripts/evaluate_ablation.sh intercompare {phase1|phase2|phase3|phase3b} [model]
+bash scripts/submit_all_inference.sh                          # probabilistic baselines (fcn3/atlas/aifsens) + sfno_modes10
+bash scripts/submit_all_inference.sh sfno_modes10             # SFNO modes10 alone (the winning post-hoc baseline)
+PER_INIT=1 bash scripts/submit_all_inference.sh sfno_modes10  # one sbatch per init (for SFNO multi-GPU SIGSEGV recovery)
+bash scripts/submit_ablation.sh {phase1|phase2|phase2c|phase3|phase3b} [model]   # weight-perturbation ablation
+bash scripts/evaluate_baselines.sh {eval|etsfss|all} [model]                     # baseline eval (will TIMEOUT for heavy modules)
+MODELS=<model> ENERGY_SPECTRA_REDO=<model> bash scripts/evaluate_baselines_remaining.sh # finish heavy modules after main TIMEOUT
+bash scripts/evaluate_ablation.sh {phase1|phase2|phase2c|phase3|phase3b} [model] # SwissClim verification
+bash scripts/evaluate_ablation.sh intercompare {phase1|phase2|phase2c|phase3|phase3b} [model]
 ```
+
+Note: `evaluate_baselines.sh all` is a best-effort one-shot. At 112 inits the
+bundled main job exceeds the 12 h walltime for every model. After the TIMEOUT,
+run `evaluate_baselines_remaining.sh` which splits into one job per
+(model, heavy module) -- the established recovery pattern used for all
+existing baselines.
 
 The `intercompare` action pulls Phase 1 `mag_0_layer_all` (unperturbed)
 and `mag_0.01_layer_all` (Phase 1 best) as reference panels for phase2+;
@@ -265,14 +297,18 @@ The bridge from earth2studio output to SwissClim is in
 
 ```text
 $STORE/
-  ├─ baselines/<model_id>/<YYYYMMDD_HHMM>/forecast.zarr      # probabilistic baselines
+  ├─ baselines/
+  │  ├─ {fcn3,atlas,aifsens,ifs_ens}/                       # trained probabilistic baselines
+  │  ├─ sfno_modes10/                                       # post-hoc SFNO perturbation baseline
+  │  │  └─ <YYYYMMDD_HHMM>/forecast.zarr
+  │  └─ intercomparison/                                    # 5-way cross-model plots
   └─ ablation/
-     └─ <phase>/<model_id>/
-        ├─ <init_tag>/<run_tag>/forecast.zarr                # per-run forecast
-        ├─ eval/<run_tag>/                                   # SwissClim eval modules
+     └─ <phase>/<model_id>/                                 # phase in {phase1,phase2,phase2c,phase3,phase3b}
+        ├─ <init_tag>/<run_tag>/forecast.zarr               # per-run forecast
+        ├─ eval/<run_tag>/                                  # SwissClim eval modules
         │  ├─ maps/  wd_kde/  energy_spectra/  multivariate/
         │  └─ deterministic/  probabilistic/  ets/  fss/  ssim/
-        └─ intercomparison/                                  # cross-run plots
+        └─ intercomparison/                                 # cross-run plots
 ```
 
 ## Containers (GH200)

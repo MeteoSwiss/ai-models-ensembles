@@ -53,8 +53,8 @@ for ws in "${WEEK_STARTS[@]}"; do
     done
 done
 
-MODELS="atlas fcn3 aifsens ifs_ens"
-declare -A MODEL_KIND=( [atlas]=ai [fcn3]=ai [aifsens]=ai [ifs_ens]=ref )
+MODELS="atlas fcn3 aifsens ifs_ens sfno_modes10"
+declare -A MODEL_KIND=( [atlas]=ai [fcn3]=ai [aifsens]=ai [ifs_ens]=ref [sfno_modes10]=ai )
 
 IFS_ENS_ZARR="/capstor/store/cscs/swissai/a122/IFS/ifs_ens.zarr"
 
@@ -320,8 +320,11 @@ submit_main_eval() {
     generate_main_config "$model" "$eval_root" > "$config_path"
 
     local job_tag="eval_baseline_${model}_main"
-    echo "  $job_tag"
+    local dep_flag=()
+    [[ -n "${AFTER_JOB:-}" ]] && dep_flag=(--dependency="afterany:${AFTER_JOB}")
+    echo "  $job_tag" >&2
     sbatch --parsable \
+        "${dep_flag[@]}" \
         --job-name="$job_tag" \
         --partition="$PARTITION" \
         --account=a122 \
@@ -344,8 +347,11 @@ submit_etsfss_eval() {
     generate_etsfss_config "$model" "$eval_root" > "$config_path"
 
     local job_tag="eval_baseline_${model}_etsfss"
-    echo "  $job_tag"
+    local dep_flag=()
+    [[ -n "${AFTER_JOB:-}" ]] && dep_flag=(--dependency="afterany:${AFTER_JOB}")
+    echo "  $job_tag" >&2
     sbatch --parsable \
+        "${dep_flag[@]}" \
         --job-name="$job_tag" \
         --partition="$PARTITION" \
         --account=a122 \
@@ -431,7 +437,7 @@ case "$ACTION" in
     eval|main)     run_eval main "${1:-}" ;;
     etsfss)        run_eval etsfss "${1:-}" ;;
     all)           run_eval all "${1:-}" ;;
-    atlas|fcn3|aifsens|ifs_ens) run_eval all "$ACTION" ;;
+    atlas|fcn3|aifsens|ifs_ens|sfno_modes10) run_eval all "$ACTION" ;;
     intercompare)  run_intercompare ;;
     *)
         echo "Usage:"

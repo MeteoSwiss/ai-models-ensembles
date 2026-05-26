@@ -152,6 +152,18 @@ PHASE3B_SFNO_CONFIGS="20:0.035 40:0.025"
 PHASE3B_GC_CONFIGS="162:0.159 642:0.080"
 
 # ---------------------------------------------------------------------------
+# Phase 2c: Sigma sweep around Phase 2 winners to bracket SSR=1 calibration.
+# Phase 2 ran ONE sqrt(N) sigma per layer group; for the over- and slightly
+# under-dispersive winners we need 2-3 more sigmas to interpolate the
+# SSR=1 crossing and predict CRPS at calibration. See analysis 2026-05-23.
+# Format per CONFIG line: "<layer_group>:<sigma>"
+# Sigmas chosen to bracket SSR=1 given existing sqrt(N) point.
+# ---------------------------------------------------------------------------
+PHASE2C_AURORA_CONFIGS="encoder:0.025 encoder:0.060 decoder:0.040 decoder:0.085"
+PHASE2C_GC_CONFIGS="g2m:0.014 g2m:0.045 m2g:0.018 m2g:0.050"
+PHASE2C_SFNO_CONFIGS="encoder:0.035 encoder:0.080 decoder:0.075 decoder:0.100"
+
+# ---------------------------------------------------------------------------
 mkdir -p "$LOG_DIR"
 
 submit_job() {
@@ -497,6 +509,37 @@ run_phase3() {
     echo "Phase 3: submitted $count jobs"
 }
 
+run_phase2c() {
+    local filter_model="${1:-}"
+    echo "=== Phase 2c: Sigma sweep around Phase 2 winners (calibrate to SSR=1) ==="
+    local count=0
+    for model in $MODELS; do
+        [[ -n "$filter_model" && "$model" != "$filter_model" ]] && continue
+
+        local configs
+        case "$model" in
+            aurora)    configs="$PHASE2C_AURORA_CONFIGS" ;;
+            graphcast) configs="$PHASE2C_GC_CONFIGS" ;;
+            sfno)      configs="$PHASE2C_SFNO_CONFIGS" ;;
+            *)         configs="" ;;
+        esac
+        if [[ -z "$configs" ]]; then
+            echo "  SKIP $model: no Phase 2c configs"
+            continue
+        fi
+        echo "  ${model}: configs ${configs}"
+        for init_time in "${INIT_TIMES[@]}"; do
+            for cfg in $configs; do
+                local layer_spec="${cfg%%:*}"
+                local sigma="${cfg##*:}"
+                submit_job "$model" "$init_time" "$sigma" "$layer_spec" "phase2c" \
+                    && ((count++)) || true
+            done
+        done
+    done
+    echo "Phase 2c: submitted $count jobs"
+}
+
 run_phase3b() {
     local filter_model="${1:-}"
     echo "=== Phase 3b: Threshold sweep at sqrt(N) sigma ==="
@@ -557,6 +600,7 @@ case "$PHASE" in
     phase1_unperturbed) run_phase1_unperturbed "$MODEL_FILTER" ;;
     phase2)  run_phase2 "$MODEL_FILTER" ;;
     phase2b) run_phase2b "$MODEL_FILTER" ;;
+    phase2c) run_phase2c "$MODEL_FILTER" ;;
     phase3)  run_phase3 "$MODEL_FILTER" ;;
     phase3b) run_phase3b "$MODEL_FILTER" ;;
     all)
@@ -567,7 +611,7 @@ case "$PHASE" in
         run_phase3b "$MODEL_FILTER"
         ;;
     *)
-        echo "Usage: $0 {phase1|phase1_unperturbed|phase2|phase2b|phase3|phase3b|all} [model]"
+        echo "Usage: $0 {phase1|phase1_unperturbed|phase2|phase2b|phase2c|phase3|phase3b|all} [model]"
         exit 1
         ;;
 esac

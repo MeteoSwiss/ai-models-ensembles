@@ -25,10 +25,11 @@ PY="$SRC_DIR/.venv/bin/python3"
 
 PARTITION="${PARTITION:-normal}"
 
-MODELS="atlas fcn3 aifsens ifs_ens"
+# Override via env: MODELS="sfno_modes10" bash ... etc.
+MODELS="${MODELS:-atlas fcn3 aifsens ifs_ens}"
 
-# Which models still need energy_spectra. Update by hand if status changes.
-ENERGY_SPECTRA_REDO="aifsens ifs_ens"
+# Which models still need energy_spectra. Override via env.
+ENERGY_SPECTRA_REDO="${ENERGY_SPECTRA_REDO:-aifsens ifs_ens}"
 
 mkdir -p "$LOG_DIR"
 

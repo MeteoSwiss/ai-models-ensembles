@@ -414,6 +414,16 @@ run_intercompare() {
                 echo "  WARN $model: PHASE2_BEST_TAG '${p2_best}' not found at $p2_eval"
             fi
         fi
+        # phase2c: sigma sweep around Phase 2 winners. Pull ALL Phase 2 eval
+        # dirs (the sqrt(N) baselines) so the intercomp shows the existing
+        # anchor + the new sigmas side-by-side.
+        if [[ "$phase" == "phase2c" && -d "$p2_eval" ]]; then
+            for d in "$p2_eval"/*/; do
+                [[ -d "$d" ]] || continue
+                with_mag0+=("$d")
+                without_mag0+=("$d")
+            done
+        fi
         # phase3b also reaches into phase3/ for the sqrt(N) baseline anchor
         # (threshold-1 entry at variance-budget sigma) so the threshold sweep
         # is intercompared against its own first threshold row.
@@ -483,7 +493,7 @@ PHASE_OR_MODEL="${2:-}"
 MODEL_FILTER="${3:-}"
 
 case "$ACTION" in
-    phase1|phase2|phase2b|phase3|phase3b)
+    phase1|phase2|phase2b|phase2c|phase3|phase3b)
         run_eval_phase "$ACTION" "$PHASE_OR_MODEL"
         ;;
     intercompare)
@@ -491,8 +501,8 @@ case "$ACTION" in
         ;;
     *)
         echo "Usage:"
-        echo "  $0 {phase1|phase2|phase2b|phase3|phase3b} [model]                # evaluate runs"
-        echo "  $0 intercompare {phase1|phase2|phase2b|phase3|phase3b} [model]   # compare runs"
+        echo "  $0 {phase1|phase2|phase2b|phase2c|phase3|phase3b} [model]                # evaluate runs"
+        echo "  $0 intercompare {phase1|phase2|phase2b|phase2c|phase3|phase3b} [model]   # compare runs"
         exit 1
         ;;
 esac
