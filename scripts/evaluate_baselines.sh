@@ -53,8 +53,11 @@ for ws in "${WEEK_STARTS[@]}"; do
     done
 done
 
-MODELS="atlas fcn3 aifsens ifs_ens sfno_modes10"
-declare -A MODEL_KIND=( [atlas]=ai [fcn3]=ai [aifsens]=ai [ifs_ens]=ref [sfno_modes10]=ai )
+MODELS="atlas fcn3 aifsens ifs_ens sfno_modes10 aurora_encoder graphcast_all"
+declare -A MODEL_KIND=(
+    [atlas]=ai [fcn3]=ai [aifsens]=ai [ifs_ens]=ref
+    [sfno_modes10]=ai [aurora_encoder]=ai [graphcast_all]=ai
+)
 
 IFS_ENS_ZARR="/capstor/store/cscs/swissai/a122/IFS/ifs_ens.zarr"
 
@@ -437,7 +440,7 @@ case "$ACTION" in
     eval|main)     run_eval main "${1:-}" ;;
     etsfss)        run_eval etsfss "${1:-}" ;;
     all)           run_eval all "${1:-}" ;;
-    atlas|fcn3|aifsens|ifs_ens|sfno_modes10) run_eval all "$ACTION" ;;
+    atlas|fcn3|aifsens|ifs_ens|sfno_modes10|aurora_encoder|graphcast_all) run_eval all "$ACTION" ;;
     intercompare)  run_intercompare ;;
     *)
         echo "Usage:"

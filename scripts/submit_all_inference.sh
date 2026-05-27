@@ -17,7 +17,10 @@
 #     Full process isolation, ~14x more jobs but immune to the multi-GPU
 #     multiprocessing state-accumulation SIGSEGV that affects SFNO when running
 #     many inits in one process tree. Use when a model exhibits SIGSEGV with
-#     the week-helper despite the IPC cleanup.
+#     the week-helper despite the IPC cleanup. Aurora is a likely candidate
+#     for needing PER_INIT (also multi-GPU multiprocessing); test default
+#     week-helper first, fall back to PER_INIT=1 on failure. GraphCast is
+#     sequential JAX -- no SIGSEGV risk, week-helper always fine.
 #
 # Usage:
 #   bash scripts/submit_all_inference.sh              # all probabilistic models + sfno_modes10
@@ -65,13 +68,31 @@ else
     )
 fi
 
-# Probabilistic baselines + post-hoc SFNO modes10 perturbation as a baseline
-MODELS="fcn3 atlas aifsens sfno_modes10"
-declare -A MODEL_IDS=( [fcn3]=fcn3 [atlas]=atlas [aifsens]=aifsens [sfno_modes10]=sfno )
-declare -A DATA_SRC=( [fcn3]=arco [atlas]=arco [aifsens]=cds [sfno_modes10]=arco )
-declare -A CONTAINER_BASE=( [fcn3]=fcn3 [atlas]=atlas [aifsens]=aifsens [sfno_modes10]=sfno )
-# Per-model extra inference flags (e.g. post-hoc perturbation).
-declare -A EXTRA_FLAGS=( [sfno_modes10]="--weight-magnitude 0.25 --coarse-mode-cut 10" )
+# Probabilistic baselines + post-hoc perturbation baselines (one per det model).
+# Perturbation recipes are the user's picks after inspecting all phase
+# (1, 2, 2c, 3, 3b) ablation intercomps. See [[calibration-winners]] in memory.
+#   aurora_encoder: layer-group encoder,    sigma=0.025  (Phase 2c)
+#   graphcast_all:  layer all (no targeting), sigma=0.01 (Phase 1)
+#   sfno_modes10:   coarse-modes l<10,      sigma=0.25   (Phase 3)
+MODELS="fcn3 atlas aifsens sfno_modes10 aurora_encoder graphcast_all"
+declare -A MODEL_IDS=(
+    [fcn3]=fcn3 [atlas]=atlas [aifsens]=aifsens
+    [sfno_modes10]=sfno [aurora_encoder]=aurora [graphcast_all]=graphcast_operational
+)
+declare -A DATA_SRC=(
+    [fcn3]=arco [atlas]=arco [aifsens]=cds
+    [sfno_modes10]=arco [aurora_encoder]=arco [graphcast_all]=arco
+)
+declare -A CONTAINER_BASE=(
+    [fcn3]=fcn3 [atlas]=atlas [aifsens]=aifsens
+    [sfno_modes10]=sfno [aurora_encoder]=aurora [graphcast_all]=graphcast
+)
+# Per-model extra inference flags (post-hoc perturbation recipe per variant).
+declare -A EXTRA_FLAGS=(
+    [sfno_modes10]="--weight-magnitude 0.25 --coarse-mode-cut 10"
+    [aurora_encoder]="--weight-magnitude 0.025 --layer encoder"
+    [graphcast_all]="--weight-magnitude 0.01 --layer all"
+)
 # PER_INIT mode (env var, default 0 for all models): submit one sbatch per init
 # instead of a 14-init week-helper. Use when a model exhibits multiprocessing
 # state-accumulation SIGSEGVs across sequential inits (see MEMORY.md, e.g. SFNO).

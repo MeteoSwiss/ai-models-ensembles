@@ -128,10 +128,14 @@ physics-motivated low-frequency-modes story.
 
 ### Headline 5-way baseline comparison (112-init grid)
 
-The SFNO modes10 winner is also run as a 5th probabilistic baseline on
-the full 112-init grid that matches `atlas` / `fcn3` / `aifsens` /
-`ifs_ens` (output at `$STORE/baselines/sfno_modes10/`). First complete
-intercomp 2026-05-27:
+All three per-model winners are run as full 112-init baselines that
+match `atlas` / `fcn3` / `aifsens` / `ifs_ens`:
+
+- `aurora_encoder` (`$STORE/baselines/aurora_encoder/`)
+- `graphcast_all` (`$STORE/baselines/graphcast_all/`)
+- `sfno_modes10` (`$STORE/baselines/sfno_modes10/`)
+
+First complete 5-way intercomp (with sfno_modes10 alone) 2026-05-27:
 
 | Lead | aifsens | atlas | fcn3 | **sfno_modes10** | gap to best |
 |---|---|---|---|---|---|
@@ -227,6 +231,12 @@ run `evaluate_baselines_remaining.sh` which splits into one job per
 (model, heavy module) -- the established recovery pattern used for all
 existing baselines.
 
+`allphases_intercompare` produces the final cross-phase ablation summary
+(one intercomp per model showing the argmin-CRPS winner from each of the
+five phases side-by-side, with the `mag_0` unperturbed reference). Writes
+to `$STORE/ablation/allphases/<model_id>/intercomparison/`. Per-phase
+winner tags are hardcoded in `evaluate_ablation.sh:ALLPHASES_PHASE{1,2,2c,3,3b}`.
+
 The `intercompare` action pulls Phase 1 `mag_0_layer_all` (unperturbed)
 and `mag_0.01_layer_all` (Phase 1 best) as reference panels for phase2+;
 phase3 and phase3b also pull the Phase 2 winner per model (configured via
@@ -318,16 +328,17 @@ The bridge from earth2studio output to SwissClim is in
 $STORE/
   ├─ baselines/
   │  ├─ {fcn3,atlas,aifsens,ifs_ens}/                       # trained probabilistic baselines
-  │  ├─ sfno_modes10/                                       # post-hoc SFNO perturbation baseline
+  │  ├─ {aurora_encoder,graphcast_all,sfno_modes10}/        # post-hoc perturbation baselines
   │  │  └─ <YYYYMMDD_HHMM>/forecast.zarr
-  │  └─ intercomparison/                                    # 5-way cross-model plots
+  │  └─ intercomparison/                                    # cross-model plots
   └─ ablation/
-     └─ <phase>/<model_id>/                                 # phase in {phase1,phase2,phase2c,phase3,phase3b}
-        ├─ <init_tag>/<run_tag>/forecast.zarr               # per-run forecast
-        ├─ eval/<run_tag>/                                  # SwissClim eval modules
-        │  ├─ maps/  wd_kde/  energy_spectra/  multivariate/
-        │  └─ deterministic/  probabilistic/  ets/  fss/  ssim/
-        └─ intercomparison/                                 # cross-run plots
+     ├─ <phase>/<model_id>/                                 # phase in {phase1,phase2,phase2c,phase3,phase3b}
+     │  ├─ <init_tag>/<run_tag>/forecast.zarr               # per-run forecast
+     │  ├─ eval/<run_tag>/                                  # SwissClim eval modules
+     │  │  ├─ maps/  wd_kde/  energy_spectra/  multivariate/
+     │  │  └─ deterministic/  probabilistic/  ets/  fss/  ssim/
+     │  └─ intercomparison/                                 # per-phase cross-run plots
+     └─ allphases/<model_id>/intercomparison/               # cross-phase ablation summary
 ```
 
 ## Containers (GH200)
