@@ -2,27 +2,29 @@
 # ---------------------------------------------------------------------------
 # Evaluate probabilistic baselines using SwissClim Evaluations.
 #
-# Models: atlas, fcn3, aifsens (AI ensembles) + ifs_ens (classical reference).
+# Models: atlas, fcn3, aifsens (AI ensembles), ifs_ens (classical reference),
+# and the post-hoc perturbation baselines aurora_encoder, graphcast_all,
+# sfno_modes10. All match the same 112 init_times (8 weeks x 14 inits/week).
 #
-# Two configs per model:
-#   * main: stride 6h (full daily cycle), all modules EXCEPT ets/fss
-#   * etsfss: stride 24h, only ets/fss in members mode (per-member spread)
+# Submission strategy (since 2026-05-27): always per-module. The bundled
+# "main" eval at 112 inits exceeds the 12 h walltime for every model, so
+# `bash evaluate_baselines.sh all <model>` submits one sbatch per (model,
+# module) -- see modules in `submit_per_module_eval`. This is faster, more
+# robust, and lets each module use --mem=800G --time=12:00:00 (cluster max).
 #
 # Differences vs evaluate_ablation.sh:
-#   * 112 init_times (8 weeks x 14 inits) instead of 4 mid-month dates
+#   * 112 init_times (vs 4 mid-month dates)
 #   * lead max_hour=360 (vs 240) -- baselines run 15 days
-#   * stride 6h for main eval (4x larger than ablation 24h, captures diurnal cycle)
+#   * stride 6h for main config (vs 24h ablation)
 #   * variables_2d includes 10m winds (saved by baselines but not ablation)
-#   * IFS ENS treated as a 4th "model" alongside the AI baselines
-#   * No run_tag subdirectory layer; eval_root = baselines/<m>/eval
+#   * IFS ENS treated as a 5th "model"
+#   * No run_tag subdirectory; eval_root = baselines/<m>/eval
 #   * dask_profile=balanced (fewer, fatter workers for big lazy graphs)
 #
 # Usage:
-#   bash scripts/evaluate_baselines.sh eval                    # main eval (4 jobs)
-#   bash scripts/evaluate_baselines.sh etsfss                  # ets/fss eval (4 jobs)
-#   bash scripts/evaluate_baselines.sh all                     # both (8 jobs)
-#   bash scripts/evaluate_baselines.sh eval atlas              # single model
-#   bash scripts/evaluate_baselines.sh intercompare            # 4-way intercomparison
+#   bash scripts/evaluate_baselines.sh all [model]                # per-module submission (default)
+#   bash scripts/evaluate_baselines.sh gen-configs <model>        # write YAML templates only
+#   bash scripts/evaluate_baselines.sh intercompare               # cross-model intercomp
 # ---------------------------------------------------------------------------
 set -euo pipefail
 
@@ -386,6 +388,122 @@ run_eval() {
     done
 }
 
+# ---------------------------------------------------------------------------
+# Per-module submission (the default for `all`). One sbatch per (model, module);
+# always with --mem=800G --time=12:00:00 cluster max. Always submitted modules:
+#   maps, wd_kde, energy_spectra, multivariate, probabilistic, fss
+# Plus a light bundle: deterministic + ssim run in one job (parallel streams
+# per model) since they share data layouts.
+# ETS dropped 2026-05-27 -- not load-bearing for the paper, walltime issues.
+# ---------------------------------------------------------------------------
+PY="$SRC_DIR/.venv/bin/python3"
+
+# Generate per-module config YAML from the main template; returns path.
+_gen_module_subset_config() {
+    local model=$1 module=$2 template=$3   # template: "main" or "etsfss"
+    local src_name="eval_main_config.yaml"
+    [[ "$template" == "etsfss" ]] && src_name="eval_etsfss_config.yaml"
+    local src="$STORE/baselines/${model}/${src_name}"
+    local dst="$STORE/baselines/${model}/eval_${module}_only_config.yaml"
+    $PY -c "
+import yaml
+with open('$src') as f: c = yaml.safe_load(f)
+all_off = {k: False for k in c['modules']}
+all_off['${module}'] = True
+c['modules'] = all_off
+with open('$dst', 'w') as f: yaml.safe_dump(c, f, sort_keys=False)
+print('$dst')
+"
+}
+
+_submit_module_sbatch() {
+    local job_tag=$1 cfg=$2
+    local dep_flag=()
+    [[ -n "${AFTER_JOB:-}" ]] && dep_flag=(--dependency="afterany:${AFTER_JOB}")
+    sbatch --parsable \
+        "${dep_flag[@]}" \
+        --job-name="$job_tag" \
+        --partition="$PARTITION" --account=a122 \
+        --nodes=1 --ntasks=1 --cpus-per-task=144 --mem=800G --time="12:00:00" \
+        --output="$LOG_DIR/${job_tag}_%j.out" \
+        --error="$LOG_DIR/${job_tag}_%j.err" \
+        --wrap="source ${SRC_DIR}/.venv/bin/activate && \
+            python -m swissclim_evaluations.cli --config '${cfg}'"
+}
+
+submit_per_module_eval() {
+    local filter_model="${1:-}"
+    echo "=== per-module eval (baselines) ==="
+    # Ensure template YAMLs exist for every model we're about to evaluate
+    for model in $MODELS; do
+        [[ -n "$filter_model" && "$model" != "$filter_model" ]] && continue
+        [[ -f "$STORE/baselines/${model}/eval_main_config.yaml" ]] && continue
+        echo "  gen-configs $model (templates missing)"
+        gen_configs "$model"
+    done
+
+    # Single-module jobs (main template, stride 6h)
+    for module in maps wd_kde energy_spectra multivariate probabilistic; do
+        echo "  -- ${module} (per model) --"
+        for model in $MODELS; do
+            [[ -n "$filter_model" && "$model" != "$filter_model" ]] && continue
+            local cfg
+            cfg=$(_gen_module_subset_config "$model" "$module" "main")
+            _submit_module_sbatch "eval_baseline_${model}_${module}" "$cfg"
+        done
+    done
+
+    # FSS (members mode, stride 24h, etsfss template)
+    echo "  -- fss (members mode, per model) --"
+    for model in $MODELS; do
+        [[ -n "$filter_model" && "$model" != "$filter_model" ]] && continue
+        local cfg
+        cfg=$(_gen_module_subset_config "$model" "fss" "etsfss")
+        _submit_module_sbatch "eval_baseline_${model}_fss" "$cfg"
+    done
+
+    # Light bundle: deterministic + ssim run inline in a single sbatch with
+    # parallel streams per model (helper script + `wait`). Shares data layouts.
+    echo "  -- light bundle (deterministic + ssim) --"
+    local mods_light='{"maps": False, "histograms": False, "wd_kde": False, "energy_spectra": False, "vertical_profiles": False, "deterministic": True, "ets": False, "fss": False, "probabilistic": False, "ssim": True, "multivariate": False}'
+    local active_models=""
+    for model in $MODELS; do
+        [[ -n "$filter_model" && "$model" != "$filter_model" ]] && continue
+        active_models+=" $model"
+        $PY -c "
+import yaml
+with open('$STORE/baselines/${model}/eval_main_config.yaml') as f: c = yaml.safe_load(f)
+c['modules'] = $mods_light
+with open('$STORE/baselines/${model}/eval_light_config.yaml', 'w') as f: yaml.safe_dump(c, f, sort_keys=False)
+"
+    done
+    local helper="$LOG_DIR/eval_baseline_light_bundle.sh"
+    {
+        echo "#!/bin/bash"
+        echo "set -e"
+        echo "source \"${SRC_DIR}/.venv/bin/activate\""
+        for model in $active_models; do
+            echo "("
+            echo "  cfg=\"$STORE/baselines/${model}/eval_light_config.yaml\""
+            echo "  echo \"[${model}] starting light (det+ssim)\""
+            echo "  python -m swissclim_evaluations.cli --config \"\$cfg\" > \"$LOG_DIR/eval_baseline_light_${model}.log\" 2>&1 && echo \"[${model}] done\" || echo \"[${model}] FAILED\""
+            echo ") &"
+        done
+        echo "wait"
+    } > "$helper"
+    chmod +x "$helper"
+    local dep_flag=()
+    [[ -n "${AFTER_JOB:-}" ]] && dep_flag=(--dependency="afterany:${AFTER_JOB}")
+    sbatch --parsable \
+        "${dep_flag[@]}" \
+        --job-name="eval_baseline_light_bundle" \
+        --partition="$PARTITION" --account=a122 \
+        --nodes=1 --ntasks=1 --cpus-per-task=144 --mem=800G --time="12:00:00" \
+        --output="$LOG_DIR/eval_baseline_light_bundle_%j.out" \
+        --error="$LOG_DIR/eval_baseline_light_bundle_%j.err" \
+        --wrap="bash $helper"
+}
+
 run_intercompare() {
     local after_job="${AFTER_JOB:-}"
     local out_dir="$STORE/baselines/intercomparison"
@@ -433,21 +551,48 @@ run_intercompare() {
 
 # ---------------------------------------------------------------------------
 
-ACTION="${1:-eval}"
+gen_configs() {
+    # Generate eval_main_config.yaml + eval_etsfss_config.yaml for a model
+    # without submitting any sbatch. Used by evaluate_baselines_remaining.sh
+    # as a prerequisite when running per-module split from scratch.
+    local model=$1
+    local eval_root="$STORE/baselines/${model}/eval"
+    mkdir -p "$STORE/baselines/${model}"
+    generate_main_config   "$model" "$eval_root" > "$STORE/baselines/${model}/eval_main_config.yaml"
+    generate_etsfss_config "$model" "$eval_root" > "$STORE/baselines/${model}/eval_etsfss_config.yaml"
+    echo "  wrote eval_main_config.yaml + eval_etsfss_config.yaml for $model"
+}
+
+ACTION="${1:-all}"
 shift || true
 
 case "$ACTION" in
-    eval|main)     run_eval main "${1:-}" ;;
-    etsfss)        run_eval etsfss "${1:-}" ;;
-    all)           run_eval all "${1:-}" ;;
-    atlas|fcn3|aifsens|ifs_ens|sfno_modes10|aurora_encoder|graphcast_all) run_eval all "$ACTION" ;;
+    all)           submit_per_module_eval "${1:-}" ;;
+    atlas|fcn3|aifsens|ifs_ens|sfno_modes10|aurora_encoder|graphcast_all) submit_per_module_eval "$ACTION" ;;
     intercompare)  run_intercompare ;;
+    gen-configs)
+        target_model="${1:-}"
+        if [[ -z "$target_model" ]]; then
+            echo "Usage: $0 gen-configs <model>"; exit 1
+        fi
+        gen_configs "$target_model"
+        ;;
+    bundled-main)
+        # Legacy single-bundled main eval (will TIMEOUT at 112 inits; kept as
+        # an escape hatch for debugging or non-standard grids).
+        run_eval main "${1:-}"
+        ;;
+    bundled-etsfss)
+        # Legacy single-bundled etsfss eval (ETS dropped, FSS now per-module).
+        run_eval etsfss "${1:-}"
+        ;;
     *)
         echo "Usage:"
-        echo "  $0 eval [model]         # stride 6h main eval (default)"
-        echo "  $0 etsfss [model]       # stride 24h ETS/FSS members eval"
-        echo "  $0 all [model]          # both main + etsfss"
-        echo "  $0 intercompare         # 4-way intercomparison"
+        echo "  $0 all [model]          # per-module submission (default; 7 sbatch jobs)"
+        echo "  $0 intercompare         # cross-model intercomparison"
+        echo "  $0 gen-configs <model>  # write eval YAML templates only"
+        echo "  $0 bundled-main [model] # legacy single bundled main eval (will TIMEOUT)"
+        echo "  $0 bundled-etsfss [model] # legacy single bundled etsfss eval"
         exit 1
         ;;
 esac

@@ -215,21 +215,22 @@ ai-ens models
 4. Submit inference and evaluation jobs
 
 ```bash
-bash scripts/submit_all_inference.sh                          # probabilistic baselines (fcn3/atlas/aifsens) + sfno_modes10
-bash scripts/submit_all_inference.sh sfno_modes10             # SFNO modes10 alone (the winning post-hoc baseline)
-PER_INIT=1 bash scripts/submit_all_inference.sh sfno_modes10  # one sbatch per init (for SFNO multi-GPU SIGSEGV recovery)
+bash scripts/submit_all_inference.sh                          # all baselines (trained + perturbation)
+bash scripts/submit_all_inference.sh aurora_encoder           # single baseline
+PER_INIT=1 bash scripts/submit_all_inference.sh sfno_modes10  # one sbatch per init (multi-GPU SIGSEGV escape hatch)
 bash scripts/submit_ablation.sh {phase1|phase2|phase2c|phase3|phase3b} [model]   # weight-perturbation ablation
-bash scripts/evaluate_baselines.sh {eval|etsfss|all} [model]                     # baseline eval (will TIMEOUT for heavy modules)
-MODELS=<model> ENERGY_SPECTRA_REDO=<model> bash scripts/evaluate_baselines_remaining.sh # finish heavy modules after main TIMEOUT
+bash scripts/evaluate_baselines.sh all [model]                                   # per-module eval (default; 7 sbatch per model)
+bash scripts/evaluate_baselines.sh intercompare                                  # cross-model baseline intercomp
 bash scripts/evaluate_ablation.sh {phase1|phase2|phase2c|phase3|phase3b} [model] # SwissClim verification
 bash scripts/evaluate_ablation.sh intercompare {phase1|phase2|phase2c|phase3|phase3b} [model]
+bash scripts/evaluate_ablation.sh allphases_intercompare [model]                 # cross-phase summary
 ```
 
-Note: `evaluate_baselines.sh all` is a best-effort one-shot. At 112 inits the
-bundled main job exceeds the 12 h walltime for every model. After the TIMEOUT,
-run `evaluate_baselines_remaining.sh` which splits into one job per
-(model, heavy module) -- the established recovery pattern used for all
-existing baselines.
+Note: `evaluate_baselines.sh all` always submits per-module (one sbatch per
+(model, module), --mem=800G --time=12:00:00). At 112 inits the legacy bundled
+main eval consistently exceeded the 12 h walltime, so the per-module split is
+the only reliable path. Use `bundled-main` / `bundled-etsfss` actions as
+legacy escape hatches if you really want the single-job behaviour.
 
 `allphases_intercompare` produces the final cross-phase ablation summary
 (one intercomp per model showing the argmin-CRPS winner from each of the
