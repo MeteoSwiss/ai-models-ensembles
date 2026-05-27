@@ -32,7 +32,7 @@ LOG_DIR="$STORE/baseline_eval_logs"
 
 PARTITION="${PARTITION:-normal}"
 TIME_LIMIT_MAIN="12:00:00"
-TIME_LIMIT_ETSFSS="06:00:00"
+TIME_LIMIT_ETSFSS="12:00:00"
 
 WB2_PATHS='[
     "/capstor/store/cscs/swissai/weatherbench/weatherbench2_2022_2023.zarr",
@@ -281,7 +281,7 @@ modules:
   energy_spectra: false
   vertical_profiles: false
   deterministic: false
-  ets: true
+  ets: false   # ETS dropped from baseline eval -- not load-bearing for paper, can't fit 112-init in walltime
   fss: true
   probabilistic: false
   ssim: false
@@ -331,7 +331,7 @@ submit_main_eval() {
         --nodes=1 \
         --ntasks=1 \
         --cpus-per-task=144 \
-        --mem=444G \
+        --mem=800G \
         --time="$TIME_LIMIT_MAIN" \
         --output="$LOG_DIR/${job_tag}_%j.out" \
         --error="$LOG_DIR/${job_tag}_%j.err" \
@@ -358,7 +358,7 @@ submit_etsfss_eval() {
         --nodes=1 \
         --ntasks=1 \
         --cpus-per-task=144 \
-        --mem=444G \
+        --mem=800G \
         --time="$TIME_LIMIT_ETSFSS" \
         --output="$LOG_DIR/${job_tag}_%j.out" \
         --error="$LOG_DIR/${job_tag}_%j.err" \
@@ -415,9 +415,9 @@ run_intercompare() {
         --nodes=1 \
         --ntasks=1 \
         --cpus-per-task=16 \
-        --mem=128G \
+        --mem=800G \
         --gres=gpu:4 \
-        --time="06:00:00" \
+        --time="12:00:00" \
         --output="$LOG_DIR/${job_tag}_%j.out" \
         --error="$LOG_DIR/${job_tag}_%j.err" \
         --wrap="source ${SRC_DIR}/.venv/bin/activate && \
@@ -425,7 +425,7 @@ run_intercompare() {
                 ${cli_paths} \
                 --out-dir '${out_dir}' \
                 --label-from parent \
-                --module spectra --module kde --module metrics --module prob --module multivariate --module ets --module fss --module ssim --module maps"
+                --module spectra --module kde --module metrics --module prob --module multivariate --module fss --module ssim --module maps"
 }
 
 # ---------------------------------------------------------------------------

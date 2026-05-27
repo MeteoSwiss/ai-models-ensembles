@@ -114,7 +114,7 @@ layout were verified empirically from checkpoint dumps + a runtime
 diagnostic ([tools/dump_*_keys.py](tools/),
 [tools/diagnose_sfno_modes.py](tools/diagnose_sfno_modes.py)).
 
-### Per-model winners (argmin CRPS across all phases, lead 240h)
+### Per-model winners (argmin CRPS, 4-init ablation grid, lead 240h)
 
 | Model | Mechanism | Layer/scale | σ | CRPS | SSR | Source |
 |---|---|---|---|---|---|---|
@@ -124,10 +124,29 @@ diagnostic ([tools/dump_*_keys.py](tools/),
 
 Two of three models reward architectural targeting of the input
 projection / message-passing layer; only SFNO benefits from the
-physics-motivated low-frequency-modes story. The SFNO modes10 winner is
-also run as a 5th probabilistic baseline on the full 112-init grid for
-direct comparison against trained probabilistic models (output at
-`$STORE/baselines/sfno_modes10/`).
+physics-motivated low-frequency-modes story.
+
+### Headline 5-way baseline comparison (112-init grid)
+
+The SFNO modes10 winner is also run as a 5th probabilistic baseline on
+the full 112-init grid that matches `atlas` / `fcn3` / `aifsens` /
+`ifs_ens` (output at `$STORE/baselines/sfno_modes10/`). First complete
+intercomp 2026-05-27:
+
+| Lead | aifsens | atlas | fcn3 | **sfno_modes10** | gap to best |
+|---|---|---|---|---|---|
+| 120h | 15.4 | 16.8 | 17.8 | **25.2** | +63% |
+| 240h | 36.0 | 36.9 | 38.0 | **43.3** | +20% |
+| 360h | 47.7 | 48.4 | 47.4 | **50.0** | +5% |
+
+CRPS gap to the best trained baseline shrinks monotonically with lead --
+at day 15 the post-hoc approach is within ~5% of trained probabilistic
+CRPS. SSR is mildly underdispersive (0.72-0.86) and converges with the
+trained baselines (0.84-0.90) by day 10-15.
+
+Note: the 4-init ablation predicted CRPS=46.8 at 240h for `sfno_modes10`;
+the full 112-init grid shows 43.3. Use full-grid numbers for any
+paper-ready quotation -- the 4-init grid is statistically thin.
 
 ## Initial conditions
 

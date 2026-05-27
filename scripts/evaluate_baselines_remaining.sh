@@ -5,12 +5,12 @@
 # modules, plus a single bundled job for the light ones.
 #
 # Modules:
-#   light (det + ssim)  : 1 bundled job, 4 streams (one per model), sequential per stream
-#   multivariate        : 4 jobs (one per model)
-#   probabilistic       : 4 jobs (one per model)
-#   ets                 : 4 jobs (members mode, with quantile precompute fix)
-#   fss                 : 4 jobs (members mode, with quantile precompute fix)
-#   energy_spectra      : per-model only if missing (aifsens, ifs_ens)
+#   light (det + ssim)  : 1 bundled job, N streams (one per model), parallel
+#   multivariate        : N jobs (one per model)
+#   probabilistic       : N jobs (one per model)
+#   fss                 : N jobs (members mode, with quantile precompute fix)
+#   energy_spectra      : per-model only if listed in ENERGY_SPECTRA_REDO
+# (ETS dropped 2026-05-27 -- not load-bearing for the paper, walltime issues.)
 #
 # Usage:
 #   bash scripts/evaluate_baselines_remaining.sh                 # submit all 19
@@ -82,7 +82,7 @@ submit_single() {
         --job-name="$job_tag" \
         --partition="$PARTITION" \
         --account=a122 \
-        --nodes=1 --ntasks=1 --cpus-per-task=144 --mem=444G --time="$time_limit" \
+        --nodes=1 --ntasks=1 --cpus-per-task=144 --mem=800G --time="$time_limit" \
         --output="$LOG_DIR/${job_tag}_%j.out" \
         --error="$LOG_DIR/${job_tag}_%j.err" \
         --wrap="source ${SRC_DIR}/.venv/bin/activate && \
@@ -130,7 +130,7 @@ EOF
         --job-name="eval_baseline_light_bundle" \
         --partition="$PARTITION" \
         --account=a122 \
-        --nodes=1 --ntasks=1 --cpus-per-task=144 --mem=444G --time="12:00:00" \
+        --nodes=1 --ntasks=1 --cpus-per-task=144 --mem=800G --time="12:00:00" \
         --output="$LOG_DIR/eval_baseline_light_bundle_%j.out" \
         --error="$LOG_DIR/eval_baseline_light_bundle_%j.err" \
         --wrap="bash $helper"
@@ -218,8 +218,8 @@ print(dst)
 submit_light_bundle
 submit_per_model_single_module multivariate "12:00:00"
 submit_per_model_single_module probabilistic "12:00:00"
-submit_per_model_etsfss ets "06:00:00"
-submit_per_model_etsfss fss "06:00:00"
+# ETS dropped from baseline eval 2026-05-27 -- not load-bearing, can't fit 112-init in walltime.
+submit_per_model_etsfss fss "12:00:00"
 submit_energy_spectra_fixup
 
 echo ""

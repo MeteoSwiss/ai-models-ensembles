@@ -151,7 +151,7 @@ for model in $REQUESTED; do
                         --job-name="$job_tag" \
                         --partition="$PARTITION" \
                         --account=a122 \
-                        --nodes=1 --ntasks=1 --cpus-per-task=32 --mem=444G --gres=gpu:4 \
+                        --nodes=1 --ntasks=1 --cpus-per-task=32 --mem=800G --gres=gpu:4 \
                         --time="$PER_INIT_TIME_LIMIT" \
                         --output="$LOG_DIR/${job_tag}_%j.out" \
                         --error="$LOG_DIR/${job_tag}_%j.err" \
@@ -238,7 +238,7 @@ SCRIPT
             --nodes=1 \
             --ntasks=1 \
             --cpus-per-task=32 \
-            --mem=444G \
+            --mem=800G \
             --gres=gpu:4 \
             --time="$TIME_LIMIT" \
             --output="$LOG_DIR/${job_tag}_%j.out" \
