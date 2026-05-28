@@ -391,10 +391,11 @@ run_eval() {
 # ---------------------------------------------------------------------------
 # Per-module submission (the default for `all`). One sbatch per (model, module);
 # always with --mem=800G --time=12:00:00 cluster max. Always submitted modules:
-#   maps, wd_kde, energy_spectra, multivariate, probabilistic, fss
-# Plus a light bundle: deterministic + ssim run in one job (parallel streams
-# per model) since they share data layouts.
+#   maps, wd_kde, energy_spectra, deterministic, ssim, multivariate, probabilistic, fss
 # ETS dropped 2026-05-27 -- not load-bearing for the paper, walltime issues.
+# det + ssim used to be bundled (light bundle, parallel streams) but the
+# 2-stream version OOM'd at 800G on aurora_encoder + graphcast_all
+# (2026-05-28); now each module gets its own per-model sbatch.
 # ---------------------------------------------------------------------------
 PY="$SRC_DIR/.venv/bin/python3"
 
@@ -442,8 +443,11 @@ submit_per_module_eval() {
         gen_configs "$model"
     done
 
-    # Single-module jobs (main template, stride 6h)
-    for module in maps wd_kde energy_spectra multivariate probabilistic; do
+    # Single-module jobs (main template, stride 6h). deterministic + ssim used
+    # to share a "light bundle" with parallel streams per model, but that
+    # pattern OOM'd at 800G when >=2 models ran concurrently (e.g. aurora +
+    # graphcast 2026-05-28). Each module now runs as its own per-model sbatch.
+    for module in maps wd_kde energy_spectra multivariate probabilistic deterministic ssim; do
         echo "  -- ${module} (per model) --"
         for model in $MODELS; do
             [[ -n "$filter_model" && "$model" != "$filter_model" ]] && continue
@@ -461,47 +465,6 @@ submit_per_module_eval() {
         cfg=$(_gen_module_subset_config "$model" "fss" "etsfss")
         _submit_module_sbatch "eval_baseline_${model}_fss" "$cfg"
     done
-
-    # Light bundle: deterministic + ssim run inline in a single sbatch with
-    # parallel streams per model (helper script + `wait`). Shares data layouts.
-    echo "  -- light bundle (deterministic + ssim) --"
-    local mods_light='{"maps": False, "histograms": False, "wd_kde": False, "energy_spectra": False, "vertical_profiles": False, "deterministic": True, "ets": False, "fss": False, "probabilistic": False, "ssim": True, "multivariate": False}'
-    local active_models=""
-    for model in $MODELS; do
-        [[ -n "$filter_model" && "$model" != "$filter_model" ]] && continue
-        active_models+=" $model"
-        $PY -c "
-import yaml
-with open('$STORE/baselines/${model}/eval_main_config.yaml') as f: c = yaml.safe_load(f)
-c['modules'] = $mods_light
-with open('$STORE/baselines/${model}/eval_light_config.yaml', 'w') as f: yaml.safe_dump(c, f, sort_keys=False)
-"
-    done
-    local helper="$LOG_DIR/eval_baseline_light_bundle.sh"
-    {
-        echo "#!/bin/bash"
-        echo "set -e"
-        echo "source \"${SRC_DIR}/.venv/bin/activate\""
-        for model in $active_models; do
-            echo "("
-            echo "  cfg=\"$STORE/baselines/${model}/eval_light_config.yaml\""
-            echo "  echo \"[${model}] starting light (det+ssim)\""
-            echo "  python -m swissclim_evaluations.cli --config \"\$cfg\" > \"$LOG_DIR/eval_baseline_light_${model}.log\" 2>&1 && echo \"[${model}] done\" || echo \"[${model}] FAILED\""
-            echo ") &"
-        done
-        echo "wait"
-    } > "$helper"
-    chmod +x "$helper"
-    local dep_flag=()
-    [[ -n "${AFTER_JOB:-}" ]] && dep_flag=(--dependency="afterany:${AFTER_JOB}")
-    sbatch --parsable \
-        "${dep_flag[@]}" \
-        --job-name="eval_baseline_light_bundle" \
-        --partition="$PARTITION" --account=a122 \
-        --nodes=1 --ntasks=1 --cpus-per-task=144 --mem=800G --time="12:00:00" \
-        --output="$LOG_DIR/eval_baseline_light_bundle_%j.out" \
-        --error="$LOG_DIR/eval_baseline_light_bundle_%j.err" \
-        --wrap="bash $helper"
 }
 
 run_intercompare() {
