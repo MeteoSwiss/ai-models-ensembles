@@ -171,6 +171,23 @@ The `ifs_analysis:` source is still wired up (extracts `lead_time=0` from a
 SwissClim-format IFS zarr) for the day you have a download with t+0 analysis
 and the full variable set.
 
+### IFS-ENS-perturbed-IC experiment (in flight 2026-05-29)
+
+The post-hoc weight-perturbation baselines (Aurora encoder, GraphCast all,
+SFNO modes10) currently re-use the same ERA5 IC across all 10 ensemble
+members. A hybrid run that adds **real physical IC perturbations** from IFS
+ENS analyses (the 50-member EDA-perturbed analyses, `stream=enfo type=pf
+step=0`) is being downloaded to
+`/capstor/store/cscs/swissai/a122/IFS/ifs_analysis_perturbed_ic.zarr` via
+the [sadamov/ifs_download](https://github.com/sadamov/ifs_download)
+`download_ic_perturbed.py` script. 224 init times (8 weeks × 28 6-hourly
+samples including the `t-6h` slot for autoregressive models), 50
+perturbed members, ~3.8 TB final size, ~4 days end-to-end wall time on a
+login node. Two PL levels (150, 600 hPa) are not archived for `type=pf
+step=0` on the ENFO PL stream; the download script fills them in via
+log-pressure linear interpolation from the adjacent archived levels.
+Once landed, will run a hybrid IC + weight perturbation experiment.
+
 ## Quickstart
 
 The heavy ML stack (`torch`, `earth2studio`, `jax`, model-specific deps) lives
