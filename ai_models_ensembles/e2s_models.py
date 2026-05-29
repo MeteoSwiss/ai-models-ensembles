@@ -80,7 +80,24 @@ REGISTRY: dict[str, ModelSpec] = {
         step_hours=6,
         probabilistic=True,
         role="baseline_prob",
-        description="ECMWF AIFS-ENS (probabilistic, 0.25 deg, 6h).",
+        description="ECMWF AIFS-ENS v1 (probabilistic, 0.25 deg, 6h).",
+    ),
+    # AIFS v1 deterministic, added as a 4th perturb target alongside aurora /
+    # graphcast / sfno. Shares architecture with aifsens (only differs by
+    # the conditional-layer-norm noise injection in the processor), so the
+    # matched-architecture comparison "weight perturb of AIFS det" vs
+    # "trained-stochastic AIFS-ENS" is the cleanest version of the paper's
+    # central question. Same earth2studio[aifs] container as aifsens
+    # (anemoi-models==0.5.1). AIFS v2 / AIFS2ENS skipped 2026-05-29 because
+    # CDS lexicon in earth2studio is missing the wave-period-band heights
+    # (h1012-h2530) that AIFS v2 requires -- see MEMORY.md.
+    "aifs": ModelSpec(
+        name="aifs",
+        e2s_class="earth2studio.models.px:AIFS",
+        step_hours=6,
+        probabilistic=False,
+        role="perturb_target",
+        description="ECMWF AIFS Single v1 (deterministic, 0.25 deg, 6h, GNN+sliding-window transformer).",
     ),
 }
 

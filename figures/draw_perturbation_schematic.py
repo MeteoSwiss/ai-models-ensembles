@@ -153,6 +153,35 @@ MODELS = [
             },
         ],
     },
+    {
+        "name": "AIFS",
+        "subtitle": "GNN encoder/decoder + sliding-window transformer",
+        "n_total": 242,
+        "fmt": "float32 anemoi .ckpt (8 normaliser stats skipped)",
+        "groups": [
+            {
+                "key": "encoder",
+                "n": 34,
+                "kind": "encoder",
+                "detail": "grid -> O96 mesh GNN\n+ node-attribute embeddings\n(emb_nodes, emb_edges, proc)",
+                "shape": "model.encoder.* + model.node_attributes.*",
+            },
+            {
+                "key": "processor",
+                "n": 176,
+                "kind": "processor",
+                "detail": "16 sliding-window transformer\nblocks (attn + MLP + 2 norms)\non O96 mesh, latitude bands",
+                "shape": "model.processor.proc.*",
+            },
+            {
+                "key": "decoder",
+                "n": 32,
+                "kind": "decoder",
+                "detail": "O96 mesh -> grid GNN\n+ node_data_extractor head",
+                "shape": "model.decoder.*",
+            },
+        ],
+    },
 ]
 
 

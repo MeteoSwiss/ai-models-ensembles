@@ -191,6 +191,55 @@ _MODEL_LAYER_GROUPS: dict[str, dict[str, tuple[int, int]]] = {
 }
 
 
+# Prefix-based layer groups: maps key-prefix tuples instead of (lo, hi) index
+# ranges. Used for models where the sorted state-dict layout is too dynamic
+# for hardcoded ranges (e.g. AIFS, where module nesting depth varies by
+# sub-component and tensors don't cluster contiguously in sorted order).
+#
+# `_perturb_torch` checks this dict first; if the model is listed here, "all"
+# resolves via prefix union (which also lets us SKIP non-learned tensors like
+# normaliser stats by not including their prefix in the "all" entry).
+_MODEL_LAYER_GROUP_PREFIXES: dict[str, dict[str, tuple[str, ...]]] = {
+    "aifs": {
+        # AIFS v1 (AnemoiModelInterface), 250 keys, 255 M params.
+        # Audit 2026-05-29: model.encoder.* (30 tensors, 19.9M params) |
+        # model.node_attributes.* (4 tensors, 7M params, graph-node embeddings) |
+        # model.processor.* (176, 201M) | model.decoder.* (32, 27M).
+        # pre_processors.* / post_processors.* (8 tensors, 870 params total)
+        # hold ERA5 normaliser mean/std -- NOT learned weights, MUST skip.
+        #
+        # Decision: roll node_attributes into encoder (architecturally graph
+        # inputs, modest 7M params).
+        #
+        # sqrt(N_total / N_group) per Phase 2 convention at sigma_full=0.01,
+        # using tensor counts (project convention from sfno/aurora):
+        #   N_total = 30 + 4 + 176 + 32 = 242 learned tensors
+        #   encoder = 34 -> sigma = 0.01 * sqrt(242/34) = 0.0267
+        #   processor = 176 -> sigma = 0.01 * sqrt(242/176) = 0.0117
+        #   decoder = 32 -> sigma = 0.01 * sqrt(242/32) = 0.0275
+        "encoder": ("model.encoder.", "model.node_attributes."),
+        "processor": ("model.processor.",),
+        "decoder": ("model.decoder.",),
+        # Explicit "all" excludes pre/post_processors normaliser stats.
+        "all": (
+            "model.encoder.",
+            "model.node_attributes.",
+            "model.processor.",
+            "model.decoder.",
+        ),
+    },
+}
+
+
+# Keys to ALWAYS skip in `_perturb_torch`, regardless of model. These hold
+# normaliser stats / input-output index maps that are NOT learned weights.
+# Perturbing them breaks the model's input normalisation.
+_PERTURB_SKIP_PREFIXES: tuple[str, ...] = (
+    "pre_processors.",
+    "post_processors.",
+)
+
+
 def _parse_layer_spec(spec: str | int | None, model_name: str | None = None) -> str | None:
     """Normalise a layer specification to a canonical string form.
 
@@ -209,12 +258,19 @@ def _parse_layer_spec(spec: str | int | None, model_name: str | None = None) -> 
 
     # Named architectural group (not a pure number, not a range with ':')
     if model_name and not s.replace(".", "").isdigit() and ":" not in s:
+        # Prefix-based groups take priority (currently AIFS only)
+        prefix_groups = _MODEL_LAYER_GROUP_PREFIXES.get(model_name, {})
+        if s in prefix_groups:
+            return "prefix:" + ",".join(prefix_groups[s])
+        # Range-based groups (aurora, graphcast_operational, sfno)
         groups = _MODEL_LAYER_GROUPS.get(model_name, {})
-        if s not in groups:
-            available = sorted(groups.keys()) if groups else ["(none defined)"]
-            raise ValueError(f"Unknown layer group '{s}' for {model_name}. Available: {available}")
-        lo, hi = groups[s]
-        return f"{lo}:{hi}"
+        if s in groups:
+            lo, hi = groups[s]
+            return f"{lo}:{hi}"
+        available = sorted(prefix_groups.keys()) + sorted(groups.keys())
+        if not available:
+            available = ["(none defined)"]
+        raise ValueError(f"Unknown layer group '{s}' for {model_name}. Available: {available}")
 
     return s
 
@@ -310,13 +366,35 @@ def _perturb_torch(
 
     obj = torch.load(path, map_location="cpu", weights_only=False)
     state = _extract_state_dict(obj)
-    keys = sorted(k for k, v in state.items() if hasattr(v, "numpy"))
+
+    # Always exclude normaliser stats / index maps. Some checkpoints
+    # (e.g. AIFS AnemoiModelInterface) hold these as Tensor buffers under
+    # pre_processors.* / post_processors.* -- perturbing them breaks input
+    # normalisation, not learned weights.
+    def _include(k: str, v: Any) -> bool:
+        if not hasattr(v, "numpy"):
+            return False
+        if k.startswith(_PERTURB_SKIP_PREFIXES):
+            return False
+        return True
+
+    if layer is not None and layer.startswith("prefix:"):
+        # Prefix-based selection (AIFS): include only tensors whose key
+        # starts with one of the listed prefixes. The layer spec itself
+        # already encodes the "all" semantics (its prefix list spans the
+        # whole learned weight set).
+        wanted = tuple(layer[len("prefix:") :].split(","))
+        keys = sorted(k for k, v in state.items() if _include(k, v) and k.startswith(wanted))
+        targets = list(range(len(keys)))
+    else:
+        keys = sorted(k for k, v in state.items() if _include(k, v))
+        targets = _select_indices(len(keys), layer)
+
     if not keys:
         raise RuntimeError(
             f"No float tensors found in {path.name}. "
             f"Top-level keys: {sorted(state.keys())[:10]}"
         )
-    targets = _select_indices(len(keys), layer)
     n_spectral_touched = 0
     for i in targets:
         k = keys[i]
@@ -338,7 +416,81 @@ def _perturb_torch(
             f"(*.filter.filter.weight) found in {path.name}. "
             f"Selected {len(targets)} of {len(keys)} keys; widen --layer or check model."
         )
-    torch.save(obj, path)
+
+    # If the checkpoint is a module instance (e.g. AIFS AnemoiModelInterface),
+    # `state` came from obj.state_dict() which returns a COPY; our mutations
+    # to state[k] do NOT propagate to the module's parameters. Push them back
+    # explicitly. For dict checkpoints (e.g. SFNO training ckpts), `state`
+    # is a reference into obj so the assignments above already took effect.
+    if not isinstance(obj, dict) and hasattr(obj, "load_state_dict"):
+        obj.load_state_dict(state, strict=False)
+
+    # AIFS .ckpt is a torch zip archive with anemoi-metadata/* files alongside
+    # the pickled module. Plain torch.save would strip them. Preserve them.
+    if _is_anemoi_zip(path):
+        _save_anemoi_ckpt(obj, path)
+    else:
+        torch.save(obj, path)
+
+
+def _is_anemoi_zip(path: Path) -> bool:
+    """Detect AIFS / anemoi-format torch zip checkpoints by looking for
+    the `anemoi-metadata/` directory."""
+    import zipfile
+
+    if not zipfile.is_zipfile(path):
+        return False
+    try:
+        with zipfile.ZipFile(path) as z:
+            return any("/anemoi-metadata/" in n for n in z.namelist())
+    except zipfile.BadZipFile:
+        return False
+
+
+def _save_anemoi_ckpt(obj: Any, path: Path) -> None:
+    """Re-save an AIFS / anemoi torch zip checkpoint, preserving the
+    `anemoi-metadata/*` files from the original. torch.save writes a fresh
+    torch-format zip; we then merge the anemoi-metadata members back in,
+    renaming torch's auto-generated archive prefix to match the original."""
+    import tempfile
+    import zipfile
+
+    import torch
+
+    # 1. Read original's archive prefix + anemoi-metadata blobs (before
+    #    we overwrite path).
+    with zipfile.ZipFile(path) as orig:
+        orig_first = orig.infolist()[0].filename
+        orig_prefix = orig_first.split("/", 1)[0]
+        preserve: list[tuple[str, bytes]] = [
+            (info.filename, orig.read(info))
+            for info in orig.infolist()
+            if "/anemoi-metadata/" in info.filename
+        ]
+
+    with tempfile.TemporaryDirectory() as td:
+        tmp_path = Path(td) / "tmp.ckpt"
+        torch.save(obj, tmp_path)
+
+        # 2. Find torch.save's auto-generated archive prefix
+        with zipfile.ZipFile(tmp_path) as tmp:
+            tmp_first = tmp.infolist()[0].filename
+            tmp_prefix = tmp_first.split("/", 1)[0]
+
+        # 3. Rebuild merged zip: torch.save members renamed to the
+        #    original prefix, then anemoi-metadata appended.
+        merged = Path(td) / "merged.ckpt"
+        with (
+            zipfile.ZipFile(tmp_path) as tmp_zip,
+            zipfile.ZipFile(merged, "w", compression=zipfile.ZIP_STORED) as out_zip,
+        ):
+            for info in tmp_zip.infolist():
+                new_name = orig_prefix + info.filename[len(tmp_prefix) :]
+                out_zip.writestr(new_name, tmp_zip.read(info))
+            for orig_name, blob in preserve:
+                out_zip.writestr(orig_name, blob)
+
+        shutil.move(str(merged), str(path))
 
 
 def _perturb_safetensors(
@@ -402,6 +554,14 @@ _MODEL_PACKAGE_FILES: dict[str, list[str]] = {
         " - resolution 0.25 - pressure levels 13"
         " - mesh 2to6 - precipitation output only.npz",
         "dataset/source-era5_date-2022-01-01_res-0.25_levels-13_steps-01.nc",
+    ],
+    "aifs": [
+        # Single anemoi-format torch zip checkpoint hosted on
+        # hf://ecmwf/aifs-single-1.1. Without this explicit entry,
+        # _list_package_files globs the HF filesystem and the resolver mangles
+        # the basename (drops the leading 'aifs' prefix) because of how E2S
+        # joins the package root with the filename.
+        "aifs-single-mse-1.1.ckpt",
     ],
 }
 

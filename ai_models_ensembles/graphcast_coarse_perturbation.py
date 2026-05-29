@@ -22,8 +22,17 @@ should set to a member-specific ``jax.random.PRNGKey`` after model load.
 
 from __future__ import annotations
 
+import os
+
 _INSTALLED = False
 _ORIGINAL_GRAPHCAST_CLS = None
+# Module-level slot for frozen-noise mode. Caller sets this to a per-member
+# `jax.random.PRNGKey` AFTER install() but BEFORE the first forward call.
+# When set, the subclass uses this single key on every forward step instead
+# of advancing `hk.next_rng_key()` -- i.e. the SAME noise tensor is applied
+# across all 60 rollout steps. Closer in spirit to weight perturbation
+# (one realization per member, persisted) than to per-step SKEB.
+_FROZEN_MEMBER_KEY = None
 
 
 def install(sigma: float, n_coarse_nodes: int) -> None:
@@ -39,6 +48,11 @@ def install(sigma: float, n_coarse_nodes: int) -> None:
     n_coarse_nodes : int
         Number of leading mesh-node indices to perturb. Level-0 = 12,
         level-0+1 = 42 for any operational mesh_size >= 1.
+
+    Mode toggle: set env var ``GC_FROZEN=1`` to bake in the frozen-noise
+    branch (caller must also populate ``_FROZEN_MEMBER_KEY`` per member).
+    Default (env unset) is per-step fresh noise -- the SKEB analog used in
+    Phase 3 original results.
     """
     global _INSTALLED, _ORIGINAL_GRAPHCAST_CLS
     if sigma <= 0 or n_coarse_nodes <= 0:
@@ -53,22 +67,33 @@ def install(sigma: float, n_coarse_nodes: int) -> None:
 
     sigma_const = float(sigma)
     n_coarse_const = int(n_coarse_nodes)
+    frozen_const = os.environ.get("GC_FROZEN", "0") == "1"
 
     class CoarsePerturbedGraphCast(_ORIGINAL_GRAPHCAST_CLS):  # type: ignore[misc, valid-type]
         def _run_grid2mesh_gnn(self, grid_node_features):  # noqa: D401
             latent_mesh_nodes, latent_grid_nodes = super()._run_grid2mesh_gnn(grid_node_features)
-            noise_key = hk.next_rng_key()
             n_total = latent_mesh_nodes.shape[0]
             n = min(n_coarse_const, n_total)
             # latent_mesh_nodes shape: [n_mesh_nodes, ..., latent_dim] (typically
             # [40962, 1, 512] for the operational mesh). Noise must match the
             # full slice shape, not just the leading axis.
             coarse_slice = latent_mesh_nodes[:n]
-            noise = jax.random.normal(
-                noise_key,
-                shape=coarse_slice.shape,
-                dtype=latent_mesh_nodes.dtype,
-            )
+            if frozen_const:
+                # Same noise every step: derive from a per-member key set by
+                # the caller in `_FROZEN_MEMBER_KEY`. Bypasses haiku's rng
+                # plumbing entirely -- safe regardless of how earth2studio
+                # routes keys between rollout steps.
+                noise = jax.random.normal(
+                    _FROZEN_MEMBER_KEY,
+                    shape=coarse_slice.shape,
+                    dtype=latent_mesh_nodes.dtype,
+                )
+            else:
+                noise = jax.random.normal(
+                    hk.next_rng_key(),
+                    shape=coarse_slice.shape,
+                    dtype=latent_mesh_nodes.dtype,
+                )
             perturbed = coarse_slice * (1.0 + sigma_const * noise)
             latent_mesh_nodes = latent_mesh_nodes.at[:n].set(perturbed)
             return latent_mesh_nodes, latent_grid_nodes

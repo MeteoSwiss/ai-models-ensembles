@@ -37,15 +37,20 @@ INIT_TIMES=(
     "2024-11-15T00:00"   # SON (autumn)
 )
 
-MODELS="aurora graphcast sfno"
-declare -A MODEL_IDS=( [aurora]=aurora [graphcast]=graphcast_operational [sfno]=sfno )
-declare -A DATA_SRC=( [aurora]=arco [graphcast]=arco [sfno]=arco )
+MODELS="aurora graphcast sfno aifs"
+declare -A MODEL_IDS=(
+    [aurora]=aurora [graphcast]=graphcast_operational [sfno]=sfno [aifs]=aifs
+)
+declare -A DATA_SRC=( [aurora]=arco [graphcast]=arco [sfno]=arco [aifs]=cds )
 
 # ---------------------------------------------------------------------------
 # Phase 1: Magnitude sweep (5 magnitudes x 3 models x 4 inits = 60 runs)
 # All layers perturbed. Goal: find optimal magnitude per model.
+# AIFS gets a 3-magnitude lite sweep -- transformers degrade catastrophically
+# above ~3% (sigma=0.1 not informative for sliding-window attention).
 # ---------------------------------------------------------------------------
 PHASE1_MAGNITUDES="0.001 0.003 0.01 0.03 0.1"
+PHASE1_MAGNITUDES_aifs="0.003 0.01 0.03"
 
 # ---------------------------------------------------------------------------
 # Phase 2: Layer-group sweep (3 groups x 3 models x 4 inits = 36 runs)
@@ -62,19 +67,31 @@ PHASE1_MAGNITUDES="0.001 0.003 0.01 0.03 0.1"
 declare -A PHASE2_GROUPS_aurora=( [0]=encoder [1]=backbone [2]=decoder )
 declare -A PHASE2_GROUPS_graphcast=( [0]=g2m [1]=m2m [2]=m2g )
 declare -A PHASE2_GROUPS_sfno=( [0]=encoder [1]=processor [2]=decoder )
+# AIFS v1 (AnemoiModelInterface): single-resolution O96 mesh, no scale axis.
+# encoder rolls in model.node_attributes.* (graph-node embeddings); decoder
+# is just model.decoder.*. Phase 3 deliberately skipped.
+declare -A PHASE2_GROUPS_aifs=( [0]=encoder [1]=processor [2]=decoder )
 
 # N_TOTAL = number of perturbable tensors when --layer all is used.
 # N_GROUP_<model>[<group>] = number of perturbable tensors in that group.
 # Used to apply sqrt(N_TOTAL / N_GROUP) variance scaling so partial-weight
 # perturbations match the full-weight output-variance budget at sigma_full.
-declare -A N_TOTAL=( [aurora]=644 [graphcast]=264 [sfno]=87 )
+# AIFS counts from direct state-dict dump 2026-05-29 (job 2426226):
+#   total learned = 242 (250 ckpt keys minus 8 normaliser stats under
+#   pre_processors.* / post_processors.* that _perturb_torch skips by
+#   _PERTURB_SKIP_PREFIXES). encoder=34 (30 model.encoder + 4
+#   model.node_attributes), processor=176, decoder=32.
+declare -A N_TOTAL=( [aurora]=644 [graphcast]=264 [sfno]=87 [aifs]=242 )
 declare -A N_GROUP_aurora=( [encoder]=33 [backbone]=594 [decoder]=17 )
 declare -A N_GROUP_graphcast=( [g2m]=36 [m2g]=30 [m2m]=198 )
 declare -A N_GROUP_sfno=( [encoder]=3 [processor]=80 [decoder]=3 )
+declare -A N_GROUP_aifs=( [encoder]=34 [processor]=176 [decoder]=32 )
 
 # Consolidated sigma_full from Phase 1 analysis. Phase 2 partial-group runs
 # scale this by sqrt(N_TOTAL / N_GROUP).
-declare -A PHASE2_SIGMA_FULL=( [aurora]=0.01 [graphcast]=0.01 [sfno]=0.01 )
+declare -A PHASE2_SIGMA_FULL=(
+    [aurora]=0.01 [graphcast]=0.01 [sfno]=0.01 [aifs]=0.01
+)
 
 # ---------------------------------------------------------------------------
 # Phase 2b: Refinement (3 fine magnitudes x 3 models x 4 inits = 36 runs)
@@ -269,8 +286,11 @@ run_phase1() {
     local count=0
     for model in $MODELS; do
         [[ -n "$filter_model" && "$model" != "$filter_model" ]] && continue
+        # Per-model magnitude override (e.g. PHASE1_MAGNITUDES_aifs="0.003 0.01 0.03")
+        local var_name="PHASE1_MAGNITUDES_${model}"
+        local mags="${!var_name:-$PHASE1_MAGNITUDES}"
         for init_time in "${INIT_TIMES[@]}"; do
-            for wmag in $PHASE1_MAGNITUDES; do
+            for wmag in $mags; do
                 submit_job "$model" "$init_time" "$wmag" "all" "phase1" && ((count++)) || true
             done
         done

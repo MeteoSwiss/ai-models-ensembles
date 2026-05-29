@@ -166,10 +166,18 @@ def _model_for_member(
 
     # Per-member RNG seed for GraphCast coarse perturbation (JAX PRNGKey).
     if graph_coarse_sigma > 0 and graph_coarse_nodes > 0:
+        import os as _os
+
         import jax
 
         if hasattr(model, "prng_key"):
             model.prng_key = jax.random.PRNGKey(seed + member_id)
+        # Frozen-noise mode: also populate the module-level slot so the
+        # subclass forward uses the same noise tensor at every rollout step.
+        if _os.environ.get("GC_FROZEN", "0") == "1":
+            from . import graphcast_coarse_perturbation as _gc_pert
+
+            _gc_pert._FROZEN_MEMBER_KEY = jax.random.PRNGKey(seed + member_id)
     return model
 
 

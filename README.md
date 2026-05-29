@@ -22,9 +22,10 @@ This repo is a thin orchestration layer over [NVIDIA earth2studio](https://githu
 | `graphcast_operational` | `GraphCastOperational` | 0.25° | 6 h | deterministic, weight-perturbed |
 | `sfno` | `SFNO` (FCNv2) | 0.25° | 6 h | deterministic, weight-perturbed |
 | `aurora` | `Aurora` | 0.25° | 6 h | deterministic, weight-perturbed |
+| `aifs` | `AIFS` (v1) | 0.25° | 6 h | deterministic, weight-perturbed |
 | `fcn3` | `FCN3` | 0.25° | 6 h | probabilistic, re-seeded per member |
 | `atlas` | `Atlas` | 0.25° | 6 h | probabilistic, re-seeded per member |
-| `aifsens` | `AIFSENS` | 0.25° | 6 h | probabilistic, re-seeded per member |
+| `aifsens` | `AIFSENS` (v1) | 0.25° | 6 h | probabilistic, re-seeded per member |
 
 `ai-ens models` prints the live registry. Adding a model means appending one
 `ModelSpec` in [ai_models_ensembles/e2s_models.py](ai_models_ensembles/e2s_models.py).
