@@ -516,8 +516,7 @@ run_intercompare() {
 
 gen_configs() {
     # Generate eval_main_config.yaml + eval_etsfss_config.yaml for a model
-    # without submitting any sbatch. Used by evaluate_baselines_remaining.sh
-    # as a prerequisite when running per-module split from scratch.
+    # without submitting any sbatch.
     local model=$1
     local eval_root="$STORE/baselines/${model}/eval"
     mkdir -p "$STORE/baselines/${model}"
