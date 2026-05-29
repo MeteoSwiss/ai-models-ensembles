@@ -316,8 +316,19 @@ LEFT_COL_X = 0.02  # left edge of model-label column
 LEFT_COL_W = 0.21  # width of label column (fits longest subtitle)
 BOX_AREA_X = LEFT_COL_X + LEFT_COL_W + 0.015  # left edge of box area
 BOX_AREA_W = 1.0 - BOX_AREA_X - 0.02
-ROW_HEIGHT = 0.19  # vertical extent of each row's coloured boxes
-ROW_CENTERS = [0.74, 0.46, 0.18]
+# Row layout scales with len(MODELS). 3 models = original (1-letter taller
+# boxes); 4+ models compress vertically to keep gaps positive.
+_n_models = len(MODELS)
+if _n_models == 3:
+    ROW_HEIGHT = 0.19
+    ROW_CENTERS = [0.74, 0.46, 0.18]
+else:
+    # Equal-spaced rows inside [bottom_margin, top_margin].
+    _top, _bot = 0.86, 0.12
+    _span = _top - _bot
+    ROW_CENTERS = [_top - _span * i / (_n_models - 1) for i in range(_n_models)]
+    # Leave ~30% of the row pitch as inter-row gap.
+    ROW_HEIGHT = 0.7 * _span / (_n_models - 1)
 
 
 def width_for_n(n: int, n_max: int, w_min=0.13, w_max=0.30) -> float:
