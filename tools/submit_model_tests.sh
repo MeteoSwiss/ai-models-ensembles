@@ -11,9 +11,9 @@ IFS=$'\n\t'
 cd "$(dirname "$0")/.."
 source ./scripts/config.sh
 
-CONTAINER_IMAGE=/capstor/store/cscs/swissai/a122/sadamov/ai-models-ensembles/ai-ens.sqsh
+CONTAINER_IMAGE=/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles/ai-ens.sqsh
 MODELS=("graphcast_operational" "sfno" "aurora" "fcn3" "atlas")
-STORE=/capstor/store/cscs/swissai/a122/sadamov/ai-models-ensembles
+STORE=/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles
 OUTPUT_DIR="${STORE}/model_test_logs"
 
 mkdir -p "$OUTPUT_DIR"

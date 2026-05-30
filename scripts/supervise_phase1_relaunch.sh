@@ -7,8 +7,8 @@
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=8G
 #SBATCH --time=00:30:00
-#SBATCH --output=/capstor/store/cscs/swissai/a122/sadamov/ai-models-ensembles/ablation_logs/supervise_phase1_relaunch_%j.out
-#SBATCH --error=/capstor/store/cscs/swissai/a122/sadamov/ai-models-ensembles/ablation_logs/supervise_phase1_relaunch_%j.err
+#SBATCH --output=/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles/ablation_logs/supervise_phase1_relaunch_%j.out
+#SBATCH --error=/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles/ablation_logs/supervise_phase1_relaunch_%j.err
 #
 # Supervisor: runs *after* all SFNO + GraphCast Phase 1 inference jobs finish.
 # Submits eval (per-model) and then intercomparison (per-model).

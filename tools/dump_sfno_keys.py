@@ -33,7 +33,7 @@ def main() -> None:
         sys.argv[1]
         if len(sys.argv) > 1
         else (
-            "/capstor/store/cscs/swissai/a122/sadamov/ai-models-ensembles"
+            "/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles"
             "/earth2studio_cache/sfno/best_ckpt_mp0.tar"
         )
     )

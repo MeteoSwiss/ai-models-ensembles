@@ -37,7 +37,7 @@
 # ---------------------------------------------------------------------------
 set -euo pipefail
 
-STORE="/capstor/store/cscs/swissai/a122/sadamov/ai-models-ensembles"
+STORE="/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles"
 SRC_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 LOG_DIR="$STORE/baseline_logs"
 WORKDIR=/workspace/ai-models-ensembles

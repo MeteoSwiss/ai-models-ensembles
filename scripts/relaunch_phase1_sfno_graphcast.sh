@@ -12,7 +12,7 @@
 # Usage: bash scripts/relaunch_phase1_sfno_graphcast.sh
 set -euo pipefail
 
-STORE="/capstor/store/cscs/swissai/a122/sadamov/ai-models-ensembles"
+STORE="/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles"
 SRC_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 LOG_DIR="$STORE/ablation_logs"
 PARTITION="${PARTITION:-normal}"

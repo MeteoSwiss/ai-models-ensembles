@@ -10,7 +10,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-STORE="/capstor/store/cscs/swissai/a122/sadamov/ai-models-ensembles"
+STORE="/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles"
 LOG_DIR=$STORE/model_test_logs
 WORKDIR=/workspace/ai-models-ensembles
 

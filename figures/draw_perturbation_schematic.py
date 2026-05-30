@@ -155,7 +155,7 @@ MODELS = [
     },
     {
         "name": "AIFS",
-        "subtitle": "GNN encoder/decoder + sliding-window transformer",
+        "subtitle": "GNN + latitude-band transformer",
         "n_total": 242,
         "fmt": "float32 anemoi .ckpt (8 normaliser stats skipped)",
         "groups": [
@@ -316,19 +316,27 @@ LEFT_COL_X = 0.02  # left edge of model-label column
 LEFT_COL_W = 0.21  # width of label column (fits longest subtitle)
 BOX_AREA_X = LEFT_COL_X + LEFT_COL_W + 0.015  # left edge of box area
 BOX_AREA_W = 1.0 - BOX_AREA_X - 0.02
-# Row layout scales with len(MODELS). 3 models = original (1-letter taller
-# boxes); 4+ models compress vertically to keep gaps positive.
+# Row layout scales with len(MODELS). 3 models = original geometry; 4+
+# compresses ROW_HEIGHT and the label-block offsets proportionally to keep
+# inter-row gaps positive and avoid overlap with title (top edge ~0.94) and
+# legend (bottom edge ~0.03).
 _n_models = len(MODELS)
 if _n_models == 3:
     ROW_HEIGHT = 0.19
     ROW_CENTERS = [0.74, 0.46, 0.18]
+    _LABEL_SCALE = 1.0
 else:
-    # Equal-spaced rows inside [bottom_margin, top_margin].
-    _top, _bot = 0.86, 0.12
+    # Available band is [_bot, _top]; rows are evenly spaced inside it.
+    # _top is below the figure's title+subtitle band (which ends ~0.92), so
+    # the top row's icon doesn't bump into the subtitle text.
+    _top, _bot = 0.78, 0.16
     _span = _top - _bot
-    ROW_CENTERS = [_top - _span * i / (_n_models - 1) for i in range(_n_models)]
-    # Leave ~30% of the row pitch as inter-row gap.
-    ROW_HEIGHT = 0.7 * _span / (_n_models - 1)
+    _pitch = _span / (_n_models - 1)
+    ROW_CENTERS = [_top - _pitch * i for i in range(_n_models)]
+    # Boxes occupy ~60% of the row pitch -> ~40% inter-row gap. Label-column
+    # offsets scale to the row pitch so icon, name, subtitle, N_total fit.
+    ROW_HEIGHT = 0.60 * _pitch
+    _LABEL_SCALE = min(1.0, _pitch / 0.28)  # original 3-row pitch was 0.28
 
 
 def width_for_n(n: int, n_max: int, w_min=0.13, w_max=0.30) -> float:
@@ -446,10 +454,39 @@ def draw_icon_mesh(ax, x, y, w, h):
     ax.scatter(px, py, s=6, color=COL_PROC, edgecolor=COL_TEXT, linewidth=0.4, zorder=3)
 
 
+def draw_icon_latitude_bands(ax, x, y, w, h):
+    """AIFS -- O96 mesh nodes arranged in latitude bands, with horizontal
+    'sliding-window' attention strips between adjacent nodes per band. Captures
+    the GNN encoder/decoder + along-latitude transformer processor design."""
+    n_rows = 3
+    n_per_row = 6
+    pad_x = 0.10 * w
+    pad_y = 0.12 * h
+    inner_w = w - 2 * pad_x
+    inner_h = h - 2 * pad_y
+    row_step = inner_h / (n_rows - 1) if n_rows > 1 else 0
+    col_step = inner_w / (n_per_row - 1) if n_per_row > 1 else 0
+    for r in range(n_rows):
+        cy = y + h - pad_y - r * row_step
+        # Faint horizontal band (the sliding attention window)
+        ax.plot(
+            [x + pad_x, x + pad_x + inner_w],
+            [cy, cy],
+            color=COL_PROC,
+            lw=0.8,
+            alpha=0.45,
+        )
+        # Node dots along the band
+        xs = x + pad_x + np.arange(n_per_row) * col_step
+        ys = np.full_like(xs, cy, dtype=float)
+        ax.scatter(xs, ys, s=5, color=COL_PROC, edgecolor=COL_TEXT, linewidth=0.3, zorder=3)
+
+
 ICON_DISPATCH = {
     "Aurora": draw_icon_unet,
     "SFNO": draw_icon_sphere_spectrum,
     "GraphCast": draw_icon_mesh,
+    "AIFS": draw_icon_latitude_bands,
 }
 
 
@@ -460,15 +497,16 @@ def draw_model_row(ax, y_center, model, n_max_global):
     # ---- Left-column model label block ------------------------------------
     lx = LEFT_COL_X
 
-    # Left-column label block, nudged up so the icon sits closer to the
-    # top of the row (the boxes occupy the centre/bottom).
-    LEFT_COL_OFFSET = 0.015
+    # Scale the label-block vertical offsets so multi-row layouts (4+ models)
+    # compress vertically and stop overlapping the next row.
+    s = _LABEL_SCALE
+    LEFT_COL_OFFSET = 0.015 * s
 
     # Icon above model name (small schematic)
     icon_w = 0.07
-    icon_h = 0.05
+    icon_h = 0.05 * s
     icon_x = lx
-    icon_y = y_center + 0.030 + LEFT_COL_OFFSET
+    icon_y = y_center + 0.030 * s + LEFT_COL_OFFSET
     icon_fn = ICON_DISPATCH.get(model["name"])
     if icon_fn:
         icon_fn(ax, icon_x, icon_y, icon_w, icon_h)
@@ -487,7 +525,7 @@ def draw_model_row(ax, y_center, model, n_max_global):
     # Subtitle (italic, muted)
     ax.text(
         lx,
-        y_center - 0.040 + LEFT_COL_OFFSET,
+        y_center - 0.040 * s + LEFT_COL_OFFSET,
         model["subtitle"],
         ha="left",
         va="top",
@@ -498,7 +536,7 @@ def draw_model_row(ax, y_center, model, n_max_global):
     # Total parameter count
     ax.text(
         lx,
-        y_center - 0.075 + LEFT_COL_OFFSET,
+        y_center - 0.075 * s + LEFT_COL_OFFSET,
         f"N_total = {model['n_total']}",
         ha="left",
         va="top",
@@ -561,10 +599,11 @@ def main():
         ax.axhline(gy, color=COL_GRID, lw=0.4, alpha=0.3, zorder=0)
 
     # Title (compact, near top edge)
+    _num = {3: "three", 4: "four", 5: "five", 6: "six"}.get(_n_models, str(_n_models))
     ax.text(
         LEFT_COL_X,
         0.985,
-        "Weight perturbation across three AI weather models",
+        f"Weight perturbation across {_num} AI weather models",
         ha="left",
         va="top",
         fontsize=17,

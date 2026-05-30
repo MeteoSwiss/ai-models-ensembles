@@ -8,7 +8,7 @@
 #   bash tools/submit_reshard.sh production      # production only
 set -euo pipefail
 
-STORE="/capstor/store/cscs/swissai/a122/sadamov/ai-models-ensembles"
+STORE="/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles"
 SRC_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 WORKDIR=/workspace/ai-models-ensembles
 CONTAINER="$STORE/aurora.sqsh"  # any container with zarr+xarray works

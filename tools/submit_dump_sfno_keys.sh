@@ -8,12 +8,12 @@
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=64G
 #SBATCH --time=00:15:00
-#SBATCH --output=/capstor/store/cscs/swissai/a122/sadamov/ai-models-ensembles/model_test_logs/sfno_keys.log
-#SBATCH --error=/capstor/store/cscs/swissai/a122/sadamov/ai-models-ensembles/model_test_logs/sfno_keys.log
+#SBATCH --output=/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles/model_test_logs/sfno_keys.log
+#SBATCH --error=/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles/model_test_logs/sfno_keys.log
 
 set -euo pipefail
 
-STORE=/capstor/store/cscs/swissai/a122/sadamov/ai-models-ensembles
+STORE=/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles
 REPO=/users/sadamov/pyprojects/ai-models-ensembles
 
 srun -N1 -n1 \
