@@ -263,7 +263,8 @@ submit_job() {
         --container-image="$container" \
         --container-mounts="$mounts" \
         --container-workdir="$WORKDIR" \
-        --wrap="python -m ai_models_ensembles.cli infer \
+        --wrap="find /dev/shm -maxdepth 1 \( -name 'sem.mp-*' -o -name 'sem.pym-*' -o -name 'sem.tmp.*' \) -delete 2>/dev/null || true; \
+            python -m ai_models_ensembles.cli infer \
             --model $model_id \
             --init '$init_time' \
             --lead-hours $LEAD_HOURS \
@@ -275,7 +276,10 @@ submit_job() {
             --data-source $dsrc \
             --output-levels '$OUTPUT_LEVELS' \
             --seed $SEED \
-            --output '$out_zarr'"
+            --output '$out_zarr'; \
+            STATUS=\$?; \
+            find /dev/shm -maxdepth 1 \( -name 'sem.mp-*' -o -name 'sem.pym-*' -o -name 'sem.tmp.*' \) -delete 2>/dev/null || true; \
+            exit \$STATUS"
 }
 
 # ---------------------------------------------------------------------------

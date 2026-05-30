@@ -582,7 +582,23 @@ def _run_members_parallel(
 
         # Brief pause between rounds to let the GPU driver fully release
         # contexts from exited children (prevents SIGSEGV on GH200/NATTEN).
+        # AND clear any leaked Python multiprocessing semaphores from
+        # /dev/shm. resource_tracker warns "leaked semaphores" at crash;
+        # accumulated leaks across rounds corrupt the spawn context and
+        # the final round (e.g. round 3 of 3 for AIFS) SIGSEGVs in all
+        # GPU workers simultaneously. Same root cause as the SFNO week-
+        # helper IPC cleanup, but here applied per-round inside a single
+        # python process.
         if round_idx < len(rounds) - 1:
+            import glob
+            import os
+
+            for pat in ("sem.mp-*", "sem.pym-*", "sem.tmp.*"):
+                for f in glob.glob(f"/dev/shm/{pat}"):
+                    try:
+                        os.unlink(f)
+                    except OSError:
+                        pass
             time.sleep(5)
 
     print("[main] Merging member outputs...")
@@ -701,53 +717,59 @@ def run_inference(
     if n_members > 1 and n_gpus > 1:
         _prefetch_ic_data(model_name, data_source, init_time)
 
-    if n_members > 1 and n_gpus > 1:
-        _run_members_parallel(
-            model_name=model_name,
-            init_time=init_time,
-            steps=steps,
-            n_members=n_members,
-            n_gpus=n_gpus,
-            ic_magnitude=ic_magnitude,
-            weight_magnitude=weight_magnitude,
-            layer=layer,
-            data_source=data_source,
-            seed=seed,
-            work_dir=work_dir,
-            output=output,
-            output_levels=output_levels,
-            output_vars=output_vars,
-            cached_checkpoints=cached_checkpoints,
-            coarse_mode_cut=coarse_mode_cut,
-            graph_coarse_sigma=graph_coarse_sigma,
-            graph_coarse_nodes=graph_coarse_nodes,
-        )
-    else:
-        _run_members_sequential(
-            model_name=model_name,
-            init_time=init_time,
-            steps=steps,
-            n_members=n_members,
-            ic_magnitude=ic_magnitude,
-            weight_magnitude=weight_magnitude,
-            layer=layer,
-            data_source=data_source,
-            seed=seed,
-            work_dir=work_dir,
-            output=output,
-            output_levels=output_levels,
-            output_vars=output_vars,
-            cached_checkpoints=cached_checkpoints,
-            coarse_mode_cut=coarse_mode_cut,
-            graph_coarse_sigma=graph_coarse_sigma,
-            graph_coarse_nodes=graph_coarse_nodes,
-        )
-
-    # Clean up work directory (perturbed weight copies, etc.)
+    # try/finally so work_dir always gets removed, even on inference failure.
+    # Each member's intermediate zarr inside `_e2s_work/_member_outputs/` is
+    # ~4k file inodes (unsharded zarr v3); 10 members per job. A failed job
+    # used to leak the full ~44k inodes per launch. This burned through the
+    # a122 project inode quota overnight when 23 AIFS Phase 1+2 jobs failed
+    # in round 3 with state-accumulation SIGSEGVs.
     import shutil
 
-    if work_dir.exists():
-        shutil.rmtree(work_dir, ignore_errors=True)
+    try:
+        if n_members > 1 and n_gpus > 1:
+            _run_members_parallel(
+                model_name=model_name,
+                init_time=init_time,
+                steps=steps,
+                n_members=n_members,
+                n_gpus=n_gpus,
+                ic_magnitude=ic_magnitude,
+                weight_magnitude=weight_magnitude,
+                layer=layer,
+                data_source=data_source,
+                seed=seed,
+                work_dir=work_dir,
+                output=output,
+                output_levels=output_levels,
+                output_vars=output_vars,
+                cached_checkpoints=cached_checkpoints,
+                coarse_mode_cut=coarse_mode_cut,
+                graph_coarse_sigma=graph_coarse_sigma,
+                graph_coarse_nodes=graph_coarse_nodes,
+            )
+        else:
+            _run_members_sequential(
+                model_name=model_name,
+                init_time=init_time,
+                steps=steps,
+                n_members=n_members,
+                ic_magnitude=ic_magnitude,
+                weight_magnitude=weight_magnitude,
+                layer=layer,
+                data_source=data_source,
+                seed=seed,
+                work_dir=work_dir,
+                output=output,
+                output_levels=output_levels,
+                output_vars=output_vars,
+                cached_checkpoints=cached_checkpoints,
+                coarse_mode_cut=coarse_mode_cut,
+                graph_coarse_sigma=graph_coarse_sigma,
+                graph_coarse_nodes=graph_coarse_nodes,
+            )
+    finally:
+        if work_dir.exists():
+            shutil.rmtree(work_dir, ignore_errors=True)
 
     return output
 
