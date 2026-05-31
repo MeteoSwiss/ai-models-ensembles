@@ -36,8 +36,8 @@ INIT_TIMES=(
     "2024-11-15T00:00"
 )
 
-MODELS="aurora graphcast sfno"
-declare -A MODEL_IDS=( [aurora]=aurora [graphcast]=graphcast_operational [sfno]=sfno )
+MODELS="aurora graphcast sfno aifs"
+declare -A MODEL_IDS=( [aurora]=aurora [graphcast]=graphcast_operational [sfno]=sfno [aifs]=aifs )
 
 # Evaluation modules: the ablation-relevant subset
 # - energy_spectra: LSD for blurring detection
@@ -363,11 +363,11 @@ declare -A ALLPHASES_PHASE2=(
 declare -A ALLPHASES_PHASE2C=(
     [aurora]=mag_0.025_layer_encoder
     [graphcast]=mag_0.014_layer_g2m
-    [sfno]=mag_0.035_layer_encoder
+    [sfno]=mag_0.053852_layer_encoder
 )
 declare -A ALLPHASES_PHASE3=(
     [aurora]=mag_0.40_layer_unet_bottom
-    [graphcast]=gcsigma_1.80_gcnodes42
+    [graphcast]=gcsigma_1.00_gcnodes42
     [sfno]=mag_0.25_modes10
 )
 declare -A ALLPHASES_PHASE3B=(

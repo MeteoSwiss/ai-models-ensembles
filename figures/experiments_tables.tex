@@ -1,0 +1,187 @@
+% Experiments tables for the post-hoc weight perturbation paper.
+%
+% Required packages (add to your preamble if not already present):
+%   \usepackage{amsmath}
+%   \usepackage{amssymb}
+%   \usepackage{booktabs}
+%   \usepackage{multirow}
+%   \usepackage[table]{xcolor}
+%   \usepackage{array}
+%   \usepackage{tabularx}
+%
+% Drop into the paper with:
+%   \input{figures/experiments_tables.tex}
+% and then reference via \ref{tab:ablation} and \ref{tab:baselines}.
+
+% ---- model colour palette ----------------------------------------------------
+\definecolor{auroraC}   {HTML}{E67E22}  % orange
+\definecolor{graphcastC}{HTML}{27AE60}  % green
+\definecolor{sfnoC}     {HTML}{2980B9}  % blue
+\definecolor{aifsC}     {HTML}{8E44AD}  % purple
+\definecolor{aifsensC}  {HTML}{8B5A2B}  % brown
+\definecolor{atlasC}    {HTML}{C0392B}  % red
+\definecolor{fcn3C}     {HTML}{D4A017}  % gold
+\definecolor{ifsC}      {HTML}{7F8C8D}  % grey
+\definecolor{phaseBg}   {HTML}{ECF0F1}  % phase header band
+\definecolor{altRow}    {HTML}{F8F9FA}  % alt row tint
+
+% small colour pill used in the Model column
+\newcommand{\mbadge}[2]{\textcolor{#1}{\rule[-0.15ex]{0.85ex}{0.85ex}}\,\textbf{#2}}
+
+% production-baseline star
+\newcommand{\winner}{\textcolor{black!75}{$\bigstar$}}
+
+% ---- Table 1: Ablation grid --------------------------------------------------
+\begin{table}[t]
+  \centering
+  \small
+  \setlength{\tabcolsep}{6pt}
+  \renewcommand{\arraystretch}{1.15}
+  \caption{Ablation experiments. Each cell is 4 init times $\times$ 10 members
+           = 40 forecasts at 10-day lead. Phase 1 sweeps the magnitude with
+           all weights perturbed. Phase 2 sweeps the layer group; the
+           per-group sigma is derived deterministically as
+           $\sigma_{\text{group}} = \sigma_{\text{full}} \cdot
+           \sqrt{N_{\text{total}}/N_{\text{group}}}$ from a fixed
+           $\sigma_{\text{full}}=0.01$ (same across all models, not the
+           per-model Phase 1 winner). Phase 3 sweeps the magnitude at
+           architecture-specific coarse-scale hooks targeting wavelengths
+           $\lambda \gtrsim 3000$~km (Aurora: U-net bottom
+           \texttt{encoder\_layers.2}; GraphCast: activation hook on first 42
+           mesh nodes; SFNO: low spectral modes $\ell<L_{\text{cut}}$).
+           Phase 3b sweeps the spatial-reach threshold at $\sqrt{N}$ sigma
+           and is shown alongside the Phase 3 winner per model for direct
+           comparison; the narrower Phase 3 hooks beat the broader Phase 3b
+           thresholds on CRPS@240h in every model (Aurora 37.9 vs 41.8;
+           GraphCast 40.5 vs 45.8; SFNO 36.8 vs 50.8).
+           \textbf{Bold} marks the within-phase per-model winner declared by
+           the evaluation pipeline ([scripts/evaluate\_ablation.sh] table
+           \texttt{ALLPHASES\_PHASE*}); for Phase 2 both the winning layer
+           group and its sigma are bolded. $^{\dagger}$Aurora's encoder
+           sigma and GraphCast's g2m sigma were further refined on a finer
+           grid below the $\sqrt{N}$ anchors (Aurora encoder 0.044 -> 0.025;
+           GraphCast g2m 0.027 -> 0.014). \winner\ marks the per-model
+           winner across all phases that became the production perturbation
+           baseline (Tab.~\ref{tab:baselines}). A GraphCast frozen-per-member
+           pilot at $\sigma=1.0$ was run alongside Phase 3 as a diagnostic
+           for the fresh-vs-frozen noise question (not shown).
+           \emph{mag\_0} is the unperturbed N=1 reference.}
+  \label{tab:ablation}
+  \begin{tabular}{@{}l l l l@{}}
+    \toprule
+    \textbf{Phase} & \textbf{Model} & \textbf{Configuration} & \textbf{Sigma} \\
+    \midrule
+
+    \rowcolor{phaseBg}
+    \multicolumn{4}{@{}l}{\textbf{Phase 1} \ \  magnitude sweep} \\
+    & \mbadge{auroraC}{aurora}     & all weights          & 0.001 / 0.003 / 0.01 / \textbf{0.03} / 0.1 \\
+    \rowcolor{altRow}
+    & \mbadge{graphcastC}{graphcast} & all weights        & 0.001 / 0.003 / \textbf{0.01} \,\winner\ / 0.03 / 0.1 \\
+    & \mbadge{sfnoC}{sfno}         & all weights          & 0.001 / 0.003 / 0.01 / \textbf{0.03} / 0.1 \\
+    \rowcolor{altRow}
+    & \mbadge{aifsC}{aifs}         & all weights (lite)   & 0.003 / 0.01 / 0.03 \,(pending) \\
+    & all 4 models                 & \emph{mag\_0} reference & - \\
+    \midrule
+
+    \rowcolor{phaseBg}
+    \multicolumn{4}{@{}l}{\textbf{Phase 2} \ \  layer-group sweep} \\
+    & \mbadge{auroraC}{aurora}     & \textbf{encoder}$^{\dagger}$ / backbone / decoder & \textbf{0.025}$^{\dagger}$ / 0.010 / 0.062 \,\winner \\
+    \rowcolor{altRow}
+    & \mbadge{graphcastC}{graphcast} & \textbf{g2m}$^{\dagger}$ / m2m / m2g            & \textbf{0.014}$^{\dagger}$ / 0.012 / 0.030 \\
+    & \mbadge{sfnoC}{sfno}         & \textbf{encoder} / processor / decoder           & \textbf{0.054} / 0.010 / 0.054 \\
+    \rowcolor{altRow}
+    & \mbadge{aifsC}{aifs}         & encoder / processor / decoder                   & 0.027 / 0.012 / 0.028 \,(pending) \\
+    \midrule
+
+    \rowcolor{phaseBg}
+    \multicolumn{4}{@{}l}{\textbf{Phase 3} \ \  coarse-scale perturbation} \\
+    & \mbadge{auroraC}{aurora}     & U-net bottom                & 0.026 / 0.05 / 0.15 / \textbf{0.40} / 0.80 / 1.50 \\
+    \rowcolor{altRow}
+    & \mbadge{graphcastC}{graphcast} & first 42 mesh nodes       & 0.01 / 0.03 / 0.10 / 0.312 / 0.60 / \textbf{1.00} / 1.80 \\
+    & \mbadge{sfnoC}{sfno}         & coarse modes $\ell<10$      & 0.049 / 0.10 / \textbf{0.25} \,\winner\ / 0.60 \\
+    \midrule
+
+    \rowcolor{phaseBg}
+    \multicolumn{4}{@{}l}{\textbf{Phase 3b} \ \  spatial-reach threshold sweep (Phase 3 winner shown for each model)} \\
+    & \mbadge{auroraC}{aurora}     & \emph{Phase 3 ref:} U-net bottom            & \emph{0.40} \\
+    \rowcolor{altRow}
+    & \mbadge{auroraC}{aurora}     & \texttt{enc\_12} / \texttt{enc\_012}        & 0.017 / \textbf{0.015} \\
+    & \mbadge{graphcastC}{graphcast} & \emph{Phase 3 ref:} first 42 mesh nodes   & \emph{1.00} \\
+    \rowcolor{altRow}
+    & \mbadge{graphcastC}{graphcast} & $n_{\text{coarse}}{=}162$ / $n_{\text{coarse}}{=}642$ & \textbf{0.159} / 0.080 \\
+    & \mbadge{sfnoC}{sfno}         & \emph{Phase 3 ref:} coarse modes $\ell<10$  & \emph{0.25} \\
+    \rowcolor{altRow}
+    & \mbadge{sfnoC}{sfno}         & $L_{\text{cut}}{=}20$ / $L_{\text{cut}}{=}40$ & \textbf{0.035} / 0.025 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+% ---- Table 2: Production baselines ------------------------------------------
+\begin{table}[t]
+  \centering
+  \small
+  \setlength{\tabcolsep}{6pt}
+  \renewcommand{\arraystretch}{1.20}
+  \caption{Production baselines. All seven models run at 112 init times
+           $\times$ 10 members = 1120 forecasts each, then intercompared on
+           the same grid, variables, and leads. The three post-hoc
+           perturbation baselines use the \winner-marked configuration from
+           Tab.~\ref{tab:ablation}; their listed loss is the deterministic
+           training loss of the underlying checkpoint (Aurora: Bodnar et al.\
+           2025, arXiv:2405.13063, weighted MAE; GraphCast: Lam et al.\ 2023,
+           arXiv:2212.12794, latitude- and variable-weighted MSE; SFNO: Bonev
+           et al.\ 2023, arXiv:2306.03838, channel-normalised relative
+           spherical L2). The trained probabilistic baselines are: AIFS-CRPS
+           (Lang et al.\ 2024, arXiv:2412.15832) - a GNN encoder/decoder with
+           a sliding-window transformer processor, with per-member noise
+           embeddings replacing the standard layer normalisations of every
+           processor pre-norm block, trained with an almost-fair CRPS loss;
+           NVIDIA Atlas-ERA5 - a latent diffusion Transformer (DiT) sampled
+           via the stochastic-interpolant framework of Albergo and
+           Vanden-Eijnden (2023), trained by velocity-matching the
+           interpolant drift (Chen et al.\ 2024, arXiv:2403.13724; no Atlas
+           preprint exists, loss verified from the earth2studio source);
+           FourCastNet 3 (Bonev et al.\ 2025, arXiv:2507.12144) - a spherical
+           neural operator combining local DISCO and global spectral
+           convolutions, with a per-step latent noise variable whose
+           evolution on the sphere follows a learned diffusion process,
+           trained against a joint spatial-and-spectral CRPS objective. The
+           IFS-ENS classical reference is the operational ECMWF ensemble
+           (Cy49r1, Nov 2024): a TCo1279L137 (~9 km, 137 levels) primitive-
+           equation model integrating from initial conditions perturbed by
+           Ensemble of Data Assimilations (EDA) plus 48~h singular vectors,
+           with model-error perturbations from the Stochastically Perturbed
+           Parametrizations (SPP) scheme (27 uncertain parametrisation
+           elements, AR(1) random fields at 1000 + 3000~km and 3 + 30 day
+           decorrelation). We subsample 10 of the 50 perturbed members
+           (stratified, dropping the control). See ECMWF IFS Documentation
+           Cy49r1 Part V.}
+  \label{tab:baselines}
+  \begin{tabular}{@{}l l l l@{}}
+    \toprule
+    \textbf{Role} & \textbf{Model} & \textbf{Configuration} & \textbf{Training loss} \\
+    \midrule
+
+    \rowcolor{phaseBg}
+    \multicolumn{4}{@{}l}{\textbf{Post-hoc weight perturbation} (this work)} \\
+    & \mbadge{auroraC}{aurora\_encoder}    & encoder layer group, $\sigma = 0.025$ (Phase 2)         & weighted MAE \\
+    \rowcolor{altRow}
+    & \mbadge{graphcastC}{graphcast\_all}  & all layers, $\sigma = 0.01$ (Phase 1)                   & weighted MSE \\
+    & \mbadge{sfnoC}{sfno\_modes10}        & coarse spectral modes $\ell<10$, $\sigma = 0.25$ (Phase 3) & relative spherical L2 \\
+    \midrule
+
+    \rowcolor{phaseBg}
+    \multicolumn{4}{@{}l}{\textbf{Trained probabilistic}} \\
+    & \mbadge{aifsensC}{aifsens}           & GNN + sliding-window transformer; conditional-LN noise in processor & almost-fair CRPS \\
+    \rowcolor{altRow}
+    & \mbadge{atlasC}{atlas}               & latent diffusion Transformer; stochastic-interpolant sampling       & velocity matching (drift regression) \\
+    & \mbadge{fcn3C}{fcn3}                 & spherical neural operator; per-step latent noise via spherical diffusion & spatial + spectral CRPS \\
+    \midrule
+
+    \rowcolor{phaseBg}
+    \multicolumn{4}{@{}l}{\textbf{Classical reference}} \\
+    & \mbadge{ifsC}{ifs\_ens}              & TCo1279L137 IFS-ENS (Cy49r1); EDA + 48~h singular-vector ICs; SPP stochastic physics; 10/50 perturbed members & n/a (numerical model) \\
+
+    \bottomrule
+  \end{tabular}
+\end{table}

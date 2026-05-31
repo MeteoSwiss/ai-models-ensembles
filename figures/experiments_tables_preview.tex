@@ -1,0 +1,29 @@
+% Standalone preview wrapper for experiments_tables.tex.
+%
+% Compile with any TeXLive (or Overleaf, tectonic, MiKTeX) via:
+%   pdflatex experiments_tables_preview.tex
+% Produces experiments_tables_preview.pdf with both tables on landscape pages.
+%
+% Once you're happy with the look, drop the inner file into the paper via
+%   \input{figures/experiments_tables.tex}
+% no other changes needed.
+
+\documentclass[11pt]{article}
+
+\usepackage[a4paper, landscape, margin=1.5cm]{geometry}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage[table]{xcolor}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{hyperref}
+
+\pagestyle{empty}
+
+\begin{document}
+
+\input{experiments_tables.tex}
+
+\end{document}
