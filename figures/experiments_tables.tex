@@ -46,14 +46,16 @@
            $\sigma_{\text{full}}=0.01$ (same across all models, not the
            per-model Phase 1 winner). Phase 3 sweeps the magnitude at
            architecture-specific coarse-scale hooks targeting wavelengths
-           $\lambda \gtrsim 3000$~km (Aurora: U-net bottom
-           \texttt{encoder\_layers.2}; GraphCast: activation hook on first 42
-           mesh nodes; SFNO: low spectral modes $\ell<L_{\text{cut}}$).
-           Phase 3b sweeps the spatial-reach threshold at $\sqrt{N}$ sigma
-           and is shown alongside the Phase 3 winner per model for direct
-           comparison; the narrower Phase 3 hooks beat the broader Phase 3b
-           thresholds on CRPS@240h in every model (Aurora 37.9 vs 41.8;
-           GraphCast 40.5 vs 45.8; SFNO 36.8 vs 50.8).
+           $\lambda \gtrsim 3000$~km (Aurora \texttt{enc\_2} = U-net bottom
+           \texttt{encoder\_layers.2}; GraphCast \texttt{n\_coarse\_42} =
+           activation hook on the first 42 mesh nodes; SFNO
+           \texttt{Lcut\_10} = spectral modes $\ell<10$). Phase 3b sweeps
+           the spatial-reach threshold at $\sqrt{N}$ sigma; each Phase 3b
+           row shows the Phase 3 winner alongside the two Phase 3b
+           configurations for direct comparison, with bold marking the
+           overall coarse-scale winner per model. The narrower Phase 3 hook
+           beats the broader Phase 3b thresholds on CRPS@240h in every model
+           (Aurora 37.9 vs 41.8; GraphCast 40.5 vs 45.8; SFNO 36.8 vs 50.8).
            \textbf{Bold} marks the within-phase per-model winner declared by
            the evaluation pipeline ([scripts/evaluate\_ablation.sh] table
            \texttt{ALLPHASES\_PHASE*}); for Phase 2 both the winning layer
@@ -95,23 +97,18 @@
 
     \rowcolor{phaseBg}
     \multicolumn{4}{@{}l}{\textbf{Phase 3} \ \  coarse-scale perturbation} \\
-    & \mbadge{auroraC}{aurora}     & U-net bottom                & 0.026 / 0.05 / 0.15 / \textbf{0.40} / 0.80 / 1.50 \\
+    & \mbadge{auroraC}{aurora}     & \texttt{enc\_2}                                       & 0.026 / 0.05 / 0.15 / \textbf{0.40} / 0.80 / 1.50 \\
     \rowcolor{altRow}
-    & \mbadge{graphcastC}{graphcast} & first 42 mesh nodes       & 0.01 / 0.03 / 0.10 / 0.312 / 0.60 / \textbf{1.00} / 1.80 \\
-    & \mbadge{sfnoC}{sfno}         & coarse modes $\ell<10$      & 0.049 / 0.10 / \textbf{0.25} \,\winner\ / 0.60 \\
+    & \mbadge{graphcastC}{graphcast} & \texttt{n\_coarse\_42}                              & 0.01 / 0.03 / 0.10 / 0.312 / 0.60 / \textbf{1.00} / 1.80 \\
+    & \mbadge{sfnoC}{sfno}         & \texttt{Lcut\_10}                                     & 0.049 / 0.10 / \textbf{0.25} \,\winner\ / 0.60 \\
     \midrule
 
     \rowcolor{phaseBg}
-    \multicolumn{4}{@{}l}{\textbf{Phase 3b} \ \  spatial-reach threshold sweep (Phase 3 winner shown for each model)} \\
-    & \mbadge{auroraC}{aurora}     & \emph{Phase 3 ref:} U-net bottom            & \emph{0.40} \\
+    \multicolumn{4}{@{}l}{\textbf{Phase 3b} \ \  spatial-reach threshold sweep (Phase 3 winner shown inline)} \\
+    & \mbadge{auroraC}{aurora}     & \textbf{\texttt{enc\_2}} / \texttt{enc\_12} / \texttt{enc\_012}                              & \textbf{0.40} / 0.017 / 0.015 \\
     \rowcolor{altRow}
-    & \mbadge{auroraC}{aurora}     & \texttt{enc\_12} / \texttt{enc\_012}        & 0.017 / \textbf{0.015} \\
-    & \mbadge{graphcastC}{graphcast} & \emph{Phase 3 ref:} first 42 mesh nodes   & \emph{1.00} \\
-    \rowcolor{altRow}
-    & \mbadge{graphcastC}{graphcast} & $n_{\text{coarse}}{=}162$ / $n_{\text{coarse}}{=}642$ & \textbf{0.159} / 0.080 \\
-    & \mbadge{sfnoC}{sfno}         & \emph{Phase 3 ref:} coarse modes $\ell<10$  & \emph{0.25} \\
-    \rowcolor{altRow}
-    & \mbadge{sfnoC}{sfno}         & $L_{\text{cut}}{=}20$ / $L_{\text{cut}}{=}40$ & \textbf{0.035} / 0.025 \\
+    & \mbadge{graphcastC}{graphcast} & \textbf{\texttt{n\_coarse\_42}} / \texttt{n\_coarse\_162} / \texttt{n\_coarse\_642}        & \textbf{1.00} / 0.159 / 0.080 \\
+    & \mbadge{sfnoC}{sfno}         & \textbf{\texttt{Lcut\_10}} / \texttt{Lcut\_20} / \texttt{Lcut\_40}                          & \textbf{0.25} / 0.035 / 0.025 \\
     \bottomrule
   \end{tabular}
 \end{table}
