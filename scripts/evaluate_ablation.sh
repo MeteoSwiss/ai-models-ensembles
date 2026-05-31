@@ -321,8 +321,8 @@ PROB_MODULES="prob"
 # phase3 and phase3b to pull the Phase 2 winner as a context panel.
 #
 # IMPORTANT: PHASE2_BEST_LOC tells the script which sub-phase to source the
-# tag from (phase2 sqrt-N anchor vs phase2c sigma-sweep refinement). Aurora's
-# actual best is Phase 2c sigma=0.025; SFNO's actual best is the Phase 2
+# tag from (phase2 sqrt-N anchor vs phase2b sigma-sweep refinement). Aurora's
+# actual best is Phase 2b sigma=0.025; SFNO's actual best is the Phase 2
 # sqrt-N anchor; GraphCast's overall best is Phase 1 mag_0.01_layer_all
 # (which is already pulled as a reference panel for every phase2+ intercomp,
 # so PHASE2_BEST_TAG[graphcast] still points at the Phase 2 m2g sqrt-N anchor
@@ -333,7 +333,7 @@ declare -A PHASE2_BEST_TAG=(
     [sfno]=mag_0.053852_layer_encoder
 )
 declare -A PHASE2_BEST_LOC=(
-    [aurora]=phase2c
+    [aurora]=phase2b
     [graphcast]=phase2
     [sfno]=phase2
 )
@@ -360,7 +360,7 @@ declare -A ALLPHASES_PHASE2=(
     [graphcast]=mag_0.029665_layer_m2g
     [sfno]=mag_0.053852_layer_encoder
 )
-declare -A ALLPHASES_PHASE2C=(
+declare -A ALLPHASES_PHASE2B=(
     [aurora]=mag_0.025_layer_encoder
     [graphcast]=mag_0.014_layer_g2m
     [sfno]=mag_0.053852_layer_encoder
@@ -457,13 +457,13 @@ run_intercompare() {
                 echo "  WARN $model: PHASE2_BEST_TAG '${p2_best}' not found at $p2_eval"
             fi
         fi
-        # phase2c: sigma sweep around Phase 2 winners. Pull ALL Phase 2 eval
+        # phase2b: sigma sweep around Phase 2 winners. Pull ALL Phase 2 eval
         # dirs (the sqrt(N) baselines) so the intercomp shows the existing
         # anchor + the new sigmas side-by-side. Always pulls from the literal
         # phase2/ directory regardless of PHASE2_BEST_LOC (which may point at
-        # phase2c for a model whose Phase 2c winner is the "best Phase 2").
+        # phase2b for a model whose Phase 2b winner is the "best Phase 2").
         local p2_eval_literal="$STORE/ablation/phase2/${model_id}/eval"
-        if [[ "$phase" == "phase2c" && -d "$p2_eval_literal" ]]; then
+        if [[ "$phase" == "phase2b" && -d "$p2_eval_literal" ]]; then
             for d in "$p2_eval_literal"/*/; do
                 [[ -d "$d" ]] || continue
                 with_mag0+=("$d")
@@ -552,7 +552,7 @@ run_allphases_intercompare() {
         declare -A srcs=(
             [phase1]="${ALLPHASES_PHASE1[$model]}"
             [phase2]="${ALLPHASES_PHASE2[$model]}"
-            [phase2c]="${ALLPHASES_PHASE2C[$model]}"
+            [phase2b]="${ALLPHASES_PHASE2B[$model]}"
             [phase3]="${ALLPHASES_PHASE3[$model]}"
             [phase3b]="${ALLPHASES_PHASE3B[$model]}"
         )
@@ -564,7 +564,7 @@ run_allphases_intercompare() {
         [[ -d "$mag0_p1" ]] && with_mag0+=("$mag0_p1")
 
         # Add per-phase winners
-        for phase in phase1 phase2 phase2c phase3 phase3b; do
+        for phase in phase1 phase2 phase2b phase3 phase3b; do
             local tag="${srcs[$phase]}"
             [[ -z "$tag" ]] && continue
             local d="$STORE/ablation/${phase}/${model_id}/eval/${tag}/"
@@ -615,7 +615,7 @@ PHASE_OR_MODEL="${2:-}"
 MODEL_FILTER="${3:-}"
 
 case "$ACTION" in
-    phase1|phase2|phase2b|phase2c|phase3|phase3b)
+    phase1|phase2|phase2b|phase3|phase3b)
         run_eval_phase "$ACTION" "$PHASE_OR_MODEL"
         ;;
     intercompare)
@@ -626,8 +626,8 @@ case "$ACTION" in
         ;;
     *)
         echo "Usage:"
-        echo "  $0 {phase1|phase2|phase2b|phase2c|phase3|phase3b} [model]                # evaluate runs"
-        echo "  $0 intercompare {phase1|phase2|phase2b|phase2c|phase3|phase3b} [model]   # per-phase intercomp"
+        echo "  $0 {phase1|phase2|phase2b|phase3|phase3b} [model]                # evaluate runs"
+        echo "  $0 intercompare {phase1|phase2|phase2b|phase3|phase3b} [model]   # per-phase intercomp"
         echo "  $0 allphases_intercompare [model]                                        # final cross-phase summary"
         exit 1
         ;;

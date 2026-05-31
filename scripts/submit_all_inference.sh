@@ -71,7 +71,7 @@ fi
 # Probabilistic baselines + post-hoc perturbation baselines (one per det model).
 # Perturbation recipes are the user's picks after inspecting all phase
 # (1, 2, 2c, 3, 3b) ablation intercomps. See [[calibration-winners]] in memory.
-#   aurora_encoder: layer-group encoder,    sigma=0.025  (Phase 2c)
+#   aurora_encoder: layer-group encoder,    sigma=0.025  (Phase 2b)
 #   graphcast_all:  layer all (no targeting), sigma=0.01 (Phase 1)
 #   sfno_modes10:   coarse-modes l<10,      sigma=0.25   (Phase 3)
 MODELS="fcn3 atlas aifsens sfno_modes10 aurora_encoder graphcast_all"

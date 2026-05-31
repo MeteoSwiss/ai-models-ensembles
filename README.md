@@ -80,12 +80,12 @@ empirically from the cross-phase intercomparison plots
 
 ![Phase 3 schematic](figures/phase3_schematic.png)
 
-### Phase 2c — sigma sweep around Phase 2 winners
+### Phase 2b — sigma sweep around Phase 2 winners
 
-Phase 2c brackets each model's Phase 2 winning layer group with 4 extra
+Phase 2b brackets each model's Phase 2 winning layer group with 4 extra
 sigma points (e.g. Aurora encoder {0.025, 0.060}; GraphCast g2m {0.014,
 0.045}; SFNO encoder {0.035, 0.080}) to characterize the CRPS-vs-σ curve
-near the SSR=1 crossing. Outputs at `phase2c/<model>/intercomparison/`.
+near the SSR=1 crossing. Outputs at `phase2b/<model>/intercomparison/`.
 
 ### Phase 3b — orthogonal threshold sweep at sqrt(N) σ
 
@@ -119,8 +119,8 @@ diagnostic ([tools/dump_*_keys.py](tools/),
 
 | Model | Mechanism | Layer/scale | σ | CRPS | SSR | Source |
 |---|---|---|---|---|---|---|
-| Aurora | layer_group | `encoder` (input projection) | 0.025 | 46.4 | 1.05 | Phase 2c |
-| GraphCast | layer_group | `g2m` (grid-to-mesh encoder) | 0.014 | 44.4 | 1.27 | Phase 2c |
+| Aurora | layer_group | `encoder` (input projection) | 0.025 | 46.4 | 1.05 | Phase 2b |
+| GraphCast | layer_group | `g2m` (grid-to-mesh encoder) | 0.014 | 44.4 | 1.27 | Phase 2b |
 | SFNO | coarse_modes | spectral degree `l < 10` | 0.25 | 46.8 | 1.09 | Phase 3 |
 
 Two of three models reward architectural targeting of the input
@@ -236,11 +236,11 @@ ai-ens models
 bash scripts/submit_all_inference.sh                          # all baselines (trained + perturbation)
 bash scripts/submit_all_inference.sh aurora_encoder           # single baseline
 PER_INIT=1 bash scripts/submit_all_inference.sh sfno_modes10  # one sbatch per init (multi-GPU SIGSEGV escape hatch)
-bash scripts/submit_ablation.sh {phase1|phase2|phase2c|phase3|phase3b} [model]   # weight-perturbation ablation
+bash scripts/submit_ablation.sh {phase1|phase2|phase2b|phase3|phase3b} [model]   # weight-perturbation ablation
 bash scripts/evaluate_baselines.sh all [model]                                   # per-module eval (default; 7 sbatch per model)
 bash scripts/evaluate_baselines.sh intercompare                                  # cross-model baseline intercomp
-bash scripts/evaluate_ablation.sh {phase1|phase2|phase2c|phase3|phase3b} [model] # SwissClim verification
-bash scripts/evaluate_ablation.sh intercompare {phase1|phase2|phase2c|phase3|phase3b} [model]
+bash scripts/evaluate_ablation.sh {phase1|phase2|phase2b|phase3|phase3b} [model] # SwissClim verification
+bash scripts/evaluate_ablation.sh intercompare {phase1|phase2|phase2b|phase3|phase3b} [model]
 bash scripts/evaluate_ablation.sh allphases_intercompare [model]                 # cross-phase summary
 ```
 
@@ -351,7 +351,7 @@ $STORE/
   │  │  └─ <YYYYMMDD_HHMM>/forecast.zarr
   │  └─ intercomparison/                                    # cross-model plots
   └─ ablation/
-     ├─ <phase>/<model_id>/                                 # phase in {phase1,phase2,phase2c,phase3,phase3b}
+     ├─ <phase>/<model_id>/                                 # phase in {phase1,phase2,phase2b,phase3,phase3b}
      │  ├─ <init_tag>/<run_tag>/forecast.zarr               # per-run forecast
      │  ├─ eval/<run_tag>/                                  # SwissClim eval modules
      │  │  ├─ maps/  wd_kde/  energy_spectra/  multivariate/
