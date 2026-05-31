@@ -59,14 +59,16 @@
            \textbf{Bold} marks the within-phase per-model winner declared by
            the evaluation pipeline ([scripts/evaluate\_ablation.sh] table
            \texttt{ALLPHASES\_PHASE*}); for Phase 2 both the winning layer
-           group and its sigma are bolded. $^{\dagger}$Phase 2 was extended
-           with a finer-grid sigma sweep (Phase 2c, 12 experiments total) on
-           the top two Phase 2 layer groups per model: aurora
-           encoder + decoder, graphcast g2m + m2g, sfno encoder + decoder.
-           The dagger marks the two cases where the refined sigma beat the
-           $\sqrt{N}$ anchor: Aurora encoder (anchor 0.044 -> refined 0.025)
-           and GraphCast g2m (anchor 0.027 -> refined 0.014). For SFNO the
-           $\sqrt{N}$ anchor (0.054 encoder) remained the Phase 2c winner.
+           group and its sigma are bolded. In the Phase 2 sigma column the
+           values within each layer group are listed comma-separated and
+           the layer groups are slash-separated; the $\sqrt{N}$ anchor sits
+           in the middle of each per-group list, flanked by the Phase 2c
+           finer-grid refinements (12 experiments total across the top two
+           Phase 2 layer groups per model). The $^{\dagger}$ dagger marks
+           the two cases where a refined sigma beat the $\sqrt{N}$ anchor:
+           Aurora encoder (anchor 0.044 -> refined 0.025) and GraphCast g2m
+           (anchor 0.027 -> refined 0.014). For SFNO the $\sqrt{N}$ anchor
+           (0.054 encoder) remained the Phase 2 + 2c winner.
            \winner\ marks the per-model
            winner across all phases that became the production perturbation
            baseline (Tab.~\ref{tab:baselines}). A GraphCast frozen-per-member
@@ -91,11 +93,11 @@
     \midrule
 
     \rowcolor{phaseBg}
-    \multicolumn{4}{@{}l}{\textbf{Phase 2} \ \  layer-group sweep} \\
-    & \mbadge{auroraC}{aurora}     & \textbf{encoder}$^{\dagger}$ / backbone / decoder & \textbf{0.025}$^{\dagger}$ / 0.010 / 0.062 \,\winner \\
+    \multicolumn{4}{@{}l}{\textbf{Phase 2} \ \  layer-group sweep ($\sqrt{N}$ anchor) and Phase 2c finer-grid refinement on the top two groups} \\
+    & \mbadge{auroraC}{aurora}     & \textbf{encoder}$^{\dagger}$ / backbone / decoder & \textbf{0.025}$^{\dagger}$, 0.044, 0.060 / 0.010 / 0.040, 0.062, 0.085 \,\winner \\
     \rowcolor{altRow}
-    & \mbadge{graphcastC}{graphcast} & \textbf{g2m}$^{\dagger}$ / m2m / m2g            & \textbf{0.014}$^{\dagger}$ / 0.012 / 0.030 \\
-    & \mbadge{sfnoC}{sfno}         & \textbf{encoder} / processor / decoder           & \textbf{0.054} / 0.010 / 0.054 \\
+    & \mbadge{graphcastC}{graphcast} & \textbf{g2m}$^{\dagger}$ / m2m / m2g            & \textbf{0.014}$^{\dagger}$, 0.027, 0.045 / 0.012 / 0.018, 0.030, 0.050 \\
+    & \mbadge{sfnoC}{sfno}         & \textbf{encoder} / processor / decoder           & 0.035, \textbf{0.054}, 0.080 / 0.010 / 0.054, 0.075, 0.100 \\
     \rowcolor{altRow}
     & \mbadge{aifsC}{aifs}         & encoder / processor / decoder                   & 0.027 / 0.012 / 0.028 \,(pending) \\
     \midrule
