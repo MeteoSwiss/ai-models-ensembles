@@ -59,10 +59,15 @@
            \textbf{Bold} marks the within-phase per-model winner declared by
            the evaluation pipeline ([scripts/evaluate\_ablation.sh] table
            \texttt{ALLPHASES\_PHASE*}); for Phase 2 both the winning layer
-           group and its sigma are bolded. $^{\dagger}$Aurora's encoder
-           sigma and GraphCast's g2m sigma were further refined on a finer
-           grid below the $\sqrt{N}$ anchors (Aurora encoder 0.044 -> 0.025;
-           GraphCast g2m 0.027 -> 0.014). \winner\ marks the per-model
+           group and its sigma are bolded. $^{\dagger}$Phase 2 was extended
+           with a finer-grid sigma sweep (Phase 2c, 12 experiments total) on
+           the top two Phase 2 layer groups per model: aurora
+           encoder + decoder, graphcast g2m + m2g, sfno encoder + decoder.
+           The dagger marks the two cases where the refined sigma beat the
+           $\sqrt{N}$ anchor: Aurora encoder (anchor 0.044 -> refined 0.025)
+           and GraphCast g2m (anchor 0.027 -> refined 0.014). For SFNO the
+           $\sqrt{N}$ anchor (0.054 encoder) remained the Phase 2c winner.
+           \winner\ marks the per-model
            winner across all phases that became the production perturbation
            baseline (Tab.~\ref{tab:baselines}). A GraphCast frozen-per-member
            pilot at $\sigma=1.0$ was run alongside Phase 3 as a diagnostic
