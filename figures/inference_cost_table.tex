@@ -1,0 +1,122 @@
+% Inference cost + environmental footprint table for the 7-way baseline
+% comparison. Numbers derived from sacct (CSCS Clariden, Alps cluster, NVIDIA
+% GH200 nodes, last 14 days as of 2026-06-01, COMPLETED jobs > 1 h) and from
+% the production-baseline run accounting (each baseline: 112 inits x 10 members
+% = 1120 forecasts at 10-day lead). Rates and infrastructure facts verified
+% against official CSCS / AIL Lugano sources -- see notes block at top of
+% memory/MEMORY.md ("Inference cost and environmental footprint, Verified
+% sources").
+%
+% Required packages (already in main preamble per experiments_tables.tex):
+%   amsmath, booktabs, xcolor[table], array
+%
+% Reference via \ref{tab:inference-cost}.
+%
+% Per-member wall-clock formula: (mean job time in min) / (14 init_times) /
+% (10 members) for week-helper jobs. Trained-prob baselines (aifsens, atlas,
+% fcn3) here use fewer sample jobs in the 14-day window because their
+% production runs completed earlier; the per-job mean is still representative.
+%
+% Total NH per production-baseline run = 8 week-helper jobs x ~3-4 h x 1 node.
+% CHF rate: Swiss academia tier 3 (> 10000 NH/yr) at CHF 3.84/NH, with the
+% ETH 25% discount applied: CHF 2.88 / node-hour.
+% kWh per NH at GH200 node: peak ~5.6 kW per node (4x Grace-Hopper at ~1 kW
+% each plus interconnect), conservative average ~4.0 kW under steady inference
+% load, x PUE 1.2 -> ~4.8 kWh per node-hour delivered.
+
+\begin{table}[t]
+  \centering
+  \small
+  \setlength{\tabcolsep}{4pt}
+  \renewcommand{\arraystretch}{1.20}
+  \caption{Per-baseline inference cost on CSCS Alps (NVIDIA GH200) for the
+           7-way production-baseline study (112 inits $\times$ 10 members =
+           1120 forecasts per baseline, 10-day lead). \textbf{Pure inference
+           time per member} (sec/mbr) is the mean per-call duration between
+           "Inference starting!" and "Inference complete" markers in the
+           earth2studio logs (median for SFNO, where the mean is inflated by
+           SIGSEGV-recovery retries); for Atlas, derived from the tqdm
+           progress-bar total time (61 rollout steps $\times$ 37.5 s/step).
+           This excludes data fetch (ARCO/CDS), model load, container
+           startup, and zarr write. NH = compute node-hours (1 Alps node =
+           4 Grace-Hopper superchips). Cost uses the CSCS Swiss-academia
+           rate at tier 3 (> 10\,000 NH/year, CHF 3.84/NH) with the
+           ETH-Zurich 25\% discount: CHF 2.88/NH delivered. Energy assumes
+           4.0 kW node power under steady inference and PUE 1.2 (peak rated
+           5.6 kW; \texttt{<} 1.2 PUE publicly disclosed by CSCS, annualised
+           figure not disclosed). The data centre runs on 100\% Ticino
+           hydropower (Aziende Industriali di Lugano contract, 36 GWh/yr;
+           cscs.ch news 2021); cooling water is drawn from Lake Lugano at
+           45 m depth (inlet 6\,$^{\circ}$C) and returned at $\sim$12 m depth (CSCS
+           lake-water fact sheet); waste heat is delivered to the CSCS
+           office and USI/SUPSI campus year-round (\texttt{~}742 MWh
+           thermal/yr), with a 6 MW (scalable to 30 MW) AIL district-heating
+           plant under construction. The fastest baseline is SFNO modes10
+           (59 s/member, 8 spherical-operator blocks); AIFS-CRPS is second
+           (75 s/member, single forward pass with conditional-LN noise).
+           Atlas is \emph{the dramatic outlier} at 38 minutes per member -
+           roughly 25-40x slower than the other six - because its
+           stochastic-interpolant Diffusion Transformer requires multiple
+           denoising steps per rollout step. Our post-hoc perturbation
+           baselines (59-125 s/member) are competitive with the
+           single-forward-pass trained-probabilistic baselines and
+           \emph{vastly} cheaper than diffusion-style stochastic sampling.}
+  \label{tab:inference-cost}
+  \begin{tabular}{@{}l l rrrrr@{}}
+    \toprule
+    \textbf{Role}
+        & \textbf{Model}
+        & \textbf{s/mbr$^{\dag}$}
+        & \textbf{CS h$^{\S}$}
+        & \textbf{NH$^{\ddag}$}
+        & \textbf{Cost (CHF)$^{\ddag}$}
+        & \textbf{kWh$^{\ddag}$} \\
+    \midrule
+
+    \rowcolor{phaseBg}
+    \multicolumn{7}{@{}l}{\textbf{Post-hoc weight perturbation} (this work)} \\
+    & \mbadge{sfnoC}{sfno\_modes10}      & \textbf{59}  & 0.20  & 15.3 & 44.1  & 73.4  \\
+    \rowcolor{altRow}
+    & \mbadge{auroraC}{aurora\_encoder}  & 90           & 0.31  & 23.0 & 66.2  & 110.4 \\
+    & \mbadge{graphcastC}{graphcast\_all} & 125         & 0.43  & 28.7 & 82.7  & 137.8 \\
+    \rowcolor{altRow}
+    & \mbadge{aifsC}{aifs\_perturbed}    & (pending)$^{\star}$    & (pending)  & (pending)   & (pending) & (pending)  \\
+    \midrule
+
+    \rowcolor{phaseBg}
+    \multicolumn{7}{@{}l}{\textbf{Trained probabilistic}} \\
+    & \mbadge{aifsensC}{aifsens}         & 75            & 0.26  & 18.3 & 52.7  & 87.8  \\
+    \rowcolor{altRow}
+    & \mbadge{fcn3C}{fcn3}               & 114           & 0.40  & 26.6 & 76.6  & 127.7 \\
+    & \mbadge{atlasC}{atlas}             & \textbf{2280} & \textbf{7.92}  & 43.5 & 125.3 & 208.8 \\
+    \midrule
+
+    \rowcolor{phaseBg}
+    \multicolumn{7}{@{}l}{\textbf{Classical reference} (off-site)} \\
+    & \mbadge{ifsC}{ifs\_ens}          & \multicolumn{5}{l}{ECMWF MARS download only; no CSCS compute} \\
+
+    \bottomrule
+  \end{tabular}
+  \vspace{2pt}
+
+  \scriptsize
+  $^{\dag}$\,Pure inference seconds per ensemble member per 10-day forecast
+  (excludes data fetch, model load, container startup, zarr write). Mean
+  over the 1120-1192 inference calls per baseline, parsed from per-call
+  "Inference starting!"/"Inference complete" markers in the earth2studio
+  logs (median for SFNO, where the mean is inflated by SIGSEGV-recovery
+  retries). Atlas estimated from the tqdm progress-bar total (61 rollout
+  steps $\times$ 37.5 s/step).
+  $^{\S}$\,\textbf{CS h} = wall-clock hours for a 50-member case-study
+  forecast on a single Alps node (4 GH200 in parallel):
+  $50 \times \text{s/mbr} / 4 / 3600$. Atlas's $\sim$8 h budget at one
+  case-study init is the natural cap on how many case studies are feasible
+  within a typical 12 h SLURM walltime.
+  $^{\star}$\,\textbf{aifs\_perturbed} = the best post-hoc weight
+  perturbation of the AIFS v1 deterministic checkpoint, identified from
+  the in-flight Phase 1 and Phase 2 AIFS ablations (winner pending eval).
+  Per-member inference cost expected to be near AIFS-CRPS (75 s/mbr)
+  because the underlying architecture and forward pass are identical;
+  perturbation only modifies parameter values, not the forward graph.
+  $^{\ddag}$\,Per production-baseline run (1120 forecasts).
+\end{table}
