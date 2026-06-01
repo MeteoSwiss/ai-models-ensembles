@@ -149,7 +149,14 @@ def _model_for_member(
 
         _install_coarse_gc(graph_coarse_sigma, graph_coarse_nodes)
 
-    if weight_magnitude <= 0:
+    # SFNO Phase 6 fresh-per-step: skip the checkpoint perturbation entirely
+    # so the model loads with default weights, and let the forward-pre-hook
+    # in sfno_fresh_perturbation install the fresh noise per AR step.
+    import os as _os_fresh
+
+    _sfno_fresh_active = _os_fresh.environ.get("SFNO_FRESH", "0") == "1" and model_name == "sfno"
+
+    if weight_magnitude <= 0 or _sfno_fresh_active:
         model, _ = load_model(model_name)
     else:
         pkg_dir = work_dir / f"weights_member_{member_id:03d}"
@@ -178,6 +185,19 @@ def _model_for_member(
             from . import graphcast_coarse_perturbation as _gc_pert
 
             _gc_pert._FROZEN_MEMBER_KEY = jax.random.PRNGKey(seed + member_id)
+
+    # SFNO Phase 6 fresh-per-step weight perturbation, gated by SFNO_FRESH=1.
+    # Sigma comes from SFNO_FRESH_SIGMA, mode_cut from SFNO_FRESH_MODE_CUT.
+    # When this branch fires, the checkpoint perturbation upstream is skipped
+    # by the inference driver (it sets coarse_mode_cut=None in the perturb
+    # call but keeps it here so the hook still knows where the mode boundary
+    # is). See [[phase6-fresh-per-step-weight]].
+    import os as _os2
+
+    if _os2.environ.get("SFNO_FRESH", "0") == "1":
+        from . import sfno_fresh_perturbation as _sfno_fresh
+
+        _sfno_fresh.maybe_install_from_env(model, seed + member_id)
     return model
 
 

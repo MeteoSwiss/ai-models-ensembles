@@ -84,7 +84,7 @@
     & \mbadge{auroraC}{aurora\_encoder}   & 1.3 B  & 5.2  & 13  & 90            & 0.31  & 23.0 & 66.2  & 110.4 \\
     & \mbadge{graphcastC}{graphcast\_all}  & 37 M   & 0.15 & 22  & 125           & 0.43  & 28.7 & 82.7  & 137.8 \\
     \rowcolor{altRow}
-    & \mbadge{aifsC}{aifs\_perturbed}$^{\star\star}$ & 255 M & 1.0 & 11 & $\sim$75 & $\sim$0.26 & (pending) & (pending) & (pending) \\
+    & \mbadge{aifsC}{aifs\_perturbed}$^{\star\star}$ & 255 M & 1.0 & 11 & $\sim$75 & $\sim$0.26 & $\sim$18 & $\sim$52 & $\sim$88 \\
     \midrule
 
     \rowcolor{phaseBg}
@@ -116,12 +116,16 @@
   $50 \times \text{s/mbr} / 4 / 3600$. Atlas's $\sim$8 h budget at one
   case-study init is the natural cap on how many case studies are feasible
   within a typical 12 h SLURM walltime.
-  $^{\star\star}$\,\textbf{aifs\_perturbed} = the best post-hoc weight
-  perturbation of the AIFS v1 deterministic checkpoint, identified from
-  the in-flight Phase 1 and Phase 2 AIFS ablations (winner pending eval).
-  Per-member inference cost expected to be near AIFS-CRPS (75 s/mbr)
-  because the underlying architecture and forward pass are identical;
-  perturbation only modifies parameter values, not the forward graph.
+  $^{\star\star}$\,\textbf{aifs\_perturbed} = post-hoc weight perturbation of
+  the AIFS v1 deterministic checkpoint at the per-phase winner
+  identified by AIFS Phase 1 + Phase 2 ablations (verified 2026-06-01):
+  Phase 1 \texttt{mag\_0.01\_layer\_all} chosen as the production baseline
+  on the same multi-metric rule as GraphCast (Phase 2
+  \texttt{decoder@0.0275} wins CRPS at all leads but is over-dispersed at
+  SSR 1.23 vs Phase 1's 0.83 at lead 240 h). Production-baseline run
+  (1120 forecasts) is pending; the per-member, CS h, NH, CHF, kWh values
+  here are estimates from the AIFS-CRPS architectural twin (same forward
+  graph, parameters perturbed but not retrained).
 
   $^{\#}$\,Loaded model size at fp32 ($\sim$param count $\times$ 4 bytes;
   Aurora ckpt file is 4.68 GB at fp32; AIFS .ckpt is anemoi-packaged so
