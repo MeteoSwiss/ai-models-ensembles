@@ -62,38 +62,42 @@
            single-forward-pass trained-probabilistic baselines and
            \emph{vastly} cheaper than diffusion-style stochastic sampling.}
   \label{tab:inference-cost}
-  \begin{tabular}{@{}l l rrrrr@{}}
+  \begin{tabular}{@{}l l r r r r r r r r@{}}
     \toprule
     \textbf{Role}
         & \textbf{Model}
+        & \textbf{Params}
+        & \textbf{Mem$^{\#}$}
+        & \textbf{Train$^{\ast}$}
         & \textbf{s/mbr$^{\dag}$}
         & \textbf{CS h$^{\S}$}
         & \textbf{NH$^{\ddag}$}
-        & \textbf{Cost (CHF)$^{\ddag}$}
+        & \textbf{CHF$^{\ddag}$}
         & \textbf{kWh$^{\ddag}$} \\
+     &  & & \textbf{(GB)} & \textbf{(K GPU-h)} &  &  &  &  &  \\
     \midrule
 
     \rowcolor{phaseBg}
-    \multicolumn{7}{@{}l}{\textbf{Post-hoc weight perturbation} (this work)} \\
-    & \mbadge{sfnoC}{sfno\_modes10}      & \textbf{59}  & 0.20  & 15.3 & 44.1  & 73.4  \\
+    \multicolumn{10}{@{}l}{\textbf{Post-hoc weight perturbation} (this work) -- shares the underlying deterministic-checkpoint training cost; \emph{zero marginal training cost} for the perturbation itself} \\
+    & \mbadge{sfnoC}{sfno\_modes10}       & 573 M  & 2.3  & 4   & \textbf{59}   & 0.20  & 15.3 & 44.1  & 73.4  \\
     \rowcolor{altRow}
-    & \mbadge{auroraC}{aurora\_encoder}  & 90           & 0.31  & 23.0 & 66.2  & 110.4 \\
-    & \mbadge{graphcastC}{graphcast\_all} & 125         & 0.43  & 28.7 & 82.7  & 137.8 \\
+    & \mbadge{auroraC}{aurora\_encoder}   & 1.3 B  & 5.2  & 13  & 90            & 0.31  & 23.0 & 66.2  & 110.4 \\
+    & \mbadge{graphcastC}{graphcast\_all}  & 37 M   & 0.15 & 22  & 125           & 0.43  & 28.7 & 82.7  & 137.8 \\
     \rowcolor{altRow}
-    & \mbadge{aifsC}{aifs\_perturbed}    & (pending)$^{\star}$    & (pending)  & (pending)   & (pending) & (pending)  \\
+    & \mbadge{aifsC}{aifs\_perturbed}$^{\star\star}$ & 255 M & 1.0 & 11 & $\sim$75 & $\sim$0.26 & (pending) & (pending) & (pending) \\
     \midrule
 
     \rowcolor{phaseBg}
-    \multicolumn{7}{@{}l}{\textbf{Trained probabilistic}} \\
-    & \mbadge{aifsensC}{aifsens}         & 75            & 0.26  & 18.3 & 52.7  & 87.8  \\
+    \multicolumn{10}{@{}l}{\textbf{Trained probabilistic} -- requires a separate stochastic-training run beyond the deterministic baseline} \\
+    & \mbadge{aifsensC}{aifsens}         & 229 M  & 0.9   & 22  & 75            & 0.26  & 18.3 & 52.7  & 87.8  \\
     \rowcolor{altRow}
-    & \mbadge{fcn3C}{fcn3}               & 114           & 0.40  & 26.6 & 76.6  & 127.7 \\
-    & \mbadge{atlasC}{atlas}             & \textbf{2280} & \textbf{7.92}  & 43.5 & 125.3 & 208.8 \\
+    & \mbadge{fcn3C}{fcn3}               & 711 M  & 2.8   & 90  & 114           & 0.40  & 26.6 & 76.6  & 127.7 \\
+    & \mbadge{atlasC}{atlas}             & 4.3 B  & 17    & --$^{\bullet}$ & \textbf{2280} & \textbf{7.92}  & 43.5 & 125.3 & 208.8 \\
     \midrule
 
     \rowcolor{phaseBg}
-    \multicolumn{7}{@{}l}{\textbf{Classical reference} (off-site)} \\
-    & \mbadge{ifsC}{ifs\_ens}          & \multicolumn{5}{l}{ECMWF MARS download only; no CSCS compute} \\
+    \multicolumn{10}{@{}l}{\textbf{Classical reference} (off-site)} \\
+    & \mbadge{ifsC}{ifs\_ens}          & n/a    & --   & --  & \multicolumn{5}{l}{ECMWF MARS download only; no CSCS compute} \\
 
     \bottomrule
   \end{tabular}
@@ -112,11 +116,41 @@
   $50 \times \text{s/mbr} / 4 / 3600$. Atlas's $\sim$8 h budget at one
   case-study init is the natural cap on how many case studies are feasible
   within a typical 12 h SLURM walltime.
-  $^{\star}$\,\textbf{aifs\_perturbed} = the best post-hoc weight
+  $^{\star\star}$\,\textbf{aifs\_perturbed} = the best post-hoc weight
   perturbation of the AIFS v1 deterministic checkpoint, identified from
   the in-flight Phase 1 and Phase 2 AIFS ablations (winner pending eval).
   Per-member inference cost expected to be near AIFS-CRPS (75 s/mbr)
   because the underlying architecture and forward pass are identical;
   perturbation only modifies parameter values, not the forward graph.
+
+  $^{\#}$\,Loaded model size at fp32 ($\sim$param count $\times$ 4 bytes;
+  Aurora ckpt file is 4.68 GB at fp32; AIFS .ckpt is anemoi-packaged so
+  raw param-byte estimate undercounts by metadata overhead, $\sim$10\%).
+
+  $^{\ast}$\,Single-pass training cost in thousands of GPU-hours, as
+  reported by the source paper / model card. Aurora 13K A100-h
+  (pretraining 32 $\times$ A100, $\sim$2.5 weeks; fine-tuning not separately
+  documented; arXiv:2405.13063). GraphCast 22K TPU v4-hours (32 TPU
+  $\times$ 4 weeks; arXiv:2212.12794). SFNO 4K A100-h for the 73-channel
+  production checkpoint (256 A100 $\times$ 16 h; reported in Mahesh
+  \& Pathak arXiv:2408.03100, not in the original ICML Bonev et al.\
+  2023 paper which describes the architecture). AIFS v1 11K A100-h
+  (64 A100 40 GB $\times$ 1 week; arXiv:2406.01465). AIFS-CRPS 22K H100-h
+  (128 H100 64 GB $\times$ 7 days, N320 config; arXiv:2412.15832 Table 3).
+  FCN3 90K H100-h (Phase 1 only: 1024 H100 $\times$ 78 h; the full
+  three-stage training is more; arXiv:2507.12144).
+
+  $^{\bullet}$\,Atlas training cost is not documented on the model card
+  ([huggingface.co/nvidia/atlas-era5](https://huggingface.co/nvidia/atlas-era5)).
+  The benchmark paper arXiv:2601.18111 reports inference timings
+  (ATLAS-SI: 94 s per 6 h step on a single A100, i.e.\ 63 min for a
+  10-day forecast) but does not give training cost. Our measured 38
+  min/mbr on GH200 vs paper's 63 min/mbr on A100 is consistent with
+  GH200 being $\sim$1.5x faster than A100 at this workload, so our setup
+  is NOT pathologically slow -- the cost is structural to the
+  stochastic-interpolant DiT's multi-step sampling. NVIDIA also ships
+  a faster ATLAS-CRPS variant (3.3 s per 6 h step, 28x faster than
+  ATLAS-SI) but it is a separately-trained CRPS-loss model rather than
+  a hyperparameter switch on the same checkpoint.
   $^{\ddag}$\,Per production-baseline run (1120 forecasts).
 \end{table}
