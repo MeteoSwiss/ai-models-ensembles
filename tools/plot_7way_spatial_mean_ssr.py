@@ -37,8 +37,10 @@ TRAINED = {
 
 VARS_PLOT = [
     "2m_temperature",
+    "mean_sea_level_pressure",
     "geopotential",
     "temperature",
+    "u_component_of_wind",
     "v_component_of_wind",
     "specific_humidity",
 ]
@@ -58,7 +60,7 @@ def main() -> None:
     df = load_all()
     df_lvl = df.groupby(["baseline", "variable", "lead_time_hours"])["ssr"].mean().reset_index()
 
-    fig, axs = plt.subplots(2, 3, figsize=(13, 7.5), sharex=True)
+    fig, axs = plt.subplots(2, 4, figsize=(17, 7.5), sharex=True)
     colors_pert = plt.cm.Blues(np.linspace(0.45, 0.95, len(PERTURBED)))
     colors_trnd = plt.cm.Oranges(np.linspace(0.45, 0.95, len(TRAINED)))
 
@@ -93,10 +95,11 @@ def main() -> None:
         ax.set_title(var, fontsize=10)
         ax.grid(alpha=0.3)
 
+    # 8th panel becomes the legend
     for ax in axs.flat[len(VARS_PLOT) :]:
         ax.axis("off")
-
-    axs[0, 0].legend(fontsize=7, loc="best", ncol=2)
+    handles, labels = axs[0, 0].get_legend_handles_labels()
+    axs.flat[len(VARS_PLOT)].legend(handles, labels, fontsize=10, loc="center", frameon=False)
     for ax in axs[1]:
         ax.set_xlabel("Lead time (h)")
     for ax in axs[:, 0]:

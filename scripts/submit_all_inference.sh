@@ -135,7 +135,14 @@ for model in $REQUESTED; do
     fi
 
     # Container mounts -- overlay the installed package with bind-mounted source
-    mounts="${SRC_DIR}:${WORKDIR},${SRC_DIR}/ai_models_ensembles:/usr/local/lib/python3.12/dist-packages/ai_models_ensembles,${STORE}:${STORE}"
+    # Also bind-mount a persistent host dir to /workspace/.cache/earth2studio so
+    # the earth2studio CDS GRIB cache survives across jobs/models. Without this,
+    # each container instance rebuilds the cache from scratch -- and CDS-bound
+    # models (aifsens, aifs_perturbed) re-pull tens of GBs per init from a slow
+    # queue. The host dir is created up front in this script.
+    E2S_CACHE_DIR="/iopsstor/scratch/cscs/sadamov/e2s_cache"
+    mkdir -p "$E2S_CACHE_DIR"
+    mounts="${SRC_DIR}:${WORKDIR},${SRC_DIR}/ai_models_ensembles:/usr/local/lib/python3.12/dist-packages/ai_models_ensembles,${STORE}:${STORE},${E2S_CACHE_DIR}:/workspace/.cache/earth2studio"
     for rc in ~/.cdsapirc ~/.ecmwfapirc; do
         [[ -f "$rc" ]] && mounts+=",${rc}:${rc},${rc}:/root/$(basename "$rc")"
     done

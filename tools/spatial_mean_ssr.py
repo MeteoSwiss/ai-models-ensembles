@@ -141,7 +141,11 @@ def main() -> int:
     p.add_argument("--out-csv", required=True)
     args = p.parse_args()
 
-    truth_parts = [xr.open_zarr(tz, consolidated=False, chunks={}) for tz in args.truth_zarrs]
+    # consolidated=True is required for WB2 2022-2023 / 2024-2025: the raw
+    # zarr hierarchy is missing metadata for `mean_sea_level_pressure` and
+    # `u_component_of_wind`, but the consolidated .zmetadata path has them.
+    # See memory/wb2_truth_zarr_broken_msl_uwind.md.
+    truth_parts = [xr.open_zarr(tz, consolidated=True, chunks={}) for tz in args.truth_zarrs]
     truth_ds = xr.concat(truth_parts, dim="time") if len(truth_parts) > 1 else truth_parts[0]
     # Sort by time so .sel() works deterministically
     truth_ds = truth_ds.sortby("time")
