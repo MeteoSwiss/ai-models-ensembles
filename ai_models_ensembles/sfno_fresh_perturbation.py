@@ -71,19 +71,27 @@ def install_fresh_modes_hooks(
     step_per_module: dict[int, int] = {}
     handles: list = []
 
-    def _make_pre(weight: torch.Tensor):
+    def _make_pre(weight: torch.Tensor, mod_name: str):
         mod_id = id(weight)
         step_per_module[mod_id] = 0
 
         def pre_hook(module, inputs):
             step_per_module[mod_id] += 1
+            step = step_per_module[mod_id]
             saved[mod_id] = weight.data.clone()
-            noise = _seeded_complex_noise(weight, mode_cut, base_seed, step_per_module[mod_id])
-            # cast noise to weight dtype (complex64) and multiply only the
-            # leading mode_cut entries along the last axis
+            noise = _seeded_complex_noise(weight, mode_cut, base_seed, step)
+            pre_slice = weight.data[..., :mode_cut].clone()
             weight.data[..., :mode_cut] = weight.data[..., :mode_cut] * (
                 1.0 + sigma * noise.to(weight.dtype)
             )
+            if step == 1:
+                delta = (weight.data[..., :mode_cut] - pre_slice).abs().mean().item()
+                print(
+                    f"[SFNO_FRESH] PRE_HOOK fired {mod_name} step={step} "
+                    f"|noise|mean={noise.abs().mean().item():.4g} "
+                    f"|delta_weight|mean={delta:.6g}",
+                    flush=True,
+                )
 
         return pre_hook
 
@@ -95,6 +103,7 @@ def install_fresh_modes_hooks(
 
         return post_hook
 
+    matched = []
     for name, module in model.named_modules():
         if not name.endswith(".filter.filter"):
             continue
@@ -103,16 +112,28 @@ def install_fresh_modes_hooks(
         w = module.weight
         if w.shape[-1] < mode_cut:
             raise ValueError(f"{name}.weight last axis = {w.shape[-1]} < mode_cut = {mode_cut}")
-        handles.append(module.register_forward_pre_hook(_make_pre(w)))
+        matched.append((name, tuple(w.shape), w.dtype))
+        handles.append(module.register_forward_pre_hook(_make_pre(w, name)))
         handles.append(module.register_forward_hook(_make_post(w)))
 
     if not handles:
+        # Diagnostic: list every module name so we can see what the SFNO graph
+        # actually exposes when the conventional `.filter.filter` lookup fails.
+        all_names = [n for n, _ in model.named_modules()]
+        sample = [n for n in all_names if "filter" in n.lower()][:30]
         raise RuntimeError(
             "SFNO fresh-perturbation hooks not installed: no `*.filter.filter` "
-            "modules with a `.weight` attribute found in the model. Likely the "
-            "model type is not SFNO."
+            f"modules with a `.weight` attribute found. Total modules in tree: "
+            f"{len(all_names)}. Names containing 'filter' (first 30): {sample}"
         )
 
+    print(
+        f"[SFNO_FRESH] installed {len(matched)} hooks "
+        f"(sigma={sigma}, mode_cut={mode_cut}, base_seed={base_seed}):",
+        flush=True,
+    )
+    for n, s, d in matched:
+        print(f"[SFNO_FRESH]   {n}  shape={s}  dtype={d}", flush=True)
     return handles
 
 

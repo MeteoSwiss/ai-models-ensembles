@@ -285,7 +285,10 @@ def _gpu_worker(
         seed=seed,
         cached_ic=None,
     )
-    if weight_magnitude > 0 or graph_coarse_sigma > 0:
+    import os as _os_gpu
+
+    _sfno_fresh_gpu = _os_gpu.environ.get("SFNO_FRESH", "0") == "1" and model_name == "sfno"
+    if weight_magnitude > 0 or graph_coarse_sigma > 0 or _sfno_fresh_gpu:
         model = _model_for_member(
             model_name=model_name,
             weight_magnitude=weight_magnitude,
@@ -421,7 +424,12 @@ def _run_members_sequential(
 ) -> None:
     # GraphCast Phase 3 (graph_coarse_sigma > 0) needs per-member RNG even
     # though weights are unperturbed, so we cannot use shared_model.
-    use_shared_model = weight_magnitude <= 0 and graph_coarse_sigma <= 0
+    # SFNO Phase 6 fresh-per-step installs per-member forward hooks so it
+    # also needs a fresh model per member.
+    import os as _os_seq
+
+    _sfno_fresh_seq = _os_seq.environ.get("SFNO_FRESH", "0") == "1" and model_name == "sfno"
+    use_shared_model = weight_magnitude <= 0 and graph_coarse_sigma <= 0 and not _sfno_fresh_seq
     shared_model = load_model(model_name)[0] if use_shared_model else None
     cached_ic: xr.Dataset | None = None
     tmp_dir = work_dir / "_seq_members"
