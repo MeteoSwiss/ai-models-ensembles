@@ -74,24 +74,29 @@ fi
 #   aurora_encoder: layer-group encoder,    sigma=0.025  (Phase 2b)
 #   graphcast_all:  layer all (no targeting), sigma=0.01 (Phase 1)
 #   sfno_modes10:   coarse-modes l<10,      sigma=0.25   (Phase 3)
-MODELS="fcn3 atlas aifsens sfno_modes10 aurora_encoder graphcast_all"
+#   aifs_perturbed: layer-group decoder,    sigma=0.0275 (Phase 2)
+MODELS="fcn3 atlas aifsens sfno_modes10 aurora_encoder graphcast_all aifs_perturbed"
 declare -A MODEL_IDS=(
     [fcn3]=fcn3 [atlas]=atlas [aifsens]=aifsens
     [sfno_modes10]=sfno [aurora_encoder]=aurora [graphcast_all]=graphcast_operational
+    [aifs_perturbed]=aifs
 )
 declare -A DATA_SRC=(
     [fcn3]=arco [atlas]=arco [aifsens]=cds
     [sfno_modes10]=arco [aurora_encoder]=arco [graphcast_all]=arco
+    [aifs_perturbed]=cds
 )
 declare -A CONTAINER_BASE=(
     [fcn3]=fcn3 [atlas]=atlas [aifsens]=aifsens
     [sfno_modes10]=sfno [aurora_encoder]=aurora [graphcast_all]=graphcast
+    [aifs_perturbed]=aifs
 )
 # Per-model extra inference flags (post-hoc perturbation recipe per variant).
 declare -A EXTRA_FLAGS=(
     [sfno_modes10]="--weight-magnitude 0.25 --coarse-mode-cut 10"
     [aurora_encoder]="--weight-magnitude 0.025 --layer encoder"
     [graphcast_all]="--weight-magnitude 0.01 --layer all"
+    [aifs_perturbed]="--weight-magnitude 0.0275 --layer decoder"
 )
 # PER_INIT mode (env var, default 0 for all models): submit one sbatch per init
 # instead of a 14-init week-helper. Use when a model exhibits multiprocessing

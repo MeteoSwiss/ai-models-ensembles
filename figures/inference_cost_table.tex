@@ -117,15 +117,16 @@
   case-study init is the natural cap on how many case studies are feasible
   within a typical 12 h SLURM walltime.
   $^{\star\star}$\,\textbf{aifs\_perturbed} = post-hoc weight perturbation of
-  the AIFS v1 deterministic checkpoint at the per-phase winner
-  identified by AIFS Phase 1 + Phase 2 ablations (verified 2026-06-01):
-  Phase 1 \texttt{mag\_0.01\_layer\_all} chosen as the production baseline
-  on the same multi-metric rule as GraphCast (Phase 2
-  \texttt{decoder@0.0275} wins CRPS at all leads but is over-dispersed at
-  SSR 1.23 vs Phase 1's 0.83 at lead 240 h). Production-baseline run
-  (1120 forecasts) is pending; the per-member, CS h, NH, CHF, kWh values
-  here are estimates from the AIFS-CRPS architectural twin (same forward
-  graph, parameters perturbed but not retrained).
+  the AIFS v1 deterministic checkpoint at the per-phase winner identified by
+  AIFS Phase 1 + Phase 2 ablations (verified 2026-06-01): Phase 2
+  \texttt{mag\_0.0275\_layer\_decoder} chosen as the production baseline. AIFS
+  is the most decisive multi-metric winner of the four perturb baselines --
+  Phase 2 decoder wins 15 of 20 multi-metric cells (CRPS all 4 leads, SSR
+  short-mid lead, SSIM and LSD all 4 leads) vs Phase 1's 5 (FSS 95\% all 4
+  leads + SSR@240h). Production-baseline run (1120 forecasts) is pending;
+  the per-member, CS h, NH, CHF, kWh values here are estimates from the
+  AIFS-CRPS architectural twin (same forward graph, parameters perturbed
+  but not retrained).
 
   $^{\#}$\,Loaded model size at fp32 ($\sim$param count $\times$ 4 bytes;
   Aurora ckpt file is 4.68 GB at fp32; AIFS .ckpt is anemoi-packaged so

@@ -88,7 +88,7 @@
     & \mbadge{graphcastC}{graphcast} & all weights        & 0.001 / 0.003 / \textbf{0.01} \,\winner\ / 0.03 / 0.1 \\
     & \mbadge{sfnoC}{sfno}         & all weights          & 0.001 / 0.003 / 0.01 / \textbf{0.03} / 0.1 \\
     \rowcolor{altRow}
-    & \mbadge{aifsC}{aifs}         & all weights (lite)   & 0.003 / 0.01 / 0.03 \,(pending) \\
+    & \mbadge{aifsC}{aifs}         & all weights (lite)   & 0.003 / \textbf{0.01} / 0.03 \\
     & all 4 models                 & \emph{mag\_0} reference & - \\
     \midrule
 
@@ -99,7 +99,7 @@
     & \mbadge{graphcastC}{graphcast} & \textbf{g2m}$^{\dagger}$ / m2m / m2g            & \textbf{0.014}$^{\dagger}$, 0.027, 0.045 / 0.012 / 0.018, 0.030, 0.050 \\
     & \mbadge{sfnoC}{sfno}         & \textbf{encoder} / processor / decoder           & 0.035, \textbf{0.054}, 0.080 / 0.010 / 0.054, 0.075, 0.100 \\
     \rowcolor{altRow}
-    & \mbadge{aifsC}{aifs}         & encoder / processor / decoder                   & 0.027 / 0.012 / 0.028 \,(pending) \\
+    & \mbadge{aifsC}{aifs}         & encoder / processor / \textbf{decoder}            & 0.027 / 0.012 / \textbf{0.028} \,\winner \\
     \midrule
 
     \rowcolor{phaseBg}
@@ -172,6 +172,8 @@
     \rowcolor{altRow}
     & \mbadge{graphcastC}{graphcast\_all}  & all layers, $\sigma = 0.01$ (Phase 1)                   & weighted MSE \\
     & \mbadge{sfnoC}{sfno\_modes10}        & coarse spectral modes $\ell<10$, $\sigma = 0.25$ (Phase 3) & relative spherical L2 \\
+    \rowcolor{altRow}
+    & \mbadge{aifsC}{aifs\_perturbed}      & decoder layer group, $\sigma = 0.028$ (Phase 2)         & area-weighted MSE \\
     \midrule
 
     \rowcolor{phaseBg}

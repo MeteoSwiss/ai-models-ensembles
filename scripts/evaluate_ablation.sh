@@ -354,26 +354,31 @@ declare -A ALLPHASES_PHASE1=(
     [aurora]=mag_0.03_layer_all
     [graphcast]=mag_0.01_layer_all
     [sfno]=mag_0.03_layer_all
+    [aifs]=mag_0.01_layer_all
 )
 declare -A ALLPHASES_PHASE2=(
     [aurora]=mag_0.044176_layer_encoder
     [graphcast]=mag_0.029665_layer_m2g
     [sfno]=mag_0.053852_layer_encoder
+    [aifs]=mag_0.027500_layer_decoder
 )
 declare -A ALLPHASES_PHASE2B=(
     [aurora]=mag_0.025_layer_encoder
     [graphcast]=mag_0.014_layer_g2m
     [sfno]=mag_0.053852_layer_encoder
+    [aifs]=""
 )
 declare -A ALLPHASES_PHASE3=(
     [aurora]=mag_0.40_layer_unet_bottom
     [graphcast]=gcsigma_1.00_gcnodes42
     [sfno]=mag_0.25_modes10
+    [aifs]=""
 )
 declare -A ALLPHASES_PHASE3B=(
     [aurora]=mag_0.015_layer_enc_012
     [graphcast]=gcsigma_0.159_gcnodes162
     [sfno]=mag_0.035_modes20
+    [aifs]=""
 )
 
 _submit_intercompare_sbatch() {
