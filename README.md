@@ -57,7 +57,11 @@ different mechanism for the same physical objective:
   Perturbs only `W[..., :N]` of the 8 `*.filter.filter.weight` tensors
   (dhconv operator, 240-mode axis is the total wavenumber l directly;
   confirmed by runtime diagnostic). Phase 3 anchor `L_cut=10`
-  (`λ ≥ 4000 km`).
+  (`λ ≥ 4000 km`). Optional flag `--coarse-mode-skip-first K` excludes
+  the K lowest modes (e.g. K=1 leaves `l=0` untouched -- `l=0` is the
+  global constant and mass-conservation-bound for fields like surface
+  pressure, so perturbing it can spuriously inflate global-mean spread
+  on rollout).
 - **Aurora** — perturb the deepest Swin-3D downsampling block of the
   U-net backbone, `net.backbone.encoder_layers.2.*` (96 tensors,
   indices 494:590; named group `unet_bottom`). Operates on ~450 km

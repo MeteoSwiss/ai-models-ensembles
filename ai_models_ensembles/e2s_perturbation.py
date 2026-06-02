@@ -112,14 +112,24 @@ def _is_spectral_conv_tensor(name: str) -> bool:
 
 
 def _perturb_array_low_modes(
-    arr: np.ndarray, sigma: float, rng: np.random.Generator, mode_cut: int
+    arr: np.ndarray,
+    sigma: float,
+    rng: np.random.Generator,
+    mode_cut: int,
+    mode_skip: int = 0,
 ) -> np.ndarray:
-    """Perturb only the first `mode_cut` entries of the last axis of `arr`.
+    """Perturb entries `[mode_skip:mode_cut]` along the last axis of `arr`.
 
-    Used by Phase 3 SFNO: spectral conv weights have shape (..., lmax) and
-    we want to perturb only the low-l (planetary / large-synoptic) modes.
-    The remaining modes are left untouched, preserving the model's
-    representation of finer scales.
+    Used by Phase 3 SFNO: spectral conv weights have shape (..., lmax) and we
+    want to perturb only the low-l (planetary / large-synoptic) modes. The
+    remaining modes are left untouched, preserving the model's representation
+    of finer scales.
+
+    `mode_skip > 0` excludes the first K low modes from the perturbation. The
+    motivating case is `mode_skip=1` which leaves l=0 (the global constant /
+    spatial mean) untouched -- l=0 is mass-conservation-bound for fields like
+    surface pressure and perturbing it can spuriously inflate global-mean
+    spread on rollout.
     """
     if not np.issubdtype(arr.dtype, np.inexact):
         return arr
@@ -127,10 +137,12 @@ def _perturb_array_low_modes(
         raise ValueError(
             f"mode_cut={mode_cut} out of range for tensor with last axis = {arr.shape[-1]}"
         )
-    sub = arr[..., :mode_cut].copy()
+    if mode_skip < 0 or mode_skip >= mode_cut:
+        raise ValueError(f"mode_skip={mode_skip} must be in [0, mode_cut={mode_cut})")
+    sub = arr[..., mode_skip:mode_cut].copy()
     perturbed = _perturb_array(sub, sigma, rng)
     out = arr.copy()
-    out[..., :mode_cut] = perturbed
+    out[..., mode_skip:mode_cut] = perturbed
     return out
 
 
@@ -310,6 +322,7 @@ def _perturb_npz(
     rng: np.random.Generator,
     layer: str | None,
     coarse_mode_cut: int | None = None,
+    coarse_mode_skip_first: int = 0,
 ) -> None:
     if coarse_mode_cut is not None:
         raise NotImplementedError(
@@ -361,6 +374,7 @@ def _perturb_torch(
     rng: np.random.Generator,
     layer: str | None,
     coarse_mode_cut: int | None = None,
+    coarse_mode_skip_first: int = 0,
 ) -> None:
     import torch
 
@@ -405,7 +419,7 @@ def _perturb_torch(
             # `coarse_mode_cut` entries of the last (l) axis.
             if not _is_spectral_conv_tensor(k):
                 continue
-            new = _perturb_array_low_modes(arr, sigma, rng, coarse_mode_cut)
+            new = _perturb_array_low_modes(arr, sigma, rng, coarse_mode_cut, coarse_mode_skip_first)
             n_spectral_touched += 1
         else:
             new = _perturb_array(arr, sigma, rng)
@@ -499,6 +513,7 @@ def _perturb_safetensors(
     rng: np.random.Generator,
     layer: str | None,
     coarse_mode_cut: int | None = None,
+    coarse_mode_skip_first: int = 0,
 ) -> None:
     if coarse_mode_cut is not None:
         raise NotImplementedError(
@@ -601,6 +616,7 @@ def materialise_perturbed_package(
     out_dir: Path,
     cached_checkpoints: dict[str, str] | None = None,
     coarse_mode_cut: int | None = None,
+    coarse_mode_skip_first: int = 0,
 ) -> str:
     """Download + perturb + write a model's checkpoint package locally.
 
@@ -637,7 +653,14 @@ def materialise_perturbed_package(
         )
     for ckpt in ckpts:
         handler = _HANDLERS[ckpt.suffix.lower()]
-        handler(ckpt, magnitude, rng, layer, coarse_mode_cut=coarse_mode_cut)
+        handler(
+            ckpt,
+            magnitude,
+            rng,
+            layer,
+            coarse_mode_cut=coarse_mode_cut,
+            coarse_mode_skip_first=coarse_mode_skip_first,
+        )
     return str(out_dir)
 
 

@@ -133,6 +133,7 @@ def _model_for_member(
     work_dir: Path,
     cached_checkpoints: dict[str, str] | None = None,
     coarse_mode_cut: int | None = None,
+    coarse_mode_skip_first: int = 0,
     graph_coarse_sigma: float = 0.0,
     graph_coarse_nodes: int = 0,
 ) -> Any:
@@ -168,6 +169,7 @@ def _model_for_member(
             out_dir=pkg_dir,
             cached_checkpoints=cached_checkpoints,
             coarse_mode_cut=coarse_mode_cut,
+            coarse_mode_skip_first=coarse_mode_skip_first,
         )
         model, _ = load_model(model_name, package_root=package_root)
 
@@ -251,6 +253,7 @@ def _gpu_worker(
     output_vars: list[str] | None,
     cached_checkpoints: dict[str, str] | None,
     coarse_mode_cut: int | None = None,
+    coarse_mode_skip_first: int = 0,
     graph_coarse_sigma: float = 0.0,
     graph_coarse_nodes: int = 0,
 ) -> None:
@@ -298,6 +301,7 @@ def _gpu_worker(
             work_dir=work_path,
             cached_checkpoints=cached_checkpoints,
             coarse_mode_cut=coarse_mode_cut,
+            coarse_mode_skip_first=coarse_mode_skip_first,
             graph_coarse_sigma=graph_coarse_sigma,
             graph_coarse_nodes=graph_coarse_nodes,
         )
@@ -419,6 +423,7 @@ def _run_members_sequential(
     output_vars: list[str] | None,
     cached_checkpoints: dict[str, str] | None,
     coarse_mode_cut: int | None = None,
+    coarse_mode_skip_first: int = 0,
     graph_coarse_sigma: float = 0.0,
     graph_coarse_nodes: int = 0,
 ) -> None:
@@ -457,6 +462,7 @@ def _run_members_sequential(
                 work_dir=work_dir,
                 cached_checkpoints=cached_checkpoints,
                 coarse_mode_cut=coarse_mode_cut,
+                coarse_mode_skip_first=coarse_mode_skip_first,
                 graph_coarse_sigma=graph_coarse_sigma,
                 graph_coarse_nodes=graph_coarse_nodes,
             )
@@ -493,6 +499,7 @@ def _run_members_parallel(
     output_vars: list[str] | None,
     cached_checkpoints: dict[str, str] | None,
     coarse_mode_cut: int | None = None,
+    coarse_mode_skip_first: int = 0,
     graph_coarse_sigma: float = 0.0,
     graph_coarse_nodes: int = 0,
 ) -> None:
@@ -534,6 +541,7 @@ def _run_members_parallel(
         output_vars,
         cached_checkpoints,
         coarse_mode_cut,
+        coarse_mode_skip_first,
         graph_coarse_sigma,
         graph_coarse_nodes,
     )
@@ -717,6 +725,7 @@ def run_inference(
     output_levels: list[int] | None = None,
     output_vars: list[str] | None = None,
     coarse_mode_cut: int | None = None,
+    coarse_mode_skip_first: int = 0,
     graph_coarse_sigma: float = 0.0,
     graph_coarse_nodes: int = 0,
 ) -> Path:
@@ -772,6 +781,7 @@ def run_inference(
                 output_vars=output_vars,
                 cached_checkpoints=cached_checkpoints,
                 coarse_mode_cut=coarse_mode_cut,
+                coarse_mode_skip_first=coarse_mode_skip_first,
                 graph_coarse_sigma=graph_coarse_sigma,
                 graph_coarse_nodes=graph_coarse_nodes,
             )
@@ -792,6 +802,7 @@ def run_inference(
                 output_vars=output_vars,
                 cached_checkpoints=cached_checkpoints,
                 coarse_mode_cut=coarse_mode_cut,
+                coarse_mode_skip_first=coarse_mode_skip_first,
                 graph_coarse_sigma=graph_coarse_sigma,
                 graph_coarse_nodes=graph_coarse_nodes,
             )

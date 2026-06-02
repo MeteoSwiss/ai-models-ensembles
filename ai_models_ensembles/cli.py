@@ -84,6 +84,17 @@ def cli_infer(
             ">= 4000 km (planetary / large-synoptic)."
         ),
     ),
+    coarse_mode_skip_first: int = typer.Option(
+        0,
+        "--coarse-mode-skip-first",
+        help=(
+            "Phase 3 SFNO only. Skip the first K low-l modes when applying "
+            "--coarse-mode-cut. Mode l=0 is the global constant (spatial mean) "
+            "and is mass-conservation-bound for some fields; perturbing it can "
+            "spuriously inflate global-mean spread. With K=1 the perturbation "
+            "covers l in [1, coarse_mode_cut). Default 0 = perturb from l=0."
+        ),
+    ),
     graph_coarse_sigma: float = typer.Option(
         0.0,
         "--graph-coarse-sigma",
@@ -155,6 +166,7 @@ def cli_infer(
         f"lead={lead_hours}h members={members} ic={ic_magnitude} "
         f"weight={weight_magnitude} layer={layer} "
         f"coarse_mode_cut={coarse_mode_cut} "
+        f"coarse_mode_skip_first={coarse_mode_skip_first} "
         f"graph_coarse_sigma={graph_coarse_sigma} "
         f"graph_coarse_nodes={graph_coarse_nodes} source={data_source} "
         f"levels={levels_list or 'all'} vars={vars_list or 'all'}"
@@ -173,6 +185,7 @@ def cli_infer(
         output_levels=levels_list,
         output_vars=vars_list,
         coarse_mode_cut=coarse_mode_cut,
+        coarse_mode_skip_first=coarse_mode_skip_first,
         graph_coarse_sigma=graph_coarse_sigma,
         graph_coarse_nodes=graph_coarse_nodes,
     )
