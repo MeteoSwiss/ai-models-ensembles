@@ -29,35 +29,43 @@
   \caption{Multi-metric, multi-lead calibration basis for the production
            perturbation-baseline picks (\winner\ rows in
            Tab.~\ref{tab:ablation}; used in Tab.~\ref{tab:baselines}). For
-           each model the per-phase argmin-CRPS winner is shown with CRPS
-           (lower is better), SSR (1.0 = calibrated; less than 1
+           each model the per-phase argmax-CRPSS winner is shown with CRPSS
+           (Continuous Ranked Probability Skill Score against an analytical
+           Gaussian climatology computed from WB2 ERA5 2022-2024; higher is
+           better, 1 = perfect, 0 = climatology, $< 0$ = worse than
+           climatology), SSR (1.0 = calibrated; less than 1
            under-dispersive, more than 1 over-dispersive), SSIM (higher is
            better, capped at 1), LSD (1.0 is perfect spectral match), FSS
            at the 95th-percentile threshold (higher is better, capped at
            1), and W$_{1}$ (1-Wasserstein distance against ERA5, pooled
            across ensemble members; lower is better) at lead times 24, 72,
-           120, 240 h. \textbf{Bold} marks the within-model column-wise
-           optimum across the phase candidates: argmin CRPS, argmin
-           $|SSR - 1|$, argmax SSIM, argmin $|LSD - 1|$, argmax FSS\,95\%,
-           and argmin W$_{1}$. \winner\ marks the row chosen as the
-           production baseline. The selection rule combines (a) CRPS@240\,h,
-           (b) SSR closest to 1 at 120-240\,h, (c) consistent SSIM and FSS
-           at long lead; CRPS-only argmin is NOT sufficient - see e.g.
-           graphcast where Phase 2b g2m wins CRPS at 24 + 72\,h but
-           Phase 1 all wins CRPS at 120 + 240\,h, has SSR exactly at 1.00 at
-           120\,h, and matches Phase 2b on SSIM and FSS. W$_{1}$ adds an
-           independent distributional check; values are tight across phases
-           (within $\sim$0.02) but show no phase consistently winning, so
-           the production picks are not penalised on this metric. Numbers
-           are variable-mean averages across the 8 paper-headline variables
-           and pressure levels (data: allphases intercomp CSVs +
-           per-phase wd\_kde, verified 2026-06-01).}
+           120, 240 h. CRPSS replaces raw CRPS to avoid the
+           variable-mean-of-CRPS pitfall where geopotential ($\sim 10^2$
+           m$^2$/s$^2$) would dominate the mean over temperature ($\sim$ K)
+           and humidity ($\sim 10^{-4}$ kg/kg). \textbf{Bold} marks the
+           within-model column-wise optimum across the phase candidates:
+           argmax CRPSS, argmin $|SSR - 1|$, argmax SSIM, argmin
+           $|LSD - 1|$, argmax FSS\,95\%, and argmin W$_{1}$. \winner\
+           marks the row chosen as the production baseline. The selection
+           rule combines (a) CRPSS@240\,h, (b) SSR closest to 1 at
+           120-240\,h, (c) consistent SSIM and FSS at long lead; W$_{1}$
+           adds an independent distributional check; values are tight
+           across phases (within $\sim$0.02) but show no phase consistently
+           winning, so the production picks are not penalised on this
+           metric. Numbers are per-variable CRPSS averaged across the 7
+           paper-headline variables (2D vars contribute one score each; 3D
+           vars contribute one score averaged across the 500 + 850 hPa
+           levels), then the variable-mean (data: allphases intercomp CSVs
+           + per-phase wd\_kde + WB2 2022-2024 climatology $\sigma$).
+           **All 4 production picks (\winner\ rows) remain the
+           within-model argmax CRPSS at lead 240\,h after the CRPS $\to$
+           CRPSS migration**, verified 2026-06-02.}
   \label{tab:calibration}
   \begin{tabular}{@{}l l rrrr rrrr rrrr rrrr rrrr rrrr@{}}
     \toprule
     \multirow{2}{*}{\textbf{Phase}}
         & \multirow{2}{*}{\textbf{$\sigma$ / config}}
-        & \multicolumn{4}{c}{\textbf{CRPS (lower better)}}
+        & \multicolumn{4}{c}{\textbf{CRPSS (higher better)}}
         & \multicolumn{4}{c}{\textbf{SSR (=1 target)}}
         & \multicolumn{4}{c}{\textbf{SSIM (higher better)}}
         & \multicolumn{4}{c}{\textbf{LSD (=1 target)}}
@@ -74,42 +82,42 @@
 
     \rowcolor{phaseBg}
     \multicolumn{26}{@{}l}{\mbadge{auroraC}{aurora}} \\
-    Phase 1 & 0.03 / all & 7.1 & 17.6 & 31.9 & 67.7 & 1.18 & 1.40 & 1.40 & 1.22 & 0.95 & 0.87 & 0.80 & 0.72 & 1.36 & 1.37 & 1.38 & 1.37 & 0.93 & 0.78 & 0.64 & 0.45 & \textbf{0.047} & 0.070 & 0.080 & 0.078 \\
+    Phase 1 & 0.03 / all & 0.844 & 0.720 & 0.582 & 0.287 & 1.18 & 1.40 & 1.40 & 1.22 & 0.95 & 0.87 & 0.80 & 0.72 & 1.36 & 1.37 & 1.38 & 1.37 & 0.93 & 0.78 & 0.64 & 0.45 & \textbf{0.047} & 0.070 & 0.080 & 0.078 \\
     \rowcolor{altRow}
-    Phase 2 & 0.044 / encoder & \textbf{6.7} & \textbf{17.2} & 30.6 & 68.0 & \textbf{1.15} & 1.48 & 1.49 & 1.22 & 0.96 & 0.91 & 0.87 & 0.81 & 1.13 & 1.13 & 1.15 & 1.13 & 0.93 & 0.78 & 0.64 & 0.46 & 0.072 & 0.062 & 0.065 & 0.089 \\
-    Phase 2b & 0.025 / encoder \,\winner & 7.0 & 17.3 & \textbf{29.8} & \textbf{64.9} & 0.63 & \textbf{0.91} & \textbf{1.05} & \textbf{1.06} & 0.96 & \textbf{0.92} & \textbf{0.88} & \textbf{0.82} & 1.12 & 1.13 & 1.14 & 1.12 & 0.95 & 0.83 & 0.69 & 0.50 & 0.070 & \textbf{0.062} & 0.064 & 0.081 \\
+    Phase 2 & 0.044 / encoder & \textbf{0.850} & \textbf{0.729} & 0.595 & 0.288 & \textbf{1.15} & 1.48 & 1.49 & 1.22 & 0.96 & 0.91 & 0.87 & 0.81 & 1.13 & 1.13 & 1.15 & 1.13 & 0.93 & 0.78 & 0.64 & 0.46 & 0.072 & 0.062 & 0.065 & 0.089 \\
+    Phase 2b & 0.025 / encoder \,\winner & 0.835 & 0.718 & \textbf{0.601} & \textbf{0.317} & 0.63 & \textbf{0.91} & \textbf{1.05} & \textbf{1.06} & 0.96 & \textbf{0.92} & \textbf{0.88} & \textbf{0.82} & 1.12 & 1.13 & 1.14 & 1.12 & 0.95 & 0.83 & 0.69 & 0.50 & 0.070 & \textbf{0.062} & 0.064 & 0.081 \\
     \rowcolor{altRow}
-    Phase 3 & 0.40 / \texttt{enc\_2} & 8.7 & 21.4 & 37.0 & 74.6 & 0.28 & 0.39 & 0.50 & 0.70 & 0.96 & 0.91 & 0.87 & 0.81 & \textbf{1.12} & 1.12 & \textbf{1.13} & \textbf{1.11} & 0.95 & 0.83 & 0.69 & 0.51 & 0.065 & 0.064 & 0.082 & \textbf{0.071} \\
-    Phase 3b & 0.015 / \texttt{enc\_012} & 9.0 & 22.7 & 40.2 & 82.5 & 0.17 & 0.24 & 0.33 & 0.58 & \textbf{0.96} & 0.91 & 0.87 & 0.81 & 1.12 & \textbf{1.12} & 1.13 & 1.11 & \textbf{0.95} & \textbf{0.84} & \textbf{0.70} & \textbf{0.51} & 0.052 & 0.066 & \textbf{0.052} & 0.077 \\
+    Phase 3 & 0.40 / \texttt{enc\_2} & 0.812 & 0.658 & 0.514 & 0.230 & 0.28 & 0.39 & 0.50 & 0.70 & 0.96 & 0.91 & 0.87 & 0.81 & \textbf{1.12} & 1.12 & \textbf{1.13} & \textbf{1.11} & 0.95 & 0.83 & 0.69 & 0.51 & 0.065 & 0.064 & 0.082 & \textbf{0.071} \\
+    Phase 3b & 0.015 / \texttt{enc\_012} & 0.803 & 0.633 & 0.468 & 0.153 & 0.17 & 0.24 & 0.33 & 0.58 & \textbf{0.96} & 0.91 & 0.87 & 0.81 & 1.12 & \textbf{1.12} & 1.13 & 1.11 & \textbf{0.95} & \textbf{0.84} & \textbf{0.70} & \textbf{0.51} & 0.052 & 0.066 & \textbf{0.052} & 0.077 \\
     \midrule
 
     \rowcolor{phaseBg}
     \multicolumn{26}{@{}l}{\mbadge{graphcastC}{graphcast}} \\
-    Phase 1 & 0.01 / all \,\winner & 7.5 & 15.0 & \textbf{30.7} & \textbf{60.7} & 0.51 & 0.83 & \textbf{1.00} & 1.20 & 0.96 & \textbf{0.92} & \textbf{0.88} & \textbf{0.82} & \textbf{1.15} & 1.19 & 1.22 & 1.23 & 0.95 & 0.86 & 0.73 & 0.54 & 0.059 & 0.070 & 0.089 & 0.070 \\
+    Phase 1 & 0.01 / all \,\winner & 0.813 & 0.719 & 0.585 & \textbf{0.343} & 0.51 & 0.83 & \textbf{1.00} & 1.20 & 0.96 & \textbf{0.92} & \textbf{0.88} & \textbf{0.82} & \textbf{1.15} & 1.19 & 1.22 & 1.23 & 0.95 & 0.86 & 0.73 & 0.54 & 0.059 & 0.070 & 0.089 & 0.070 \\
     \rowcolor{altRow}
-    Phase 2 & 0.030 / m2g & 7.9 & 15.5 & 31.1 & 63.6 & 0.50 & 0.83 & 0.97 & \textbf{1.15} & 0.96 & 0.92 & 0.88 & 0.82 & 1.17 & 1.23 & 1.27 & 1.29 & 0.95 & 0.85 & 0.71 & 0.53 & \textbf{0.058} & 0.066 & 0.085 & 0.083 \\
-    Phase 2b & 0.014 / g2m & \textbf{7.5} & \textbf{14.8} & 30.8 & 62.7 & \textbf{0.56} & \textbf{0.92} & 1.12 & 1.31 & 0.96 & 0.92 & 0.88 & 0.81 & 1.15 & 1.19 & 1.22 & 1.23 & 0.95 & 0.85 & 0.71 & 0.52 & 0.060 & 0.094 & 0.063 & \textbf{0.056} \\
+    Phase 2 & 0.030 / m2g & 0.812 & 0.715 & 0.580 & 0.326 & 0.50 & 0.83 & 0.97 & \textbf{1.15} & 0.96 & 0.92 & 0.88 & 0.82 & 1.17 & 1.23 & 1.27 & 1.29 & 0.95 & 0.85 & 0.71 & 0.53 & \textbf{0.058} & 0.066 & 0.085 & 0.083 \\
+    Phase 2b & 0.014 / g2m & \textbf{0.815} & \textbf{0.723} & \textbf{0.588} & 0.323 & \textbf{0.56} & \textbf{0.92} & 1.12 & 1.31 & 0.96 & 0.92 & 0.88 & 0.81 & 1.15 & 1.19 & 1.22 & 1.23 & 0.95 & 0.85 & 0.71 & 0.52 & 0.060 & 0.094 & 0.063 & \textbf{0.056} \\
     \rowcolor{altRow}
-    Phase 3 & 1.80 / \texttt{n\_coarse\_42} & 9.9 & 23.3 & 44.7 & 78.5 & 0.34 & 0.35 & 0.38 & 0.56 & 0.96 & 0.92 & 0.87 & 0.81 & 1.15 & \textbf{1.19} & \textbf{1.21} & \textbf{1.22} & 0.94 & 0.83 & 0.72 & 0.54 & 0.068 & \textbf{0.049} & \textbf{0.052} & 0.078 \\
-    Phase 3b & 0.159 / \texttt{n\_coarse\_162} & 9.2 & 20.1 & 42.9 & 95.5 & 0.11 & 0.10 & 0.10 & 0.20 & \textbf{0.96} & 0.92 & 0.87 & 0.80 & 1.15 & 1.19 & 1.22 & 1.22 & \textbf{0.95} & \textbf{0.88} & \textbf{0.76} & \textbf{0.57} & 0.088 & 0.067 & 0.058 & 0.074 \\
+    Phase 3 & 1.80 / \texttt{n\_coarse\_42} & 0.789 & 0.649 & 0.473 & 0.195 & 0.34 & 0.35 & 0.38 & 0.56 & 0.96 & 0.92 & 0.87 & 0.81 & 1.15 & \textbf{1.19} & \textbf{1.21} & \textbf{1.22} & 0.94 & 0.83 & 0.72 & 0.54 & 0.068 & \textbf{0.049} & \textbf{0.052} & 0.078 \\
+    Phase 3b & 0.159 / \texttt{n\_coarse\_162} & 0.781 & 0.637 & 0.433 & 0.019 & 0.11 & 0.10 & 0.10 & 0.20 & \textbf{0.96} & 0.92 & 0.87 & 0.80 & 1.15 & 1.19 & 1.22 & 1.22 & \textbf{0.95} & \textbf{0.88} & \textbf{0.76} & \textbf{0.57} & 0.088 & 0.067 & 0.058 & 0.074 \\
     \midrule
 
     \rowcolor{phaseBg}
     \multicolumn{26}{@{}l}{\mbadge{sfnoC}{sfno}} \\
-    Phase 1 & 0.03 / all & \textbf{8.9} & 21.5 & \textbf{37.8} & 70.2 & \textbf{1.15} & 1.51 & 1.60 & 1.50 & 0.95 & 0.90 & 0.86 & 0.81 & \textbf{0.95} & 1.02 & 1.05 & 1.05 & 0.90 & 0.76 & 0.61 & 0.45 & 0.059 & 0.079 & 0.066 & 0.073 \\
+    Phase 1 & 0.03 / all & \textbf{0.803} & \textbf{0.670} & \textbf{0.526} & 0.277 & \textbf{1.15} & 1.51 & 1.60 & 1.50 & 0.95 & 0.90 & 0.86 & 0.81 & \textbf{0.95} & 1.02 & 1.05 & 1.05 & 0.90 & 0.76 & 0.61 & 0.45 & 0.059 & 0.079 & 0.066 & 0.073 \\
     \rowcolor{altRow}
-    Phase 2 & 0.054 / encoder & 9.0 & \textbf{21.2} & 38.4 & 69.6 & 0.81 & \textbf{1.05} & 1.12 & 1.14 & 0.95 & 0.90 & 0.86 & 0.81 & 0.95 & 0.99 & \textbf{1.02} & 1.03 & 0.93 & 0.80 & 0.66 & 0.50 & 0.078 & \textbf{0.065} & 0.072 & 0.085 \\
-    Phase 2b & 0.035 / encoder & 9.6 & 22.5 & 40.5 & 69.7 & 0.54 & 0.75 & 0.86 & \textbf{1.02} & 0.95 & 0.90 & 0.86 & 0.82 & 0.95 & 0.99 & 1.02 & 1.03 & 0.94 & 0.83 & 0.70 & 0.53 & \textbf{0.056} & 0.068 & 0.061 & \textbf{0.055} \\
+    Phase 2 & 0.054 / encoder & 0.801 & 0.669 & 0.525 & 0.293 & 0.81 & \textbf{1.05} & 1.12 & 1.14 & 0.95 & 0.90 & 0.86 & 0.81 & 0.95 & 0.99 & \textbf{1.02} & 1.03 & 0.93 & 0.80 & 0.66 & 0.50 & 0.078 & \textbf{0.065} & 0.072 & 0.085 \\
+    Phase 2b & 0.035 / encoder & 0.787 & 0.648 & 0.501 & 0.288 & 0.54 & 0.75 & 0.86 & \textbf{1.02} & 0.95 & 0.90 & 0.86 & 0.82 & 0.95 & 0.99 & 1.02 & 1.03 & 0.94 & 0.83 & 0.70 & 0.53 & \textbf{0.056} & 0.068 & 0.061 & \textbf{0.055} \\
     \rowcolor{altRow}
-    Phase 3 & 0.25 / \texttt{Lcut\_10} \,\winner & 9.4 & 22.1 & 39.0 & \textbf{66.4} & 0.60 & 0.85 & \textbf{0.97} & 1.10 & \textbf{0.95} & \textbf{0.90} & \textbf{0.86} & \textbf{0.82} & 0.95 & 0.99 & 1.02 & \textbf{1.02} & 0.94 & 0.82 & 0.69 & 0.53 & 0.062 & 0.070 & 0.053 & 0.058 \\
-    Phase 3b & 0.035 / \texttt{Lcut\_20} & 11.8 & 28.6 & 52.7 & 92.5 & 0.11 & 0.17 & 0.23 & 0.51 & 0.95 & 0.90 & 0.85 & 0.80 & 0.95 & \textbf{0.99} & 1.03 & 1.04 & \textbf{0.95} & \textbf{0.85} & \textbf{0.73} & \textbf{0.55} & 0.074 & 0.068 & \textbf{0.053} & 0.074 \\
+    Phase 3 & 0.25 / \texttt{Lcut\_10} \,\winner & 0.789 & 0.653 & 0.512 & \textbf{0.306} & 0.60 & 0.85 & \textbf{0.97} & 1.10 & \textbf{0.95} & \textbf{0.90} & \textbf{0.86} & \textbf{0.82} & 0.95 & 0.99 & 1.02 & \textbf{1.02} & 0.94 & 0.82 & 0.69 & 0.53 & 0.062 & 0.070 & 0.053 & 0.058 \\
+    Phase 3b & 0.035 / \texttt{Lcut\_20} & 0.744 & 0.548 & 0.337 & 0.063 & 0.11 & 0.17 & 0.23 & 0.51 & 0.95 & 0.90 & 0.85 & 0.80 & 0.95 & \textbf{0.99} & 1.03 & 1.04 & \textbf{0.95} & \textbf{0.85} & \textbf{0.73} & \textbf{0.55} & 0.074 & 0.068 & \textbf{0.053} & 0.074 \\
     \midrule
 
     \rowcolor{phaseBg}
     \multicolumn{26}{@{}l}{\mbadge{aifsC}{aifs}} \\
-    Phase 1 & 0.01 / all & 7.2 & 15.5 & 31.4 & 65.0 & 0.49 & 0.58 & 0.66 & \textbf{0.83} & 0.96 & 0.92 & 0.88 & 0.81 & 1.10 & 1.17 & 1.20 & 1.19 & \textbf{0.96} & \textbf{0.89} & \textbf{0.78} & \textbf{0.58} & \textbf{0.038} & 0.076 & 0.072 & \textbf{0.062} \\
+    Phase 1 & 0.01 / all & 0.828 & 0.725 & 0.583 & 0.313 & 0.49 & 0.58 & 0.66 & \textbf{0.83} & 0.96 & 0.92 & 0.88 & 0.81 & 1.10 & 1.17 & 1.20 & 1.19 & \textbf{0.96} & \textbf{0.89} & \textbf{0.78} & \textbf{0.58} & \textbf{0.038} & 0.076 & 0.072 & \textbf{0.062} \\
     \rowcolor{altRow}
-    Phase 2 & 0.028 / decoder \,\winner & \textbf{6.6} & \textbf{14.2} & \textbf{28.4} & \textbf{63.2} & \textbf{0.67} & \textbf{1.00} & \textbf{1.15} & 1.23 & \textbf{0.96} & \textbf{0.92} & \textbf{0.88} & \textbf{0.82} & \textbf{1.00} & \textbf{1.05} & \textbf{1.09} & \textbf{1.12} & 0.96 & 0.88 & 0.74 & 0.54 & 0.064 & \textbf{0.061} & \textbf{0.056} & 0.066 \\
+    Phase 2 & 0.028 / decoder \,\winner & \textbf{0.838} & \textbf{0.749} & \textbf{0.624} & \textbf{0.349} & \textbf{0.67} & \textbf{1.00} & \textbf{1.15} & 1.23 & \textbf{0.96} & \textbf{0.92} & \textbf{0.88} & \textbf{0.82} & \textbf{1.00} & \textbf{1.05} & \textbf{1.09} & \textbf{1.12} & 0.96 & 0.88 & 0.74 & 0.54 & 0.064 & \textbf{0.061} & \textbf{0.056} & 0.066 \\
     \bottomrule
   \end{tabular}
 \end{table*}
