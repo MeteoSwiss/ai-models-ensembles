@@ -161,7 +161,7 @@
            (stratified, dropping the control). See ECMWF IFS Documentation
            Cy49r1 Part V.}
   \label{tab:baselines}
-  \begin{tabular}{@{}l l l l@{}}
+  \begin{tabularx}{\textwidth}{@{}l l X l@{}}
     \toprule
     \textbf{Role} & \textbf{Model} & \textbf{Configuration} & \textbf{Training loss} \\
     \midrule
@@ -180,7 +180,7 @@
     \multicolumn{4}{@{}l}{\textbf{Trained probabilistic}} \\
     & \mbadge{aifsensC}{aifsens}           & GNN + sliding-window transformer; conditional-LN noise in processor & almost-fair CRPS \\
     \rowcolor{altRow}
-    & \mbadge{atlasC}{atlas}               & latent diffusion Transformer; stochastic-interpolant sampling       & velocity matching (drift regression) \\
+    & \mbadge{atlasC}{atlas}               & latent DiT; stochastic-interpolant sampling       & drift regression \\
     & \mbadge{fcn3C}{fcn3}                 & spherical neural operator; per-step latent noise via spherical diffusion & spatial + spectral CRPS \\
     \midrule
 
@@ -189,5 +189,5 @@
     & \mbadge{ifsC}{ifs\_ens}              & TCo1279L137 IFS-ENS (Cy49r1); EDA + 48~h singular-vector ICs; SPP stochastic physics; 10/50 perturbed members & n/a (numerical model) \\
 
     \bottomrule
-  \end{tabular}
+  \end{tabularx}
 \end{table}

@@ -100,9 +100,12 @@ def _stack_var_level(
         if "level" in fa.dims:
             for lvl in levels:
                 if float(lvl) in [float(x) for x in fa["level"].values.tolist()]:
-                    ens_layers.append(fa.sel(level=lvl).values.astype(np.float32, copy=False))
-                    truth_layers.append(ta.sel(level=lvl).values.astype(np.float32, copy=False))
+                    fa_l = fa.sel(level=lvl)
+                    ta_l = ta.sel(level=lvl).sel(latitude=fa_l["latitude"], method="nearest")
+                    ens_layers.append(fa_l.values.astype(np.float32, copy=False))
+                    truth_layers.append(ta_l.values.astype(np.float32, copy=False))
         else:
+            ta = ta.sel(latitude=fa["latitude"], method="nearest")
             ens_layers.append(fa.values.astype(np.float32, copy=False))
             truth_layers.append(ta.values.astype(np.float32, copy=False))
 
