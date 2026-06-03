@@ -327,10 +327,35 @@ def update_item_tags(z: zotero.Zotero, item: dict, new_tag_names: list[str], dry
     if dry_run:
         return True
     payload = {"key": data["key"], "version": data["version"], "tags": dedup}
-    # pyzotero raises on failure
+    # pyzotero.update_item returns the httpx response and does NOT raise on
+    # non-2xx (notably 412 If-Unmodified-Since-Version conflicts). We retry
+    # once with a fresh fetch to handle the version-bumped case.
     try:
-        z.update_item(payload)
-        return True
+        r = z.update_item(payload)
+        sc = getattr(r, "status_code", None)
+        if sc in (200, 204) or sc is None:
+            return True
+        if sc == 412:
+            # Stale version -- re-fetch and retry once.
+            fresh = z.item(data["key"])
+            fresh_tags = strip_quality_tags(fresh["data"].get("tags") or [])
+            merged2 = fresh_tags + [{"tag": t} for t in new_tag_names]
+            seen2 = set()
+            dedup2 = []
+            for t in merged2:
+                if t["tag"] in seen2:
+                    continue
+                seen2.add(t["tag"])
+                dedup2.append(t)
+            payload2 = {"key": data["key"], "version": fresh["data"]["version"], "tags": dedup2}
+            r2 = z.update_item(payload2)
+            sc2 = getattr(r2, "status_code", None)
+            if sc2 in (200, 204) or sc2 is None:
+                return True
+            print(f"  ! retry update HTTP {sc2} for {data['key']}", flush=True)
+            return False
+        print(f"  ! update HTTP {sc} for {data['key']}", flush=True)
+        return False
     except Exception as e:
         print(f"  ! update failed for {data['key']}: {e}", flush=True)
         return False

@@ -218,6 +218,7 @@ def main() -> int:
     n_members = None
 
     rng = np.random.default_rng(42)
+
     # Expand any consolidated-layout zarr (one zarr with init_time as a dim,
     # many inits) into per-init xarray views so the existing per-init scorer
     # can consume them uniformly. The fcst_ds_iter yields (label, single-init
@@ -235,9 +236,7 @@ def main() -> int:
             else:
                 yield Path(fz).parent.name, ds
 
-    k_total = 0
     for k, (label, fcst_ds) in enumerate(fcst_ds_iter(), start=1):
-        k_total = k
         stacked = _stack_var_level(fcst_ds, truth_ds, args.variables, args.levels, args.lead)
         if stacked is None:
             if k % 25 == 0:

@@ -37,8 +37,14 @@ VARS_3D = [
 ]
 
 MODELS = [
-    "aifsens", "atlas", "fcn3", "esfm", "ifs_ens",
-    "graphcast_all", "aurora_encoder", "sfno_modes10",
+    "aifsens",
+    "atlas",
+    "fcn3",
+    "esfm",
+    "ifs_ens",
+    "graphcast_all",
+    "aurora_encoder",
+    "sfno_modes10",
 ]
 
 PRETTY = {

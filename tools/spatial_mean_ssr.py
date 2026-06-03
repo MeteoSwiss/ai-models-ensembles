@@ -168,7 +168,11 @@ def main() -> int:
                     # along the init_time dim (the consolidated layout used by
                     # ESFM). Iterate over all inits in either case.
                     if "init_time" in fz_ds.dims and "init_time" in fz_ds[var].dims:
-                        n_inits_in_zarr = fz_ds["init_time"].sizes["init_time"] if hasattr(fz_ds["init_time"], "sizes") else fz_ds.sizes["init_time"]
+                        n_inits_in_zarr = (
+                            fz_ds["init_time"].sizes["init_time"]
+                            if hasattr(fz_ds["init_time"], "sizes")
+                            else fz_ds.sizes["init_time"]
+                        )
                     else:
                         n_inits_in_zarr = 1
                     for init_idx in range(n_inits_in_zarr):
