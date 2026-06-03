@@ -158,24 +158,40 @@ def main() -> int:
                 err2_acc = []
                 n_members = None
                 for fz in args.forecast_zarrs:
-                    fz_ds = xr.open_zarr(fz, consolidated=False, chunks={})
-                    # Truth slice for this init+lead
+                    # Try consolidated=True first (ESFM-style + WB2), fall back to False.
+                    try:
+                        fz_ds = xr.open_zarr(fz, consolidated=True, chunks={})
+                    except (KeyError, ValueError):
+                        fz_ds = xr.open_zarr(fz, consolidated=False, chunks={})
+                    # A forecast.zarr can hold either one init (the per-init
+                    # layout used by our perturbation baselines) or many inits
+                    # along the init_time dim (the consolidated layout used by
+                    # ESFM). Iterate over all inits in either case.
                     if "init_time" in fz_ds.dims and "init_time" in fz_ds[var].dims:
-                        init_time = fz_ds["init_time"].values[0]
+                        n_inits_in_zarr = fz_ds["init_time"].sizes["init_time"] if hasattr(fz_ds["init_time"], "sizes") else fz_ds.sizes["init_time"]
                     else:
-                        init_time = None
-                    # Pull a single (init, lead) truth field aligned to fz
-                    truth_local = truth_ds
-                    if init_time is not None and "time" in truth_ds.dims:
-                        valid_time = np.datetime64(init_time) + np.timedelta64(lead, "h")
-                        truth_local = truth_ds.sel(time=valid_time)
-                    out = _compute_for_init(fz_ds, truth_local, var, lead, lvl)
+                        n_inits_in_zarr = 1
+                    for init_idx in range(n_inits_in_zarr):
+                        if "init_time" in fz_ds.dims:
+                            sub = fz_ds.isel(init_time=init_idx)
+                            init_time = fz_ds["init_time"].values[init_idx]
+                        else:
+                            sub = fz_ds
+                            init_time = None
+                        truth_local = truth_ds
+                        if init_time is not None and "time" in truth_ds.dims:
+                            valid_time = np.datetime64(init_time) + np.timedelta64(lead, "h")
+                            try:
+                                truth_local = truth_ds.sel(time=valid_time)
+                            except KeyError:
+                                continue
+                        out = _compute_for_init(sub, truth_local, var, lead, lvl)
+                        if out is None:
+                            continue
+                        spread2_acc.append(out["spread2"])
+                        err2_acc.append(out["error2"])
+                        n_members = out["n_members"]
                     fz_ds.close()
-                    if out is None:
-                        continue
-                    spread2_acc.append(out["spread2"])
-                    err2_acc.append(out["error2"])
-                    n_members = out["n_members"]
                 if not spread2_acc:
                     continue
                 spread2_m = float(np.mean(spread2_acc))

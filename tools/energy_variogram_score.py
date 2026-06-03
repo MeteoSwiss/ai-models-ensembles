@@ -218,17 +218,30 @@ def main() -> int:
     n_members = None
 
     rng = np.random.default_rng(42)
-    for k, fz in enumerate(args.forecast_zarrs, start=1):
-        try:
-            fcst_ds = xr.open_zarr(fz, consolidated=True, chunks={})
-        except Exception:
-            fcst_ds = xr.open_zarr(fz, consolidated=False, chunks={})
+    # Expand any consolidated-layout zarr (one zarr with init_time as a dim,
+    # many inits) into per-init xarray views so the existing per-init scorer
+    # can consume them uniformly. The fcst_ds_iter yields (label, single-init
+    # dataset) tuples for both layouts.
+    def fcst_ds_iter():
+        for fz in args.forecast_zarrs:
+            try:
+                ds = xr.open_zarr(fz, consolidated=True, chunks={})
+            except Exception:
+                ds = xr.open_zarr(fz, consolidated=False, chunks={})
+            if "init_time" in ds.sizes and ds.sizes["init_time"] > 1:
+                n = ds.sizes["init_time"]
+                for j in range(n):
+                    yield f"{Path(fz).name}#init_{j}", ds.isel(init_time=[j])
+            else:
+                yield Path(fz).parent.name, ds
+
+    k_total = 0
+    for k, (label, fcst_ds) in enumerate(fcst_ds_iter(), start=1):
+        k_total = k
         stacked = _stack_var_level(fcst_ds, truth_ds, args.variables, args.levels, args.lead)
         if stacked is None:
-            print(
-                f"  [{k}/{len(args.forecast_zarrs)}] SKIP {Path(fz).parent.name} (no usable layers)",
-                flush=True,
-            )
+            if k % 25 == 0:
+                print(f"  [{k}] SKIP {label} (no usable layers)", flush=True)
             continue
         ens, truth_arr, lat = stacked
         n_members = ens.shape[0]
@@ -236,9 +249,9 @@ def main() -> int:
         vs_val = variogram_score(ens, truth_arr, n_pairs=args.variogram_pairs, rng=rng)
         es_per_init.append(es_val)
         vs_per_init.append(vs_val)
-        if k % 10 == 0 or k == len(args.forecast_zarrs):
+        if k % 10 == 0:
             print(
-                f"  [{k}/{len(args.forecast_zarrs)}] ES_mean={np.mean(es_per_init):.4g} "
+                f"  [{k}] ES_mean={np.mean(es_per_init):.4g} "
                 f"VS_mean={np.mean(vs_per_init):.4g}",
                 flush=True,
             )
