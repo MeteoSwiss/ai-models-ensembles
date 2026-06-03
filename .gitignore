@@ -11,3 +11,12 @@ ai_models_ensembles.egg-info/
 .venv
 SwissClim_Evaluations/
 .claude/
+
+# Overleaf paper repo (separate remote sadamov/ai-models-ensembles)
+ai-models-ensembles-paper/
+
+# LaTeX preview build artefacts
+figures/experiments_tables_preview.aux
+figures/experiments_tables_preview.log
+figures/experiments_tables_preview.pdf
+figures/experiments_tables_preview.synctex.gz
