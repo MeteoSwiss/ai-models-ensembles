@@ -54,6 +54,7 @@ def install_fresh_modes_hooks(
     mode_cut: int,
     base_seed: int,
     refresh_every: int = 1,
+    mode_skip: int = 0,
 ) -> list:
     """Install per-call fresh-noise hooks on every SFNO spectral conv module.
 
@@ -89,22 +90,18 @@ def install_fresh_modes_hooks(
             step_per_module[mod_id] += 1
             step = step_per_module[mod_id]
             saved[mod_id] = weight.data.clone()
-            # Refresh-every-N: draw a new noise seed when step crosses a
-            # refresh boundary; otherwise reuse the noise of the previous
-            # boundary by feeding the same seed (step // refresh_every).
-            # refresh_every = 1 -> fresh per step (original behaviour)
-            # refresh_every = T -> frozen (single draw at step 1)
             noise_step = ((step - 1) // refresh_every) + 1
-            noise = _seeded_complex_noise(weight, mode_cut, base_seed, noise_step)
-            pre_slice = weight.data[..., :mode_cut].clone()
-            weight.data[..., :mode_cut] = weight.data[..., :mode_cut] * (
-                1.0 + sigma * noise.to(weight.dtype)
-            )
+            # Slice perturbation to l in [mode_skip, mode_cut).
+            active_width = mode_cut - mode_skip
+            noise = _seeded_complex_noise(weight, active_width, base_seed, noise_step)
+            sl = slice(mode_skip, mode_cut)
+            pre_slice = weight.data[..., sl].clone()
+            weight.data[..., sl] = weight.data[..., sl] * (1.0 + sigma * noise.to(weight.dtype))
             if step == 1:
-                delta = (weight.data[..., :mode_cut] - pre_slice).abs().mean().item()
+                delta = (weight.data[..., sl] - pre_slice).abs().mean().item()
                 print(
                     f"[SFNO_FRESH] PRE_HOOK fired {mod_name} step={step} "
-                    f"refresh_every={refresh_every} "
+                    f"refresh_every={refresh_every} mode_skip={mode_skip} "
                     f"|noise|mean={noise.abs().mean().item():.4g} "
                     f"|delta_weight|mean={delta:.6g}",
                     flush=True,
@@ -164,10 +161,22 @@ def maybe_install_from_env(model, base_seed: int) -> list:
     sigma = float(os.environ.get("SFNO_FRESH_SIGMA", "0.0"))
     mode_cut = int(os.environ.get("SFNO_FRESH_MODE_CUT", "0"))
     refresh_every = int(os.environ.get("SFNO_FRESH_REFRESH_EVERY", "1"))
+    mode_skip = int(os.environ.get("SFNO_FRESH_MODE_SKIP", "0"))
     if sigma <= 0 or mode_cut <= 0:
         raise ValueError(
             "SFNO_FRESH=1 but SFNO_FRESH_SIGMA or SFNO_FRESH_MODE_CUT is unset/invalid."
         )
     if refresh_every < 1:
         raise ValueError(f"SFNO_FRESH_REFRESH_EVERY={refresh_every} must be >= 1.")
-    return install_fresh_modes_hooks(model, sigma, mode_cut, base_seed, refresh_every=refresh_every)
+    if mode_skip < 0 or mode_skip >= mode_cut:
+        raise ValueError(
+            f"SFNO_FRESH_MODE_SKIP={mode_skip} must be in [0, SFNO_FRESH_MODE_CUT={mode_cut})."
+        )
+    return install_fresh_modes_hooks(
+        model,
+        sigma,
+        mode_cut,
+        base_seed,
+        refresh_every=refresh_every,
+        mode_skip=mode_skip,
+    )
