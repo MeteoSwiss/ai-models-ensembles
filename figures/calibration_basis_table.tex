@@ -1,4 +1,4 @@
-% Calibration basis table -- multi-metric, multi-lead view across the per-phase
+% Calibration basis table - multi-metric, multi-lead view across the per-phase
 % argmin-CRPS winners, showing how the production perturbation baseline
 % (Tab.~\ref{tab:baselines}) was selected.
 %
@@ -23,7 +23,7 @@
 % (geopotential_height, wind_speed, gradient) are excluded because no
 % WB2 climatology sigma is available for them.
 
-\begin{table*}[t]
+\begin{sidewaystable*}[p]
   \centering
   \scriptsize
   \setlength{\tabcolsep}{2.5pt}
@@ -32,18 +32,15 @@
            production-baseline picks (\winner\ rows in
            Tab.~\ref{tab:ablation}; used in Tab.~\ref{tab:baselines}).
            Each cell: 4 mid-season inits $\times$ 10 members at lead times
-           24, 72, 120, 240\,h; 7-variable mean (Sec.~\ref{sec:methods-notation};
-           3D variables averaged over $\ell \in \{500, 850\}$ hPa first).
-           CRPSS rather than raw CRPS because the variable mean of CRPS is
-           geopotential-dominated. \textbf{Bold}: within-model column
-           optimum (argmax for CRPSS, SSIM, FSS\,95\%; argmin $|x-1|$ for
-           SSR; argmin for LSD and $W_1$). Selection rule: CRPSS@240\,h
-           dominates, with SSR closest to 1 at 120-240\,h, and consistent
-           SSIM/LSD/FSS/W$_1$ as structural and distributional checks. All
-           four production picks remain the within-model argmax CRPSS at
-           240\,h after the CRPS $\to$ CRPSS migration.}
+           24, 72, 120, 240\,h; 7-variable mean (3D variables averaged over
+           $\ell \in \{500, 850\}$ hPa first). \textbf{Bold}: within-model
+           column optimum (argmax for CRPSS, SSIM, FSS\,95\%; argmin
+           $|x-1|$ for SSR; argmin for LSD and $W_1$). Selection rule:
+           CRPSS@240\,h dominates, with SSR closest to 1 at 120-240\,h and
+           consistent SSIM/LSD/FSS/W$_1$ as structural and distributional
+           checks. All four production picks remain the within-model
+           argmax CRPSS at 240\,h.}
   \label{tab:calibration}
-  \resizebox{\textwidth}{!}{%
   \begin{tabular}{@{}l l rrrr rrrr rrrr rrrr rrrr rrrr@{}}
     \toprule
     \multirow{2}{*}{\textbf{Phase}}
@@ -55,12 +52,12 @@
         & \multicolumn{4}{c}{\textbf{FSS 95\% (higher better)}}
         & \multicolumn{4}{c}{\textbf{W$_{1}$ (lower better)}} \\
     \cmidrule(lr){3-6} \cmidrule(lr){7-10} \cmidrule(lr){11-14} \cmidrule(lr){15-18} \cmidrule(lr){19-22} \cmidrule(lr){23-26}
-     &  & 24 h & 72 h & 120 h & 240 h
-         & 24 h & 72 h & 120 h & 240 h
-         & 24 h & 72 h & 120 h & 240 h
-         & 24 h & 72 h & 120 h & 240 h
-         & 24 h & 72 h & 120 h & 240 h
-         & 24 h & 72 h & 120 h & 240 h \\
+     &  & 24\,h & 72\,h & 120\,h & 240\,h
+         & 24\,h & 72\,h & 120\,h & 240\,h
+         & 24\,h & 72\,h & 120\,h & 240\,h
+         & 24\,h & 72\,h & 120\,h & 240\,h
+         & 24\,h & 72\,h & 120\,h & 240\,h
+         & 24\,h & 72\,h & 120\,h & 240\,h \\
     \midrule
 
     \rowcolor{phaseBg}
@@ -72,7 +69,7 @@
     \rowcolor{altRow}
     Phase 3 & 0.40 / \texttt{enc\_2} & 0.812 & 0.658 & 0.514 & 0.230 & 0.28 & 0.39 & 0.50 & 0.70 & 0.96 & 0.91 & 0.87 & 0.81 & \textbf{1.12} & 1.12 & \textbf{1.13} & \textbf{1.11} & 0.95 & 0.83 & 0.69 & 0.51 & 0.065 & 0.064 & 0.082 & \textbf{0.071} \\
     Phase 3b & 0.015 / \texttt{enc\_012} & 0.803 & 0.633 & 0.468 & 0.153 & 0.17 & 0.24 & 0.33 & 0.58 & \textbf{0.96} & 0.91 & 0.87 & 0.81 & 1.12 & \textbf{1.12} & 1.13 & 1.11 & \textbf{0.95} & \textbf{0.84} & \textbf{0.70} & \textbf{0.51} & 0.052 & 0.066 & \textbf{0.052} & 0.077 \\
-    \midrule
+    \hline
 
     \rowcolor{phaseBg}
     \multicolumn{26}{@{}l}{\mbadge{graphcastC}{graphcast}} \\
@@ -83,7 +80,7 @@
     \rowcolor{altRow}
     Phase 3 & 1.80 / \texttt{n\_coarse\_42} & 0.789 & 0.649 & 0.473 & 0.195 & 0.34 & 0.35 & 0.38 & 0.56 & 0.96 & 0.92 & 0.87 & 0.81 & 1.15 & \textbf{1.19} & \textbf{1.21} & \textbf{1.22} & 0.94 & 0.83 & 0.72 & 0.54 & 0.068 & \textbf{0.049} & \textbf{0.052} & 0.078 \\
     Phase 3b & 0.159 / \texttt{n\_coarse\_162} & 0.781 & 0.637 & 0.433 & 0.019 & 0.11 & 0.10 & 0.10 & 0.20 & \textbf{0.96} & 0.92 & 0.87 & 0.80 & 1.15 & 1.19 & 1.22 & 1.22 & \textbf{0.95} & \textbf{0.88} & \textbf{0.76} & \textbf{0.57} & 0.088 & 0.067 & 0.058 & 0.074 \\
-    \midrule
+    \hline
 
     \rowcolor{phaseBg}
     \multicolumn{26}{@{}l}{\mbadge{sfnoC}{sfno}} \\
@@ -94,7 +91,7 @@
     \rowcolor{altRow}
     Phase 3 & 0.25 / \texttt{Lcut\_10} \,\winner & 0.789 & 0.653 & 0.512 & \textbf{0.306} & 0.60 & 0.85 & \textbf{0.97} & 1.10 & \textbf{0.95} & \textbf{0.90} & \textbf{0.86} & \textbf{0.82} & 0.95 & 0.99 & 1.02 & \textbf{1.02} & 0.94 & 0.82 & 0.69 & 0.53 & 0.062 & 0.070 & 0.053 & 0.058 \\
     Phase 3b & 0.035 / \texttt{Lcut\_20} & 0.744 & 0.548 & 0.337 & 0.063 & 0.11 & 0.17 & 0.23 & 0.51 & 0.95 & 0.90 & 0.85 & 0.80 & 0.95 & \textbf{0.99} & 1.03 & 1.04 & \textbf{0.95} & \textbf{0.85} & \textbf{0.73} & \textbf{0.55} & 0.074 & 0.068 & \textbf{0.053} & 0.074 \\
-    \midrule
+    \hline
 
     \rowcolor{phaseBg}
     \multicolumn{26}{@{}l}{\mbadge{aifsC}{aifs}} \\
@@ -102,6 +99,5 @@
     \rowcolor{altRow}
     Phase 2 & 0.028 / decoder \,\winner & \textbf{0.838} & \textbf{0.749} & \textbf{0.624} & \textbf{0.349} & \textbf{0.67} & \textbf{1.00} & \textbf{1.15} & 1.23 & \textbf{0.96} & \textbf{0.92} & \textbf{0.88} & \textbf{0.82} & \textbf{1.00} & \textbf{1.05} & \textbf{1.09} & \textbf{1.12} & 0.96 & 0.88 & 0.74 & 0.54 & 0.064 & \textbf{0.061} & \textbf{0.056} & 0.066 \\
     \bottomrule
-  \end{tabular}%
-  }
-\end{table*}
+  \end{tabular}
+\end{sidewaystable*}

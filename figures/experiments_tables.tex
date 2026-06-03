@@ -13,7 +13,7 @@
 %   \input{figures/experiments_tables.tex}
 % and then reference via \ref{tab:ablation} and \ref{tab:baselines}.
 
-% ---- model colour palette ----------------------------------------------------
+% - model colour palette -
 \definecolor{auroraC}   {HTML}{E67E22}  % orange
 \definecolor{graphcastC}{HTML}{27AE60}  % green
 \definecolor{sfnoC}     {HTML}{2980B9}  % blue
@@ -31,7 +31,7 @@
 % production-baseline star
 \newcommand{\winner}{\textcolor{black!75}{$\bigstar$}}
 
-% ---- Table 1: Ablation grid --------------------------------------------------
+% - Table 1: Ablation grid -
 \begin{table}[t]
   \centering
   \small
@@ -41,21 +41,12 @@
            10 members at 10-day lead. \textbf{Bold} marks the within-phase
            per-model winner; \winner\ marks the per-model production
            baseline (Tab.~\ref{tab:baselines}); $^{\dagger}$ marks the two
-           Phase 2b refinements that beat the $\sqrt{N}$ anchor (Aurora
-           encoder $0.044{\to}0.025$, GraphCast g2m $0.027{\to}0.014$). In
-           the Phase 2 sigma column, values within a layer group are listed
-           comma-separated (anchor in the middle, Phase 2b refinements
-           flanking) and layer groups are slash-separated. Phase 3 hooks
-           target $\lambda \gtrsim 3000$~km: Aurora \texttt{enc\_2} =
-           U-net bottleneck \texttt{encoder\_layers.2}; GraphCast
-           \texttt{n\_coarse\_42} = first 42 mesh nodes (level 0 + 1);
-           SFNO \texttt{Lcut\_10} = spectral modes $\ell<10$. Phase 3b
-           sweeps the spatial-reach threshold at the per-row $\sqrt{N}$
-           sigma (Aurora \texttt{enc\_12}/\texttt{enc\_012}; GraphCast
-           \texttt{n\_coarse\_162}/\texttt{n\_coarse\_642}; SFNO
-           \texttt{Lcut\_20}/\texttt{Lcut\_40}). The narrower Phase 3 hook
-           beats the broader Phase 3b thresholds on CRPSS@240\,h in every
-           model. \emph{mag\_0} is the unperturbed N=1 reference.}
+           Phase 2b refinements that beat the $\sqrt{N}$ anchor. Phase 3
+           hooks target the synoptic-and-larger scale
+           ($\lambda \gtrsim 3000$~km); Phase 3b broadens this reach at
+           the per-row $\sqrt{N}$ sigma. Configuration tags, sigma
+           encoding, and the unperturbed mag\_0 reference are documented
+           in appendix~\ref{appendix:reproducibility}.}
   \label{tab:ablation}
   \begin{tabular}{@{}l l l l@{}}
     \toprule
@@ -71,7 +62,7 @@
     \rowcolor{altRow}
     & \mbadge{aifsC}{aifs}         & all weights (lite)   & 0.003 / \textbf{0.01} / 0.03 \\
     & all 4 models                 & \emph{mag\_0} reference & - \\
-    \midrule
+    \hline
 
     \rowcolor{phaseBg}
     \multicolumn{4}{@{}l}{\textbf{Phase 2} \ \  layer-group sweep ($\sqrt{N}$ anchor) and Phase 2b finer-grid refinement on the top two groups} \\
@@ -81,7 +72,7 @@
     & \mbadge{sfnoC}{sfno}         & \textbf{encoder} / processor / decoder           & 0.035, \textbf{0.054}, 0.080 / 0.010 / 0.054, 0.075, 0.100 \\
     \rowcolor{altRow}
     & \mbadge{aifsC}{aifs}         & encoder / processor / \textbf{decoder}            & 0.027 / 0.012 / \textbf{0.028} \,\winner \\
-    \midrule
+    \hline
 
     \rowcolor{phaseBg}
     \multicolumn{4}{@{}l}{\textbf{Phase 3} \ \  coarse-scale perturbation} \\
@@ -89,7 +80,7 @@
     \rowcolor{altRow}
     & \mbadge{graphcastC}{graphcast} & \texttt{n\_coarse\_42}                              & 0.01 / 0.03 / 0.10 / 0.312 / 0.60 / \textbf{1.00} / 1.80 \\
     & \mbadge{sfnoC}{sfno}         & \texttt{Lcut\_10}                                     & 0.049 / 0.10 / \textbf{0.25} \,\winner\ / 0.60 \\
-    \midrule
+    \hline
 
     \rowcolor{phaseBg}
     \multicolumn{4}{@{}l}{\textbf{Phase 3b} \ \  spatial-reach threshold sweep (Phase 3 winner shown inline)} \\
@@ -101,7 +92,7 @@
   \end{tabular}
 \end{table}
 
-% ---- Table 2: Production baselines ------------------------------------------
+% - Table 2: Production baselines -
 \begin{table}[t]
   \centering
   \small
@@ -112,16 +103,16 @@
            pre-trained deterministic checkpoint at the \winner-marked
            configuration of Tab.~\ref{tab:ablation}; the listed loss is the
            checkpoint's deterministic training loss. Trained probabilistic
-           baselines: AIFS-CRPS \citep{Lang2024aifsens} -- GNN +
+           baselines: AIFS-CRPS \citep{Lang2024aifsens} - GNN +
            sliding-window transformer, per-member noise in processor
            conditional-LN, almost-fair CRPS loss; NVIDIA Atlas-ERA5
-           \citep{Chen2026atlas} -- latent DiT sampled via stochastic
+           \citep{Chen2026atlas} - latent DiT sampled via stochastic
            interpolant (drift regression); FourCastNet 3
-           \citep{Bonev2025fcn3} -- spherical neural operator with per-step
+           \citep{Bonev2025fcn3} - spherical neural operator with per-step
            latent noise via spherical diffusion, joint spatial+spectral
            CRPS loss. Classical reference IFS-ENS Cy49r1
            \citep{ECMWF2024Cy49r1}: TCo1279L137 primitive equations, EDA +
-           48~h singular-vector ICs, SPP stochastic physics; we subsample
+           48\,h singular-vector ICs, SPP stochastic physics; we subsample
            10 of the 50 perturbed members (stratified, dropping the
            control).}
   \label{tab:baselines}
@@ -138,7 +129,7 @@
     & \mbadge{sfnoC}{sfno\_modes10}        & coarse spectral modes $\ell<10$, $\sigma = 0.25$ (Phase 3); refined to refresh-every-20 with $\sigma = 0.35$ for spatial-mean SSR (Phase 6c, Sec.~\ref{sec:results-spatial}) & relative spherical L2 \\
     \rowcolor{altRow}
     & \mbadge{aifsC}{aifs\_perturbed}      & decoder layer group, $\sigma = 0.028$ (Phase 2)         & area-weighted MSE \\
-    \midrule
+    \hline
 
     \rowcolor{phaseBg}
     \multicolumn{4}{@{}l}{\textbf{Trained probabilistic}} \\
@@ -146,11 +137,11 @@
     \rowcolor{altRow}
     & \mbadge{atlasC}{atlas}               & latent DiT; stochastic-interpolant sampling       & drift regression \\
     & \mbadge{fcn3C}{fcn3}                 & spherical neural operator; per-step latent noise via spherical diffusion & spatial + spectral CRPS \\
-    \midrule
+    \hline
 
     \rowcolor{phaseBg}
     \multicolumn{4}{@{}l}{\textbf{Classical reference}} \\
-    & \mbadge{ifsC}{ifs\_ens}              & TCo1279L137 IFS-ENS (Cy49r1); EDA + 48~h singular-vector ICs; SPP stochastic physics; 10/50 perturbed members & n/a (numerical model) \\
+    & \mbadge{ifsC}{ifs\_ens}              & TCo1279L137 IFS-ENS (Cy49r1); EDA + 48\,h singular-vector ICs; SPP stochastic physics; 10/50 perturbed members & n/a (numerical model) \\
 
     \bottomrule
   \end{tabularx}
