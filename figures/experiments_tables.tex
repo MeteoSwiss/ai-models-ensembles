@@ -37,44 +37,25 @@
   \small
   \setlength{\tabcolsep}{6pt}
   \renewcommand{\arraystretch}{1.15}
-  \caption{Ablation experiments. Each cell is 4 init times $\times$ 10 members
-           = 40 forecasts at 10-day lead. Phase 1 sweeps the magnitude with
-           all weights perturbed. Phase 2 sweeps the layer group; the
-           per-group sigma is derived deterministically as
-           $\sigma_{\text{group}} = \sigma_{\text{full}} \cdot
-           \sqrt{N_{\text{total}}/N_{\text{group}}}$ from a fixed
-           $\sigma_{\text{full}}=0.01$ (same across all models, not the
-           per-model Phase 1 winner). Phase 3 sweeps the magnitude at
-           architecture-specific coarse-scale hooks targeting wavelengths
-           $\lambda \gtrsim 3000$~km (Aurora \texttt{enc\_2} = U-net bottom
-           \texttt{encoder\_layers.2}; GraphCast \texttt{n\_coarse\_42} =
-           activation hook on the first 42 mesh nodes; SFNO
-           \texttt{Lcut\_10} = spectral modes $\ell<10$). Phase 3b sweeps
-           the spatial-reach threshold at $\sqrt{N}$ sigma; each Phase 3b
-           row shows the Phase 3 winner alongside the two Phase 3b
-           configurations for direct comparison, with bold marking the
-           overall coarse-scale winner per model. The narrower Phase 3 hook
-           beats the broader Phase 3b thresholds on CRPSS@240h in every model
-           (Aurora 0.230 vs 0.153; GraphCast 0.195 vs 0.019; SFNO 0.306 vs 0.063).
-           \textbf{Bold} marks the within-phase per-model winner declared by
-           the evaluation pipeline ([scripts/evaluate\_ablation.sh] table
-           \texttt{ALLPHASES\_PHASE*}); for Phase 2 both the winning layer
-           group and its sigma are bolded. In the Phase 2 sigma column the
-           values within each layer group are listed comma-separated and
-           the layer groups are slash-separated; the $\sqrt{N}$ anchor sits
-           in the middle of each per-group list, flanked by the Phase 2b
-           finer-grid refinements (12 experiments total across the top two
-           Phase 2 layer groups per model). The $^{\dagger}$ dagger marks
-           the two cases where a refined sigma beat the $\sqrt{N}$ anchor:
-           Aurora encoder (anchor 0.044 -> refined 0.025) and GraphCast g2m
-           (anchor 0.027 -> refined 0.014). For SFNO the $\sqrt{N}$ anchor
-           (0.054 encoder) remained the Phase 2 + 2c winner.
-           \winner\ marks the per-model
-           winner across all phases that became the production perturbation
-           baseline (Tab.~\ref{tab:baselines}). A GraphCast frozen-per-member
-           pilot at $\sigma=1.0$ was run alongside Phase 3 as a diagnostic
-           for the fresh-vs-frozen noise question (not shown).
-           \emph{mag\_0} is the unperturbed N=1 reference.}
+  \caption{Ablation experiments. Each cell: 4 mid-season inits $\times$
+           10 members at 10-day lead. \textbf{Bold} marks the within-phase
+           per-model winner; \winner\ marks the per-model production
+           baseline (Tab.~\ref{tab:baselines}); $^{\dagger}$ marks the two
+           Phase 2b refinements that beat the $\sqrt{N}$ anchor (Aurora
+           encoder $0.044{\to}0.025$, GraphCast g2m $0.027{\to}0.014$). In
+           the Phase 2 sigma column, values within a layer group are listed
+           comma-separated (anchor in the middle, Phase 2b refinements
+           flanking) and layer groups are slash-separated. Phase 3 hooks
+           target $\lambda \gtrsim 3000$~km: Aurora \texttt{enc\_2} =
+           U-net bottleneck \texttt{encoder\_layers.2}; GraphCast
+           \texttt{n\_coarse\_42} = first 42 mesh nodes (level 0 + 1);
+           SFNO \texttt{Lcut\_10} = spectral modes $\ell<10$. Phase 3b
+           sweeps the spatial-reach threshold at the per-row $\sqrt{N}$
+           sigma (Aurora \texttt{enc\_12}/\texttt{enc\_012}; GraphCast
+           \texttt{n\_coarse\_162}/\texttt{n\_coarse\_642}; SFNO
+           \texttt{Lcut\_20}/\texttt{Lcut\_40}). The narrower Phase 3 hook
+           beats the broader Phase 3b thresholds on CRPSS@240\,h in every
+           model. \emph{mag\_0} is the unperturbed N=1 reference.}
   \label{tab:ablation}
   \begin{tabular}{@{}l l l l@{}}
     \toprule
@@ -126,40 +107,23 @@
   \small
   \setlength{\tabcolsep}{6pt}
   \renewcommand{\arraystretch}{1.20}
-  \caption{Production baselines. All seven models run at 112 init times
-           $\times$ 10 members = 1120 forecasts each, then intercompared on
-           the same grid, variables, and leads. The three post-hoc
-           perturbation baselines use the \winner-marked configuration from
-           Tab.~\ref{tab:ablation}; their listed loss is the deterministic
-           training loss of the underlying checkpoint (Aurora: Bodnar et al.\
-           2025, arXiv:2405.13063, weighted MAE; GraphCast: Lam et al.\ 2023,
-           arXiv:2212.12794, latitude- and variable-weighted MSE; SFNO: Bonev
-           et al.\ 2023, arXiv:2306.03838, channel-normalised relative
-           spherical L2). The trained probabilistic baselines are: AIFS-CRPS
-           (Lang et al.\ 2024, arXiv:2412.15832) - a GNN encoder/decoder with
-           a sliding-window transformer processor, with per-member noise
-           embeddings replacing the standard layer normalisations of every
-           processor pre-norm block, trained with an almost-fair CRPS loss;
-           NVIDIA Atlas-ERA5 - a latent diffusion Transformer (DiT) sampled
-           via the stochastic-interpolant framework of Albergo and
-           Vanden-Eijnden (2023), trained by velocity-matching the
-           interpolant drift (Chen et al.\ 2024, arXiv:2403.13724; no Atlas
-           preprint exists, loss verified from the earth2studio source);
-           FourCastNet 3 (Bonev et al.\ 2025, arXiv:2507.12144) - a spherical
-           neural operator combining local DISCO and global spectral
-           convolutions, with a per-step latent noise variable whose
-           evolution on the sphere follows a learned diffusion process,
-           trained against a joint spatial-and-spectral CRPS objective. The
-           IFS-ENS classical reference is the operational ECMWF ensemble
-           (Cy49r1, Nov 2024): a TCo1279L137 (~9 km, 137 levels) primitive-
-           equation model integrating from initial conditions perturbed by
-           Ensemble of Data Assimilations (EDA) plus 48~h singular vectors,
-           with model-error perturbations from the Stochastically Perturbed
-           Parametrizations (SPP) scheme (27 uncertain parametrisation
-           elements, AR(1) random fields at 1000 + 3000~km and 3 + 30 day
-           decorrelation). We subsample 10 of the 50 perturbed members
-           (stratified, dropping the control). See ECMWF IFS Documentation
-           Cy49r1 Part V.}
+  \caption{Production baselines. Each baseline: 112 weekly inits in 2024
+           $\times$ 10 members. Post-hoc baselines (this work) reuse a
+           pre-trained deterministic checkpoint at the \winner-marked
+           configuration of Tab.~\ref{tab:ablation}; the listed loss is the
+           checkpoint's deterministic training loss. Trained probabilistic
+           baselines: AIFS-CRPS \citep{Lang2024aifsens} -- GNN +
+           sliding-window transformer, per-member noise in processor
+           conditional-LN, almost-fair CRPS loss; NVIDIA Atlas-ERA5
+           \citep{Chen2026atlas} -- latent DiT sampled via stochastic
+           interpolant (drift regression); FourCastNet 3
+           \citep{Bonev2025fcn3} -- spherical neural operator with per-step
+           latent noise via spherical diffusion, joint spatial+spectral
+           CRPS loss. Classical reference IFS-ENS Cy49r1
+           \citep{ECMWF2024Cy49r1}: TCo1279L137 primitive equations, EDA +
+           48~h singular-vector ICs, SPP stochastic physics; we subsample
+           10 of the 50 perturbed members (stratified, dropping the
+           control).}
   \label{tab:baselines}
   \begin{tabularx}{\textwidth}{@{}l l X l@{}}
     \toprule
@@ -171,7 +135,7 @@
     & \mbadge{auroraC}{aurora\_encoder}    & encoder layer group, $\sigma = 0.025$ (Phase 2)         & weighted MAE \\
     \rowcolor{altRow}
     & \mbadge{graphcastC}{graphcast\_all}  & all layers, $\sigma = 0.01$ (Phase 1)                   & weighted MSE \\
-    & \mbadge{sfnoC}{sfno\_modes10}        & coarse spectral modes $\ell<10$, $\sigma = 0.25$ (Phase 3) & relative spherical L2 \\
+    & \mbadge{sfnoC}{sfno\_modes10}        & coarse spectral modes $\ell<10$, $\sigma = 0.25$ (Phase 3); refined to refresh-every-20 with $\sigma = 0.35$ for spatial-mean SSR (Phase 6c, Sec.~\ref{sec:results-spatial}) & relative spherical L2 \\
     \rowcolor{altRow}
     & \mbadge{aifsC}{aifs\_perturbed}      & decoder layer group, $\sigma = 0.028$ (Phase 2)         & area-weighted MSE \\
     \midrule

@@ -26,45 +26,22 @@
   \scriptsize
   \setlength{\tabcolsep}{2.5pt}
   \renewcommand{\arraystretch}{1.15}
-  \caption{Multi-metric, multi-lead calibration basis for the production
-           perturbation-baseline picks (\winner\ rows in
+  \caption{Multi-metric, multi-lead calibration basis for the per-model
+           production-baseline picks (\winner\ rows in
            Tab.~\ref{tab:ablation}; used in Tab.~\ref{tab:baselines}).
-           All numbers are computed on the ablation grid (4 mid-season init
-           times $\times$ 10 members = 40 forecasts per cell, 10-day lead);
-           the headline 7-way comparison in Tab.~\ref{tab:baselines} uses
-           the production grid of 112 weekly inits. For
-           each model the per-phase argmax-CRPSS winner is shown with CRPSS
-           (Continuous Ranked Probability Skill Score against an analytical
-           Gaussian climatology computed from WB2 ERA5 2022-2024; higher is
-           better, 1 = perfect, 0 = climatology, $< 0$ = worse than
-           climatology), SSR (1.0 = calibrated; less than 1
-           under-dispersive, more than 1 over-dispersive), SSIM (higher is
-           better, capped at 1), LSD (1.0 is perfect spectral match), FSS
-           at the 95th-percentile threshold (higher is better, capped at
-           1), and W$_{1}$ (1-Wasserstein distance against ERA5, pooled
-           across ensemble members; lower is better) at lead times 24, 72,
-           120, 240 h. CRPSS replaces raw CRPS to avoid the
-           variable-mean-of-CRPS pitfall where geopotential ($\sim 10^2$
-           m$^2$/s$^2$) would dominate the mean over temperature ($\sim$ K)
-           and humidity ($\sim 10^{-4}$ kg/kg). \textbf{Bold} marks the
-           within-model column-wise optimum across the phase candidates:
-           argmax CRPSS, argmin $|SSR - 1|$, argmax SSIM, argmin
-           $|LSD - 1|$, argmax FSS\,95\%, and argmin W$_{1}$. \winner\
-           marks the row chosen as the production baseline. The selection
-           rule combines (a) CRPSS@240\,h, (b) SSR closest to 1 at
-           120-240\,h, (c) consistent SSIM and FSS at long lead; W$_{1}$
-           adds an independent distributional check; values are tight
-           across phases (within $\sim$0.02) but show no phase consistently
-           winning, so the production picks are not penalised on this
-           metric. Numbers are per-variable CRPSS averaged across the 7
-           paper-headline variables (2D vars contribute one score each; 3D
-           vars contribute one score averaged across the 500 + 850 hPa
-           levels), then the variable-mean (data: allphases intercomp CSVs
-           + per-phase wd\_kde + WB2 2022-2024 climatology $\sigma$).
-           **All 4 production picks (\winner\ rows) remain the
-           within-model argmax CRPSS at lead 240\,h after the CRPS $\to$
-           CRPSS migration**, verified 2026-06-02.}
+           Each cell: 4 mid-season inits $\times$ 10 members at lead times
+           24, 72, 120, 240\,h; 7-variable mean (Sec.~\ref{sec:methods-notation};
+           3D variables averaged over $\ell \in \{500, 850\}$ hPa first).
+           CRPSS rather than raw CRPS because the variable mean of CRPS is
+           geopotential-dominated. \textbf{Bold}: within-model column
+           optimum (argmax for CRPSS, SSIM, FSS\,95\%; argmin $|x-1|$ for
+           SSR, LSD; argmin for $W_1$). Selection rule: CRPSS@240\,h
+           dominates, with SSR closest to 1 at 120-240\,h, and consistent
+           SSIM/LSD/FSS/W$_1$ as structural and distributional checks. All
+           four production picks remain the within-model argmax CRPSS at
+           240\,h after the CRPS $\to$ CRPSS migration.}
   \label{tab:calibration}
+  \resizebox{\textwidth}{!}{%
   \begin{tabular}{@{}l l rrrr rrrr rrrr rrrr rrrr rrrr@{}}
     \toprule
     \multirow{2}{*}{\textbf{Phase}}
@@ -123,5 +100,6 @@
     \rowcolor{altRow}
     Phase 2 & 0.028 / decoder \,\winner & \textbf{0.838} & \textbf{0.749} & \textbf{0.624} & \textbf{0.349} & \textbf{0.67} & \textbf{1.00} & \textbf{1.15} & 1.23 & \textbf{0.96} & \textbf{0.92} & \textbf{0.88} & \textbf{0.82} & \textbf{1.00} & \textbf{1.05} & \textbf{1.09} & \textbf{1.12} & 0.96 & 0.88 & 0.74 & 0.54 & 0.064 & \textbf{0.061} & \textbf{0.056} & 0.066 \\
     \bottomrule
-  \end{tabular}
+  \end{tabular}%
+  }
 \end{table*}

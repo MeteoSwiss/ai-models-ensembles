@@ -29,39 +29,24 @@
   \small
   \setlength{\tabcolsep}{4pt}
   \renewcommand{\arraystretch}{1.20}
-  \caption{Per-baseline inference cost on CSCS Alps (NVIDIA GH200) for the
-           7-way production-baseline study (112 inits $\times$ 10 members =
-           1120 forecasts per baseline, 10-day lead). \textbf{Pure inference
-           time per member} (sec/mbr) is the mean per-call duration between
-           "Inference starting!" and "Inference complete" markers in the
-           earth2studio logs (median for SFNO, where the mean is inflated by
-           SIGSEGV-recovery retries); for Atlas, derived from the tqdm
-           progress-bar total time (61 rollout steps $\times$ 37.5 s/step).
-           This excludes data fetch (ARCO/CDS), model load, container
-           startup, and zarr write. NH = compute node-hours (1 Alps node =
-           4 Grace-Hopper superchips). Cost uses the CSCS Swiss-academia
-           rate at tier 3 (> 10\,000 NH/year, CHF 3.84/NH) with the
-           ETH-Zurich 25\% discount: CHF 2.88/NH delivered. Energy assumes
-           4.0 kW node power under steady inference and PUE 1.2 (peak rated
-           5.6 kW; \texttt{<} 1.2 PUE publicly disclosed by CSCS, annualised
-           figure not disclosed). The data centre runs on 100\% Ticino
-           hydropower (Aziende Industriali di Lugano contract, 36 GWh/yr;
-           cscs.ch news 2021); cooling water is drawn from Lake Lugano at
-           45 m depth (inlet 6\,$^{\circ}$C) and returned at $\sim$12 m depth (CSCS
-           lake-water fact sheet); waste heat is delivered to the CSCS
-           office and USI/SUPSI campus year-round (\texttt{~}742 MWh
-           thermal/yr), with a 6 MW (scalable to 30 MW) AIL district-heating
-           plant under construction. The fastest baseline is SFNO modes10
-           (59 s/member, 8 spherical-operator blocks); AIFS-CRPS is second
-           (75 s/member, single forward pass with conditional-LN noise).
-           Atlas is \emph{the dramatic outlier} at 38 minutes per member -
-           roughly 25-40x slower than the other six - because its
-           stochastic-interpolant Diffusion Transformer requires multiple
-           denoising steps per rollout step. Our post-hoc perturbation
-           baselines (59-125 s/member) are competitive with the
-           single-forward-pass trained-probabilistic baselines and
-           \emph{vastly} cheaper than diffusion-style stochastic sampling.}
+  \caption{Per-baseline inference cost on CSCS Alps (NVIDIA GH200; 1 Alps
+           node = 4 Grace-Hopper superchips). Per-baseline workload: 1120
+           forecasts (112 inits $\times$ 10 members, 10-day lead). s/mbr =
+           pure inference time per member from the earth2studio
+           ``Inference starting''/``Inference complete'' markers (median
+           for SFNO; Atlas from its 61 rollout-step tqdm total). CS\,h =
+           wall-clock for a 50-member case-study on one Alps node. Cost
+           rate: CSCS Swiss-academia tier 3 at CHF 3.84/NH with the
+           ETH-Zurich 25\% discount, i.e.\ CHF 2.88/NH. Energy: 4.0 kW
+           node power under steady inference and PUE 1.2 (CSCS Alps
+           cooling from Lake Lugano; waste heat fed to the USI/SUPSI
+           district-heating loop; 100\% Ticino hydropower via AIL Lugano).
+           Atlas at 38 min/mbr ($\sim$25-40$\times$ slower than the other
+           six) reflects the multi-step stochastic-interpolant DiT
+           sampler; the post-hoc baselines (59-125 s/mbr) match the
+           single-forward-pass trained-probabilistic baselines.}
   \label{tab:inference-cost}
+  \resizebox{\columnwidth}{!}{%
   \begin{tabular}{@{}l l r r r r r r r r@{}}
     \toprule
     \textbf{Role}
@@ -100,7 +85,8 @@
     & \mbadge{ifsC}{ifs\_ens}          & n/a    & --   & --  & \multicolumn{5}{l}{ECMWF MARS download only; no CSCS compute} \\
 
     \bottomrule
-  \end{tabular}
+  \end{tabular}%
+  }
   \vspace{2pt}
 
   \scriptsize
