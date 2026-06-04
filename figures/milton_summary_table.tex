@@ -1,0 +1,59 @@
+% Hurricane Milton case-study summary table. Generated 2026-06-04 from
+%   /iopsstor/scratch/cscs/sadamov/milton_case_study/milton_per_baseline_summary.csv
+% via tools_or_scratch/analyze_milton_stats.py.
+% 6 baselines x 14 inits x 10 members = 140 (init, member) pairs per row.
+% Detection rate = fraction of those 140 that produced any track within the
+% Milton lifecycle window (2024-10-04 .. 2024-10-11). Position errors are
+% mean great-circle distance against IBTrACS v4 NA-basin best track and
+% against the 0.25 deg ERA5 control track, averaged over all matched
+% (init, member, lead) rows. Intensity bias is mean MSL minus IBTrACS MSL
+% at matched validating times, in hPa; the +39 to +47 hPa cluster reflects
+% the 0.25 deg ERA5 resolution-limited intensity ceiling. ESFM omitted, see
+% case-study text. aifs_perturbed pending the IFS-ENS perturbed-IC redo.
+
+\begin{table}[t]
+  \centering
+  \small
+  \setlength{\tabcolsep}{6pt}
+  \caption{Hurricane Milton (October 2024) case-study summary. Each row
+           aggregates 14 init times $\times$ 10 ensemble members. Detection
+           rate is the fraction of those 140 (init, member) pairs that
+           produced any track point within the Milton lifecycle window.
+           Position errors are mean great-circle distance, averaged over
+           all matched (init, member, lead) rows. The IBTrACS-axis MSL
+           bias is dominated by the 0.25\,$^\circ$ ERA5 resolution-limited
+           intensity ceiling and is therefore not a baseline-quality
+           discriminator (see text). Sorted by detection rate descending.
+           ESFM omitted (footnote in Sec.~\ref{sec:results-milton});
+           aifs\_perturbed pending the IFS-ENS perturbed-IC production
+           grid.}
+  \label{tab:milton-summary}
+  \begin{tabular}{@{}l l rrrrr@{}}
+    \toprule
+    \textbf{Role} & \textbf{Model}
+      & \textbf{Detect.}
+      & \textbf{Mean pos.}
+      & \textbf{Median pos.}
+      & \textbf{Mean MSL}
+      & \textbf{Mean pos.} \\
+     &
+      & \textbf{rate (\%)}
+      & \textbf{err. (km)}
+      & \textbf{err. (km)}
+      & \textbf{bias (hPa)}
+      & \textbf{err. vs ERA5 (km)} \\
+    \midrule
+    \rowcolor{phaseBg}
+    \multicolumn{7}{@{}l}{\textbf{Trained probabilistic}} \\
+    & Atlas         & 88 & 253 & 142 & $+44.6$ & 247 \\
+    & AIFS-ENS      & 86 & 266 & 145 & $+40.3$ & 257 \\
+    & FCN3          & 84 & 435 & 207 & $+46.5$ & 427 \\
+    \hline
+    \rowcolor{phaseBg}
+    \multicolumn{7}{@{}l}{\textbf{Post-hoc weight perturbation (this work)}} \\
+    & sfno\_modes10    & 78 & 293 & 150 & $+41.7$ & 238 \\
+    & aurora\_encoder  & 74 & 196 & 124 & $+39.3$ & 172 \\
+    & graphcast\_all   & 52 & 164 &  86 & $+42.5$ & 139 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
