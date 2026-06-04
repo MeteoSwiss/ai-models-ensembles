@@ -17,8 +17,10 @@ frozen@0.25 while having dramatically smaller spatial-mean spread.
 
 from __future__ import annotations
 
+import argparse
 import glob
 import os
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -38,6 +40,11 @@ VARS_PLOT = [
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--persistence-json", type=Path, default=None)
+    parser.add_argument("--climatology-json", type=Path, default=None)
+    args = parser.parse_args()
+
     csvs = sorted(glob.glob(f"{BASE}/*.csv"))
     df = pd.concat([pd.read_csv(c) for c in csvs], ignore_index=True)
     df_lvl = df.groupby(["model", "variable", "lead_time_hours"])["ssr"].mean().reset_index()
@@ -84,7 +91,12 @@ def main() -> None:
                 markersize=6,
             )
 
-        ax.axhline(1.0, color="black", lw=0.7, ls=":", alpha=0.6)
+        if args.climatology_json is not None:
+            ax.axhline(1.0, color="black", lw=1.0, ls="-", alpha=0.6, label="Climatology SSR=1")
+        else:
+            ax.axhline(1.0, color="black", lw=0.7, ls=":", alpha=0.6)
+        if args.persistence_json is not None:
+            ax.axhline(0.0, color="black", lw=1.0, ls=":", alpha=0.7, label="Persistence SSR=0")
         ax.set_title(var, fontsize=10)
         ax.grid(alpha=0.3)
         ax.set_yscale("log")

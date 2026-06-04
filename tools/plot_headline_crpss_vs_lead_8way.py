@@ -9,6 +9,7 @@ produced temporal_metrics_combined.csv.
 """
 
 from __future__ import annotations
+import argparse
 import csv
 import json
 import math
@@ -19,8 +20,27 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument(
+    "--persistence-json",
+    type=Path,
+    default=None,
+    help="Persistence MAE JSON (default: 112-init if present, else 20-init 2024)",
+)
+parser.add_argument(
+    "--climatology-json",
+    type=Path,
+    default=None,
+    help="Sigma_clim JSON (default: 4-yr sigma_clim_ablation.json)",
+)
+cli = parser.parse_args()
+
 CSV = "/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles/baselines/intercomparison/probabilistic/temporal_metrics_combined.csv"
-SIGMA = "/iopsstor/scratch/cscs/sadamov/sigma_clim_ablation.json"
+SIGMA = (
+    str(cli.climatology_json)
+    if cli.climatology_json is not None
+    else "/iopsstor/scratch/cscs/sadamov/sigma_clim_ablation.json"
+)
 ESFM_PROB = Path(
     "/capstor/store/cscs/swissai/a122/ESFM_Results/ESFM_s_nm_10ens/"
     "Evaluations_rollout/2023-2024/step10000/probabilistic"
@@ -181,8 +201,14 @@ for m in MODELS:
 # (b) Persistence: forecast(t+h) = analysis(t). Empirical MAE from
 #     tools/compute_persistence_mae.py against the local 2022-2025 ERA5 zarr;
 #     converted to CRPSS using the same sigma_clim as the model baselines.
-PERSISTENCE_JSON = Path("/iopsstor/scratch/cscs/sadamov/persistence_mae_2024.json")
+if cli.persistence_json is not None:
+    PERSISTENCE_JSON = cli.persistence_json
+elif Path("/iopsstor/scratch/cscs/sadamov/persistence_mae_112inits.json").exists():
+    PERSISTENCE_JSON = Path("/iopsstor/scratch/cscs/sadamov/persistence_mae_112inits.json")
+else:
+    PERSISTENCE_JSON = Path("/iopsstor/scratch/cscs/sadamov/persistence_mae_2024.json")
 if PERSISTENCE_JSON.exists():
+    print(f"Using persistence: {PERSISTENCE_JSON}")
     pers_mae = json.load(open(PERSISTENCE_JSON))
 
     def persistence_crpss(lead):

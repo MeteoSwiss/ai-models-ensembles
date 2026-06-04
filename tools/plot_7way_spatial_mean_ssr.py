@@ -14,8 +14,10 @@ is comparable. See [[spatial-mean-vs-pointwise-ssr]].
 
 from __future__ import annotations
 
+import argparse
 import glob
 import os
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -57,6 +59,11 @@ def load_all() -> pd.DataFrame:
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--persistence-json", type=Path, default=None)
+    parser.add_argument("--climatology-json", type=Path, default=None)
+    args = parser.parse_args()
+
     df = load_all()
     df_lvl = df.groupby(["baseline", "variable", "lead_time_hours"])["ssr"].mean().reset_index()
 
@@ -91,7 +98,12 @@ def main() -> None:
                     alpha=0.9,
                 )
 
-        ax.axhline(1.0, color="black", lw=0.7, ls=":", alpha=0.6)
+        if args.climatology_json is not None:
+            ax.axhline(1.0, color="black", lw=1.0, ls="-", alpha=0.6, label="Climatology SSR=1")
+        else:
+            ax.axhline(1.0, color="black", lw=0.7, ls=":", alpha=0.6)
+        if args.persistence_json is not None:
+            ax.axhline(0.0, color="black", lw=1.0, ls=":", alpha=0.7, label="Persistence SSR=0")
         ax.set_title(var, fontsize=10)
         ax.grid(alpha=0.3)
 

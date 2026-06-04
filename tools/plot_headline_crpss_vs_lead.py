@@ -5,6 +5,7 @@ a line plot over the full 0-360 h lead range (61 leads, 6 h step).
 """
 
 from __future__ import annotations
+import argparse
 import csv
 import json
 import math
@@ -18,6 +19,11 @@ import matplotlib.pyplot as plt
 CSV = "/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles/baselines/intercomparison/probabilistic/temporal_metrics_combined.csv"
 SIGMA = "/iopsstor/scratch/cscs/sadamov/sigma_clim_ablation.json"
 OUT = "/users/sadamov/pyprojects/ai-models-ensembles/figures/headline_crpss_vs_lead_7way.pdf"
+
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument("--persistence-json", type=Path, default=None)
+parser.add_argument("--climatology-json", type=Path, default=None)
+args = parser.parse_args()
 
 VARS_2D = ["2m_temperature"]  # MSL excluded per the ifs_ens MSL bug
 VARS_3D = [
@@ -61,7 +67,7 @@ STYLE = {
     "ifs_ens": ":",
 }
 
-sigma = json.load(open(SIGMA))
+sigma = json.load(open(args.climatology_json if args.climatology_json is not None else SIGMA))
 
 
 def sig_for(var, lvl):
@@ -129,7 +135,51 @@ for m in MODELS:
         ys.append(v)
     ax.plot(xs, ys, label=PRETTY[m], color=COLOUR[m], linestyle=STYLE[m], linewidth=1.6)
 
-ax.axhline(0, color="black", linewidth=0.5, linestyle="-", alpha=0.5)
+if args.persistence_json is not None and args.persistence_json.exists():
+    pers_mae = json.load(open(args.persistence_json))
+
+    def persistence_crpss(lead):
+        per_var = []
+        for v in VARS_2D:
+            mae_dict = pers_mae.get(v)
+            if not mae_dict:
+                continue
+            mae = mae_dict.get(str(lead))
+            s = sig_for(v, None)
+            if mae is None or s is None:
+                continue
+            per_var.append(1 - mae / (s / math.sqrt(math.pi)))
+        for v in VARS_3D:
+            skills = []
+            for lvl in (500, 850):
+                mae_dict = pers_mae.get(f"{v}_{lvl}")
+                if not mae_dict:
+                    continue
+                mae = mae_dict.get(str(lead))
+                s = sig_for(v, float(lvl))
+                if mae is None or s is None:
+                    continue
+                skills.append(1 - mae / (s / math.sqrt(math.pi)))
+            if skills:
+                per_var.append(sum(skills) / len(skills))
+        return sum(per_var) / len(per_var) if per_var else None
+
+    pers_x, pers_y = [], []
+    for lead in sorted(int(h) for h in next(iter(pers_mae.values())).keys()):
+        v = persistence_crpss(lead)
+        if v is not None and 0 < lead <= 360:
+            pers_x.append(lead)
+            pers_y.append(v)
+    ax.plot(
+        pers_x, pers_y, label="Persistence", color="black", linestyle=":", linewidth=1.0, alpha=0.7
+    )
+elif args.persistence_json is not None:
+    print(f"WARN: {args.persistence_json} missing; skipping persistence reference curve")
+
+if args.climatology_json is not None:
+    ax.axhline(0, color="black", linewidth=1.0, linestyle="--", alpha=0.6, label="Climatology")
+else:
+    ax.axhline(0, color="black", linewidth=0.5, linestyle="-", alpha=0.5)
 ax.set_xlim(0, 360)
 ax.set_ylim(-0.05, 1.0)
 ax.set_xticks([0, 24, 72, 120, 168, 240, 312, 360])
