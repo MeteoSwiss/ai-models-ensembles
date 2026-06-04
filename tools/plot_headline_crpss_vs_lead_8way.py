@@ -176,14 +176,60 @@ for m in MODELS:
         ys.append(v)
     ax.plot(xs, ys, label=PRETTY[m], color=COLOUR[m], linestyle=STYLE[m], linewidth=1.6)
 
-ax.axhline(0, color="black", linewidth=0.5, linestyle="-", alpha=0.5)
+# Reference baselines:
+# (a) Climatology: CRPSS = 0 exactly, by definition of the CRPSS denominator.
+# (b) Persistence: forecast(t+h) = analysis(t). Empirical MAE from
+#     tools/compute_persistence_mae.py against the local 2022-2025 ERA5 zarr;
+#     converted to CRPSS using the same sigma_clim as the model baselines.
+PERSISTENCE_JSON = Path("/iopsstor/scratch/cscs/sadamov/persistence_mae_2024.json")
+if PERSISTENCE_JSON.exists():
+    pers_mae = json.load(open(PERSISTENCE_JSON))
+
+    def persistence_crpss(lead):
+        per_var = []
+        for v in VARS_2D:
+            mae_dict = pers_mae.get(v)
+            if not mae_dict:
+                continue
+            mae = mae_dict.get(str(lead))
+            s = sig_for(v, None)
+            if mae is None or s is None:
+                continue
+            per_var.append(1 - mae / (s / math.sqrt(math.pi)))
+        for v in VARS_3D:
+            skills = []
+            for lvl in (500, 850):
+                mae_dict = pers_mae.get(f"{v}_{lvl}")
+                if not mae_dict:
+                    continue
+                mae = mae_dict.get(str(lead))
+                s = sig_for(v, float(lvl))
+                if mae is None or s is None:
+                    continue
+                skills.append(1 - mae / (s / math.sqrt(math.pi)))
+            if skills:
+                per_var.append(sum(skills) / len(skills))
+        return sum(per_var) / len(per_var) if per_var else None
+
+    pers_x, pers_y = [], []
+    for lead in sorted(int(h) for h in next(iter(pers_mae.values())).keys()):
+        v = persistence_crpss(lead)
+        if v is not None and 0 < lead <= 360:
+            pers_x.append(lead)
+            pers_y.append(v)
+    ax.plot(
+        pers_x, pers_y, label="Persistence", color="black", linestyle=":", linewidth=1.0, alpha=0.7
+    )
+else:
+    print(f"WARN: {PERSISTENCE_JSON} missing; skipping persistence reference curve")
+ax.axhline(0, color="black", linewidth=1.0, linestyle="--", alpha=0.6, label="Climatology")
 ax.set_xlim(0, 360)
-ax.set_ylim(-0.6, 1.0)
+ax.set_ylim(-1.6, 1.0)
 ax.set_xticks([0, 24, 72, 120, 168, 240, 312, 360])
 ax.set_xlabel("Lead time (h)")
 ax.set_ylabel("CRPSS (variable-mean, 6 paper variables)")
 ax.grid(True, linewidth=0.4, alpha=0.5)
-ax.legend(loc="lower left", fontsize=8, ncol=2, framealpha=0.95)
+ax.legend(loc="lower left", fontsize=7, ncol=2, framealpha=0.95)
 ax.set_title("Headline 8-way intercomparison on the 112-init production grid", fontsize=10)
 
 plt.tight_layout()
