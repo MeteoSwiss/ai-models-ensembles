@@ -25,6 +25,7 @@ Output: /iopsstor/scratch/cscs/sadamov/persistence_mae_112inits.json
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -67,8 +68,10 @@ def _build_inits() -> list[str]:
     return out
 
 
+sys.stdout.reconfigure(line_buffering=True)
+
 INITS = _build_inits()
-print(f"Production grid: {len(INITS)} init times across {INITS[0]} .. {INITS[-1]}")
+print(f"Production grid: {len(INITS)} init times across {INITS[0]} .. {INITS[-1]}", flush=True)
 
 
 def cos_lat_mean(da: xr.DataArray) -> float:
@@ -77,10 +80,13 @@ def cos_lat_mean(da: xr.DataArray) -> float:
     return float((da * w).sum(("latitude", "longitude")) / w.sum() / da.sizes["longitude"])
 
 
-print("Opening WB2 truth zarrs (concat 2022-2023 + 2024-2025)...")
+print("Opening WB2 truth zarrs (concat 2022-2023 + 2024-2025)...", flush=True)
 parts = [xr.open_zarr(z, consolidated=True, chunks={}) for z in WB2_ZARRS]
 ds = xr.concat(parts, dim="time").sortby("time")
-print(f"Opened. Variables: {len(ds.data_vars)}; init samples: {len(INITS)}; leads: {len(LEADS_H)}")
+print(
+    f"Opened. Variables: {len(ds.data_vars)}; init samples: {len(INITS)}; leads: {len(LEADS_H)}",
+    flush=True,
+)
 
 results: dict = {}
 
@@ -89,21 +95,21 @@ for var in VARS_2D + VARS_3D:
     levels_use = LEVELS if is_3d else [None]
     for lvl in levels_use:
         key = var if lvl is None else f"{var}_{lvl}"
-        print(f"  Processing {key}...")
+        print(f"  Processing {key}...", flush=True)
 
         if var not in ds.data_vars:
-            print(f"    SKIP: {var} not in WB2 dataset")
+            print(f"    SKIP: {var} not in WB2 dataset", flush=True)
             results[key] = None
             continue
         da_var = ds[var].sel(level=lvl, method="nearest") if is_3d else ds[var]
 
         per_lead_maes: dict[int, list[float]] = {h: [] for h in LEADS_H}
-        for init_str in INITS:
+        for i, init_str in enumerate(INITS):
             init_t = np.datetime64(init_str)
             try:
                 a = da_var.sel(time=init_t).load()
             except KeyError:
-                print(f"    SKIP init {init_str}: not in dataset")
+                print(f"    SKIP init {init_str}: not in dataset", flush=True)
                 continue
             for h in LEADS_H:
                 valid_t = init_t + np.timedelta64(h, "h")
@@ -112,15 +118,19 @@ for var in VARS_2D + VARS_3D:
                 except KeyError:
                     continue
                 per_lead_maes[h].append(cos_lat_mean(abs(a - b)))
+            if (i + 1) % 10 == 0 or i + 1 == len(INITS):
+                print(f"    {key}: {i + 1}/{len(INITS)} inits done", flush=True)
 
         results[key] = {h: float(sum(v) / len(v)) if v else None for h, v in per_lead_maes.items()}
+        OUT.write_text(json.dumps(results, indent=2))
+        print(f"    -> incrementally wrote {key} to {OUT}", flush=True)
 
 OUT.write_text(json.dumps(results, indent=2))
-print(f"\n-> {OUT}")
-print("\nPersistence MAE at lead 240 h (sanity check):")
+print(f"\n-> {OUT}", flush=True)
+print("\nPersistence MAE at lead 240 h (sanity check):", flush=True)
 for k, lead_maes in results.items():
     v = lead_maes.get(240) if isinstance(lead_maes, dict) else None
     if v is None:
-        print(f"  {k:32s} --")
+        print(f"  {k:32s} --", flush=True)
     else:
-        print(f"  {k:32s} {v:.4f}")
+        print(f"  {k:32s} {v:.4f}", flush=True)
