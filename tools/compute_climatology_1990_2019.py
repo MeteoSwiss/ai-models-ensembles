@@ -35,17 +35,17 @@ from pathlib import Path
 
 import numpy as np
 import xarray as xr
-import fsspec
 import dask
 
 
 # ---------------------------------------------------------------------------
 # Config
 # ---------------------------------------------------------------------------
-WB2_URL = (
-    "https://storage.googleapis.com/weatherbench2/datasets/era5/"
-    "1959-2023_01_10-wb13-6h-1440x721_with_derived_variables.zarr"
-)
+# Local 0.25 deg ERA5 reanalysis 1959-2021 -- covers our 1990-2019 climatology
+# window in full. All 7 paper vars (2m_t, MSL, geopotential, temperature,
+# u/v_wind, specific_humidity) at 37 pressure levels. Faster than the public
+# WB2 HTTPS bucket and avoids egress + cert dependence.
+WB2_LOCAL = "/capstor/store/cscs/swissai/weatherbench/weatherbench2_original"
 
 VARS_2D = ["2m_temperature", "mean_sea_level_pressure"]
 VARS_3D = [
@@ -71,9 +71,8 @@ PROVENANCE_OUT = OUTDIR / "climatology_1990_2019_provenance.json"
 # Climatology helpers
 # ---------------------------------------------------------------------------
 def open_wb2(time_chunk: int = 400) -> xr.Dataset:
-    """Open the WB2 zarr over anonymous HTTPS (no gcsfs)."""
-    mapper = fsspec.get_mapper(WB2_URL)
-    return xr.open_zarr(mapper, consolidated=True, chunks={"time": time_chunk})
+    """Open the local WB2-original reanalysis (1959-2021, 0.25 deg, 37 levels)."""
+    return xr.open_zarr(WB2_LOCAL, consolidated=True, chunks={"time": time_chunk})
 
 
 def select_subset(
@@ -412,7 +411,7 @@ def main():
     PROVENANCE_OUT.write_text(
         json.dumps(
             {
-                "wb2_url": WB2_URL,
+                "wb2_source": WB2_LOCAL,
                 "year_start": args.year_start,
                 "year_end": args.year_end,
                 "hours": list(args.hours),
