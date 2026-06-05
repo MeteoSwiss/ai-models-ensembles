@@ -30,12 +30,17 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import sys
 import time
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 
 import numpy as np
 import xarray as xr
 import dask
+
+sys.stdout.reconfigure(line_buffering=True)
 
 
 # ---------------------------------------------------------------------------
@@ -65,13 +70,26 @@ OUTDIR = Path("/iopsstor/scratch/cscs/sadamov")
 SIGMA_OUT = OUTDIR / "sigma_clim_1990_2019.json"
 CRPS_OUT = OUTDIR / "empirical_crps_clim_1990_2019.json"
 PROVENANCE_OUT = OUTDIR / "climatology_1990_2019_provenance.json"
+# Per-(var, level) JSONL checkpoint -- idempotent resume. Each line is one
+# completed field's row dict; on restart the script skips any keys already
+# present and merges new keys into the same outputs. Lines are appended
+# atomically (single write + flush + fsync) so a kill never leaves the file
+# in a half-written state.
+CHECKPOINT = OUTDIR / "climatology_1990_2019_checkpoint.jsonl"
 
 
 # ---------------------------------------------------------------------------
 # Climatology helpers
 # ---------------------------------------------------------------------------
-def open_wb2(time_chunk: int = 400) -> xr.Dataset:
-    """Open the local WB2-original reanalysis (1959-2021, 0.25 deg, 37 levels)."""
+def open_wb2(time_chunk: int = 1460) -> xr.Dataset:
+    """Open the local WB2-original reanalysis (1959-2021, 0.25 deg, 37 levels).
+
+    `time_chunk=1460` aligns to one calendar year at 6-hourly cadence so the
+    per-year pulls in ``compute_one_field`` each touch a single zarr chunk
+    along the time axis. Earlier runs with ``time_chunk=400`` issued ~3.7
+    chunk reads per year and added 30-40% overhead from chunk-boundary
+    decode work that the year-aligned size eliminates.
+    """
     return xr.open_zarr(WB2_LOCAL, consolidated=True, chunks={"time": time_chunk})
 
 
@@ -145,6 +163,33 @@ def fair_crps_leave_one_out(da_yearly: np.ndarray) -> np.ndarray:
 # ---------------------------------------------------------------------------
 # Per-variable driver
 # ---------------------------------------------------------------------------
+def _worker_one_field(
+    var: str,
+    level: int | None,
+    year_start: int,
+    year_end: int,
+    hours: tuple[int, ...],
+    dry_run: bool,
+) -> dict:
+    """ProcessPool worker: open WB2 fresh, compute one (var, level) field.
+
+    Workers cannot share xarray Datasets across the multiprocessing boundary
+    (zarr async stores are not picklable), so each worker re-opens WB2 on its
+    own. Numpy thread fanout is pinned to 1 because the year-by-year pull
+    fills 30 GB+ of NumPy arrays per worker, and a 32-thread BLAS gangs up
+    badly with multiple ProcessPool workers on a 72-CPU node.
+    """
+    for env in (
+        "OMP_NUM_THREADS",
+        "OPENBLAS_NUM_THREADS",
+        "MKL_NUM_THREADS",
+        "NUMEXPR_NUM_THREADS",
+    ):
+        os.environ.setdefault(env, "1")
+    ds = open_wb2()
+    return compute_one_field(ds, var, level, year_start, year_end, hours, dry_run=dry_run)
+
+
 def compute_one_field(
     ds: xr.Dataset,
     var: str,
@@ -332,6 +377,13 @@ def main():
         default=32,
         help="Dask thread-pool workers for HTTPS reads (default 32)",
     )
+    ap.add_argument(
+        "--parallel",
+        type=int,
+        default=4,
+        help="Number of concurrent (var, level) workers via ProcessPoolExecutor. "
+        "Memory-bound: each worker peaks at ~181 GB. Default 4 fits in 800 GB.",
+    )
     args = ap.parse_args()
 
     dask.config.set(scheduler="threads", num_workers=args.workers)
@@ -343,53 +395,111 @@ def main():
 
     OUTDIR.mkdir(parents=True, exist_ok=True)
 
-    print("Opening WB2 ARCO-ERA5 zarr over HTTPS ...")
-    ds = open_wb2()
-    print(f"  ds time range: {ds.time.min().values} .. {ds.time.max().values}")
-
-    sigma_dict: dict[str, float] = {}
-    crps_dict: dict[str, float] = {}
-    rows = []
-
+    # ----------------------------------------------------------------------
+    # Idempotency: build the full (var, level) work list, then skip keys
+    # already present in the per-field checkpoint. Each completed field
+    # appends one JSONL line with sigma + crps + dry-run sentinel.
+    # ----------------------------------------------------------------------
+    work: list[tuple[str, int | None]] = []
     for var in requested_vars:
         if var in VARS_2D:
-            row = compute_one_field(
-                ds,
-                var,
-                None,
-                args.year_start,
-                args.year_end,
-                tuple(args.hours),
-                dry_run=args.dry_run,
-            )
-            rows.append(row)
-            if not args.dry_run:
-                sigma_dict[var] = {
-                    "unconditional": row["sigma_clim"],
-                    "doy_conditional": row["sigma_clim_doy"],
-                }
-                crps_dict[var] = row["empirical_crps_clim"]
+            work.append((var, None))
         elif var in VARS_3D:
             for lvl in requested_levels:
-                row = compute_one_field(
-                    ds,
+                work.append((var, int(lvl)))
+        else:
+            print(f"WARN: unknown variable {var!r}, skipping", flush=True)
+
+    sigma_dict: dict = {}
+    crps_dict: dict = {}
+    rows: list = []
+
+    def _key_of(var: str, level: int | None) -> str:
+        return var if level is None else f"{var}_{level}"
+
+    done_keys: set[str] = set()
+    if not args.dry_run and CHECKPOINT.exists():
+        with CHECKPOINT.open() as f:
+            for raw in f:
+                raw = raw.strip()
+                if not raw:
+                    continue
+                rec = json.loads(raw)
+                k = rec["label"]
+                done_keys.add(k)
+                sigma_dict[k] = {
+                    "unconditional": rec["sigma_clim"],
+                    "doy_conditional": rec["sigma_clim_doy"],
+                }
+                crps_dict[k] = rec["empirical_crps_clim"]
+                rows.append(rec)
+        # Promote partial-output JSONs so anyone reading them mid-run sees
+        # the keys already on disk.
+        Path(args.sigma_out).write_text(json.dumps(sigma_dict, indent=2))
+        Path(args.crps_out).write_text(json.dumps(crps_dict, indent=2))
+        print(
+            f"Resuming with {len(done_keys)} keys already in checkpoint: " f"{sorted(done_keys)}",
+            flush=True,
+        )
+
+    todo = [(v, lv) for (v, lv) in work if _key_of(v, lv) not in done_keys]
+    if not todo:
+        print("Nothing to do; checkpoint already complete.", flush=True)
+        return
+
+    print(f"Keys remaining: {len(todo)} / {len(work)}", flush=True)
+
+    # Parallel: one worker per (var, level) up to ``args.parallel`` concurrent.
+    # Each worker opens its own WB2 handle (zarr stores are not picklable),
+    # processes the year-by-year pull + per-(DOY, hour) LOO fair-CRPS, returns
+    # the row dict. Peak per-worker memory is the staging cube
+    # 30 yrs x 1460 bins x 721 x 1440 x f32 = 181 GB at full ERA5 grid; with 4
+    # workers concurrent the node sees ~720 GB of resident heap, comfortably
+    # inside the 800 GB --mem cap. dial down ``--parallel`` if memory pressure
+    # bites or for partial-grid (--levels) runs.
+    par = max(1, int(args.parallel))
+    print(f"Spawning ProcessPoolExecutor with {par} workers", flush=True)
+
+    # Append-only JSONL writer for atomic per-field commits. Each worker
+    # produces one row dict; main writes it on completion (single writer ->
+    # no contention). Explicit flush + fsync after each line so partial
+    # state survives a hard kill.
+    with CHECKPOINT.open("a", buffering=1) as ckpt:
+        with ProcessPoolExecutor(max_workers=par) as ex:
+            futures = {
+                ex.submit(
+                    _worker_one_field,
                     var,
                     lvl,
                     args.year_start,
                     args.year_end,
                     tuple(args.hours),
-                    dry_run=args.dry_run,
-                )
+                    args.dry_run,
+                ): (var, lvl)
+                for (var, lvl) in todo
+            }
+            for fut in as_completed(futures):
+                var, lvl = futures[fut]
+                key = _key_of(var, lvl)
+                try:
+                    row = fut.result()
+                except Exception as e:
+                    print(f"  FAILED {key}: {type(e).__name__}: {e}", flush=True)
+                    continue
                 rows.append(row)
-                if not args.dry_run:
-                    key = f"{var}_{lvl}"
-                    sigma_dict[key] = {
-                        "unconditional": row["sigma_clim"],
-                        "doy_conditional": row["sigma_clim_doy"],
-                    }
-                    crps_dict[key] = row["empirical_crps_clim"]
-        else:
-            print(f"WARN: unknown variable {var!r}, skipping")
+                if args.dry_run:
+                    continue
+                sigma_dict[key] = {
+                    "unconditional": row["sigma_clim"],
+                    "doy_conditional": row["sigma_clim_doy"],
+                }
+                crps_dict[key] = row["empirical_crps_clim"]
+                ckpt.write(json.dumps(row) + "\n")
+                ckpt.flush()
+                os.fsync(ckpt.fileno())
+                Path(args.sigma_out).write_text(json.dumps(sigma_dict, indent=2))
+                Path(args.crps_out).write_text(json.dumps(crps_dict, indent=2))
+                print(f"  -> committed {key} to {CHECKPOINT}", flush=True)
 
     if args.dry_run:
         total = sum(r.get("full_estimate_s", 0.0) for r in rows)

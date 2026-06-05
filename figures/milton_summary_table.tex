@@ -9,7 +9,8 @@
 % (init, member, lead) rows. Intensity bias is mean MSL minus IBTrACS MSL
 % at matched validating times, in hPa; the +39 to +47 hPa cluster reflects
 % the 0.25 deg ERA5 resolution-limited intensity ceiling. ESFM omitted, see
-% case-study text. aifs_perturbed pending the IFS-ENS perturbed-IC redo.
+% case-study text. IFS-ENS pending (consolidated-zarr tracker handler
+% added 2026-06-05; tracker array job 2473058 in flight for 8-way set).
 
 \begin{table}[t]
   \centering
@@ -23,10 +24,10 @@
            all matched (init, member, lead) rows. The IBTrACS-axis MSL
            bias is dominated by the 0.25\,$^\circ$ ERA5 resolution-limited
            intensity ceiling and is therefore not a baseline-quality
-           discriminator (see text). Sorted by detection rate descending.
-           ESFM omitted (footnote in Sec.~\ref{sec:results-milton});
-           aifs\_perturbed pending the IFS-ENS perturbed-IC production
-           grid.}
+           discriminator (see text). Sorted by detection rate descending
+           within each role group. ESFM omitted (footnote in
+           Sec.~\ref{sec:results-milton}). IFS-ENS will be added once
+           its consolidated-zarr tracker completes the 8-way set.}
   \label{tab:milton-summary}
   \begin{tabular}{@{}l l rrrrr@{}}
     \toprule
@@ -53,6 +54,7 @@
     \multicolumn{7}{@{}l}{\textbf{Post-hoc weight perturbation (this work)}} \\
     & sfno\_modes10    & 78 & 293 & 150 & $+41.7$ & 238 \\
     & aurora\_encoder  & 74 & 196 & 124 & $+39.3$ & 172 \\
+    & aifs\_perturbed  & 64 & 203 &  99 & $+42.6$ & 184 \\
     & graphcast\_all   & 52 & 164 &  86 & $+42.5$ & 139 \\
     \bottomrule
   \end{tabular}

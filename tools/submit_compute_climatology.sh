@@ -32,7 +32,8 @@ mkdir -p "$TMPDIR"
 
 cd /users/sadamov/pyprojects/ai-models-ensembles
 
-$PY tools/compute_climatology_1990_2019.py \
+$PY -u tools/compute_climatology_1990_2019.py \
     --year-start 1990 --year-end 2019 \
     --hours 0 6 12 18 \
-    --workers 48
+    --workers 16 \
+    --parallel 4
