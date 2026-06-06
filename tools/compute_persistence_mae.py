@@ -86,7 +86,13 @@ INIT_TIMES_NP = np.array([np.datetime64(s) for s in INITS])
 
 
 def _open_wb2() -> xr.Dataset:
-    parts = [xr.open_zarr(z, consolidated=True, chunks={"time": 200}) for z in WB2_ZARRS]
+    # chunks={"time": 8} (= 2 days at 6 h cadence) keeps zarr chunks small
+    # enough that sel(time=<sparse list of 112 timestamps>) does not over-read
+    # whole multi-month chunks per worker. Earlier chunks={"time": 200}
+    # forced each chunk decode at ~830 MB per 3D var, leading to ~120 GB
+    # cumulative reads per worker and a node-level OOM at 8 concurrent
+    # workers (job 2471121 OOM_killed at 1 m 39 s).
+    parts = [xr.open_zarr(z, consolidated=True, chunks={"time": 8}) for z in WB2_ZARRS]
     return xr.concat(parts, dim="time").sortby("time")
 
 
@@ -186,7 +192,10 @@ def main() -> None:
     print(f"Keys remaining: {len(todo)}", flush=True)
 
     results: dict[str, dict[int, float] | None] = dict(done)
-    n_workers = int(os.environ.get("PERS_WORKERS", "8"))
+    # Drop default to 4 workers after job 2471121 OOM_killed at 8. With
+    # chunks={"time": 8} the per-worker peak is ~4 GB, so 4 workers stay
+    # well below the 800 GB node cap. Tune via PERS_WORKERS env if needed.
+    n_workers = int(os.environ.get("PERS_WORKERS", "4"))
     print(f"Launching {n_workers} workers...", flush=True)
 
     with CHECKPOINT.open("a") as ckpt, ProcessPoolExecutor(max_workers=n_workers) as ex:

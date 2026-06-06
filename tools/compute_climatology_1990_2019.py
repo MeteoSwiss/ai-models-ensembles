@@ -81,16 +81,22 @@ CHECKPOINT = OUTDIR / "climatology_1990_2019_checkpoint.jsonl"
 # ---------------------------------------------------------------------------
 # Climatology helpers
 # ---------------------------------------------------------------------------
-def open_wb2(time_chunk: int = 1460) -> xr.Dataset:
+def open_wb2(time_chunk: int = 200) -> xr.Dataset:
     """Open the local WB2-original reanalysis (1959-2021, 0.25 deg, 37 levels).
 
-    `time_chunk=1460` aligns to one calendar year at 6-hourly cadence so the
-    per-year pulls in ``compute_one_field`` each touch a single zarr chunk
-    along the time axis. Earlier runs with ``time_chunk=400`` issued ~3.7
-    chunk reads per year and added 30-40% overhead from chunk-boundary
-    decode work that the year-aligned size eliminates.
+    Chunking strategy: ``chunks={"time": 200, "level": 1}``. Pinning level to
+    one chunk-per-level is essential for 3D variables. The on-disk zarr packs
+    all 37 levels into a single chunk; without an explicit per-level chunk
+    hint, ``.sel(level=lvl).load()`` materialises the FULL 37-level slab
+    before slicing, blowing through memory. A naive ``chunks={"time": 1460}``
+    (one calendar year per chunk) was tried and caused the clim1990 2476374
+    job to OOM at 2 min 16 s because each 3D-var chunk read becomes
+    1460 x 37 x 721 x 1440 x 4 = 222 GB -- two workers alone push 444 GB
+    just for the chunk reads, before the staging cube is even allocated.
+    With ``time=200, level=1`` each 3D-var chunk is
+    200 x 1 x 721 x 1440 x 4 = 830 MB, comfortably safe.
     """
-    return xr.open_zarr(WB2_LOCAL, consolidated=True, chunks={"time": time_chunk})
+    return xr.open_zarr(WB2_LOCAL, consolidated=True, chunks={"time": time_chunk, "level": 1})
 
 
 def select_subset(
@@ -380,9 +386,12 @@ def main():
     ap.add_argument(
         "--parallel",
         type=int,
-        default=4,
+        default=2,
         help="Number of concurrent (var, level) workers via ProcessPoolExecutor. "
-        "Memory-bound: each worker peaks at ~181 GB. Default 4 fits in 800 GB.",
+        "Memory-bound: each worker peaks at ~181 GB. Job 2473062 OOM-killed at "
+        "--parallel 4 because the 4 staging cubes plus xarray/dask/numpy "
+        "overhead pushed past 800 GB. --parallel 2 fits comfortably (~362 GB "
+        "peak) and still halves wall-clock vs serial.",
     )
     args = ap.parse_args()
 
