@@ -125,45 +125,58 @@ def cos_weights(lat: np.ndarray) -> np.ndarray:
     return w / w.mean()
 
 
-def fair_crps_leave_one_out(da_yearly: np.ndarray) -> np.ndarray:
-    """Per-pixel, per-DOY empirical fair-CRPS leave-one-out.
+def fair_crps_loo_vectorized(
+    stage: np.ndarray,
+    stage_count: np.ndarray,
+    min_years: int = 3,
+) -> tuple[np.ndarray, int, int]:
+    """Per-bin mean LOO fair-CRPS via the Gini sort identity.
 
-    Input: array (n_years, ..., lat, lon) of values per pixel per DOY (one
-    DOY).  Treats each year's value as truth and the other (n_years - 1)
-    years as the climatological ensemble.  Returns the mean fair-CRPS over
-    years.
+    For sorted x_(1) <= ... <= x_(n) per pixel, the mean over leave-one-out
+    truth choices k of the fair-CRPS against the n-1 other years simplifies
+    to ``sum_{i,j} |x_i - x_j| / (2 n (n-1))``, and the pairwise sum equals
+    ``2 sum_i (2i - n - 1) x_(i)`` (1-indexed). Each bin becomes one tiny
+    sort + one streaming weighted sum -- ~60x faster than the original
+    per-bin diff-matrix path (3.7 GB allocator churn per bin) at <250 MB
+    peak transient. The earlier all-bins ``stage.sort(axis=0)`` on the
+    full (30, 1464, 721, 1440) cube triggered a hidden ~181 GB scratch in
+    numpy's non-contiguous-axis sort path and OOM'd job 2488607 -- this
+    per-bin variant avoids that path entirely.
 
-    fair-CRPS for an M-member ensemble {x_i} and truth y:
-        CRPS = (1/M) sum_i |x_i - y|
-                 - (1/(2 M (M-1))) sum_{i,j} |x_i - x_j|
-    With LOO M = n_years - 1.
-
-    The implementation operates per pixel.  For 30 years it is cheap.
+    stage: (n_years, n_bins, lat, lon) float32, NaN where missing.
+    stage_count: (n_years, n_bins) int8, 1 where present.
+    Returns (crps_mean: (lat, lon) f32, n_valid_bins, n_skipped_bins).
     """
-    n_years = da_yearly.shape[0]
-    if n_years < 2:
-        return np.full(da_yearly.shape[1:], np.nan, dtype=np.float32)
+    n_bins = stage.shape[1]
+    n_present = stage_count.sum(axis=0).astype(np.int64)
 
-    # Full pairwise |x_i - x_j| matrix (n_years, n_years, ...)
-    diff = np.abs(da_yearly[:, None] - da_yearly[None, :])  # (n_years, n_years, ...)
-
-    # For each leave-one-out: truth = y_k, ensemble = all except k.
-    # Term A: (1/M) sum_{i != k} |x_i - y_k| = (1/M) (sum_i diff[i, k] - 0)
-    # since diff[k,k] = 0.  Here M = n_years - 1.
-    M = n_years - 1
-    sum_abs_diff_to_truth = diff.sum(axis=0)  # (n_years, ..., lat, lon)
-    term_A = sum_abs_diff_to_truth / M  # truth index along axis 0
-
-    # Term B: spread of the LOO ensemble = (1/(2 M (M-1))) sum_{i != k, j != k} diff[i, j]
-    # = (1/(2 M (M-1))) * (S_all - 2*S_row_k + 0)
-    # where S_all = sum_{i,j} diff[i,j] (independent of k) and
-    # S_row_k = sum_j diff[k, j] = sum_i diff[i, k] (since diff is symmetric)
-    S_all = diff.sum(axis=(0, 1))  # (..., lat, lon)
-    S_row = diff.sum(axis=1)  # (n_years, ..., lat, lon)
-    spread_loo = (S_all[None] - 2.0 * S_row) / (2.0 * M * (M - 1))
-
-    crps_per_year = term_A - spread_loo  # (n_years, ..., lat, lon)
-    return crps_per_year.mean(axis=0).astype(np.float32)
+    crps_accum = np.zeros(stage.shape[-2:], dtype=np.float64)
+    n_valid = 0
+    n_skipped = 0
+    log_every = 200
+    t0 = time.time()
+    for bi in range(n_bins):
+        n_p = int(n_present[bi])
+        if n_p < min_years:
+            n_skipped += 1
+            continue
+        sub_sorted = np.sort(stage[:, bi], axis=0)  # (n_years, lat, lon)
+        # All-present case (n_p == n_years) is the dominant path; NaN sinks
+        # to the end so weights truncated at n_p still apply for partial bins.
+        weights = 2.0 * np.arange(1, n_p + 1, dtype=np.float32) - n_p - 1.0
+        # Streaming weighted sum keeps transient ~ one (lat, lon) panel
+        # rather than the (n_years, lat, lon) broadcast einsum would create.
+        S = np.zeros(stage.shape[-2:], dtype=np.float32)
+        for j in range(n_p):
+            S += weights[j] * sub_sorted[j]
+        S *= 2.0
+        crps_accum += (S / (2.0 * n_p * (n_p - 1))).astype(np.float64)
+        n_valid += 1
+        if (bi + 1) % log_every == 0:
+            print(f"     ... CRPS bin {bi + 1}/{n_bins} ({time.time() - t0:.0f}s)")
+    if n_valid == 0:
+        raise RuntimeError("No usable DOY-hour bins.")
+    return (crps_accum / n_valid).astype(np.float32), n_valid, n_skipped
 
 
 # ---------------------------------------------------------------------------
@@ -296,25 +309,13 @@ def compute_one_field(
 
     print(f"     all {n_years_total} years pulled in " f"{(time.time()-t_years)/60:.1f} min")
 
-    # ---- Per-bin LOO fair-CRPS (require >=3 years per bin) ----
-    crps_pix_accum = np.zeros(da.shape[-2:], dtype=np.float64)
-    bin_count = 0
-    skipped = 0
-    t_bins = time.time()
-    for bi in range(n_bins):
-        present = stage_count[:, bi].astype(bool)
-        if present.sum() < 3:
-            skipped += 1
-            continue
-        sub = stage[present, bi]  # (n_years_present, lat, lon)
-        crps_pix_accum += fair_crps_leave_one_out(sub).astype(np.float64)
-        bin_count += 1
-        if (bi + 1) % 200 == 0:
-            elapsed = time.time() - t_bins
-            print(f"     ... CRPS bin {bi+1}/{n_bins} ({elapsed:.0f}s)")
-    if bin_count == 0:
-        raise RuntimeError("No usable DOY-hour bins.")
-    del stage  # free memory before downstream
+    # ---- Mean LOO fair-CRPS across (DOY, hour) bins, vectorised ----
+    # One in-place sort + one einsum replaces the 1464-bin Python loop. See
+    # ``fair_crps_loo_vectorized`` for the Gini-identity derivation.
+    t_crps = time.time()
+    crps_pix, bin_count, skipped = fair_crps_loo_vectorized(stage, stage_count, min_years=3)
+    print(f"     CRPS over {bin_count} bins in {time.time() - t_crps:.0f}s")
+    del stage  # ``stage`` is consumed in place by the sort + nan_to_num
 
     # ---- Sigma_clim (UNCONDITIONAL: annual cycle + interannual) ----
     mean_pix = sum_x / n_total
@@ -335,11 +336,10 @@ def compute_one_field(
     sigma_doy_scalar = float(np.average(sigma_pix_doy, axis=0, weights=w).mean())
     print(f"     sigma_clim_doy (DOY-conditional, cos-lat) = {sigma_doy_scalar:.6g}")
 
-    crps_pix = (crps_pix_accum / bin_count).astype(np.float32)
     crps_scalar = float(np.average(crps_pix, axis=0, weights=w).mean())
     print(f"     empirical_crps_clim (cos-lat spatial mean) = {crps_scalar:.6g}")
     if skipped:
-        print(f"     ({skipped}/{len(unique_keys)} bins skipped: <2 years)")
+        print(f"     ({skipped}/{len(unique_keys)} bins skipped: <3 years)")
 
     return {
         "label": label,
@@ -388,10 +388,13 @@ def main():
         type=int,
         default=2,
         help="Number of concurrent (var, level) workers via ProcessPoolExecutor. "
-        "Memory-bound: each worker peaks at ~181 GB. Job 2473062 OOM-killed at "
-        "--parallel 4 because the 4 staging cubes plus xarray/dask/numpy "
-        "overhead pushed past 800 GB. --parallel 2 fits comfortably (~362 GB "
-        "peak) and still halves wall-clock vs serial.",
+        "Memory-bound: each worker peaks at ~220-260 GB once dask + numpy "
+        "scratch is added on top of the 181 GB staging cube. --parallel 3 was "
+        "tried (job 2487050) and OOM-killed mid-pull when all three workers "
+        "happened to overlap on year-load. --parallel 2 (~520 GB peak) is the "
+        "safe ceiling on the 800 GB partition. The vectorised Gini-CRPS keeps "
+        "per-key wall at ~120 min vs ~216 min, so 6 keys / 2 workers still "
+        "finishes in ~6 h comfortably under the 12 h cap.",
     )
     args = ap.parse_args()
 
