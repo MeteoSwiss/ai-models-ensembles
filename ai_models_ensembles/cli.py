@@ -118,6 +118,17 @@ def cli_infer(
         "--data-source",
         help="ARCO | CDS | GFS | IFS | IFS_ENS | WB2 | file:PATH (case-insensitive).",
     ),
+    ic_zarr: Optional[str] = typer.Option(
+        None,
+        "--ic-zarr",
+        help=(
+            "Phase 5. SwissClim-format IFS-ENS perturbed-analysis zarr "
+            "(ensemble dim). Member k is initialised from IFS-ENS member k's "
+            "analysis instead of the shared ERA5 IC. Overrides --data-source "
+            "and --ic-magnitude for the IC; combine with --weight-magnitude for "
+            "the hybrid IC + weight perturbation baseline."
+        ),
+    ),
     output_levels: str = typer.Option(
         "500,850",
         "--output-levels",
@@ -169,6 +180,7 @@ def cli_infer(
         f"coarse_mode_skip_first={coarse_mode_skip_first} "
         f"graph_coarse_sigma={graph_coarse_sigma} "
         f"graph_coarse_nodes={graph_coarse_nodes} source={data_source} "
+        f"ic_zarr={ic_zarr or 'none'} "
         f"levels={levels_list or 'all'} vars={vars_list or 'all'}"
     )
     run_inference(
@@ -188,6 +200,7 @@ def cli_infer(
         coarse_mode_skip_first=coarse_mode_skip_first,
         graph_coarse_sigma=graph_coarse_sigma,
         graph_coarse_nodes=graph_coarse_nodes,
+        ic_zarr=ic_zarr,
     )
     typer.echo("*****DONE*****")
 

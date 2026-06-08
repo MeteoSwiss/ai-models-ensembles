@@ -27,7 +27,12 @@ from typing import Any
 import numpy as np
 import xarray as xr
 
-from .e2s_data import XarrayDataSource, build_data_source, fetch_initial_conditions
+from .e2s_data import (
+    XarrayDataSource,
+    build_data_source,
+    fetch_initial_conditions,
+    ifs_ens_member_ic_source,
+)
 from .e2s_models import get_spec, load_model, steps_from_hours
 from .e2s_perturbation import (
     _parse_layer_spec,
@@ -113,8 +118,17 @@ def _data_for_member(
     member_id: int,
     seed: int,
     cached_ic: xr.Dataset | None,
+    ic_zarr: str | None = None,
 ) -> tuple[Any, xr.Dataset | None]:
-    """Build the data source for a member, optionally perturbing the IC."""
+    """Build the data source for a member, optionally perturbing the IC.
+
+    Phase 5: when `ic_zarr` is set, member k is initialised from IFS-ENS
+    perturbed-analysis member k (real EDA-derived IC spread); `cached_ic`
+    carries the opened (lazy) store across members. This overrides
+    `ic_magnitude` (synthetic Gaussian IC noise) and the base data source.
+    """
+    if ic_zarr:
+        return ifs_ens_member_ic_source(ic_zarr, member_id, cached_ds=cached_ic)
     if ic_magnitude <= 0:
         return build_data_source(base_source), cached_ic
     if cached_ic is None:
@@ -256,6 +270,7 @@ def _gpu_worker(
     coarse_mode_skip_first: int = 0,
     graph_coarse_sigma: float = 0.0,
     graph_coarse_nodes: int = 0,
+    ic_zarr: str | None = None,
 ) -> None:
     """Run a single member on a specific GPU. Called via multiprocessing spawn.
 
@@ -287,6 +302,7 @@ def _gpu_worker(
         member_id=m,
         seed=seed,
         cached_ic=None,
+        ic_zarr=ic_zarr,
     )
     import os as _os_gpu
 
@@ -426,6 +442,7 @@ def _run_members_sequential(
     coarse_mode_skip_first: int = 0,
     graph_coarse_sigma: float = 0.0,
     graph_coarse_nodes: int = 0,
+    ic_zarr: str | None = None,
 ) -> None:
     # GraphCast Phase 3 (graph_coarse_sigma > 0) needs per-member RNG even
     # though weights are unperturbed, so we cannot use shared_model.
@@ -449,6 +466,7 @@ def _run_members_sequential(
             member_id=m,
             seed=seed,
             cached_ic=cached_ic,
+            ic_zarr=ic_zarr,
         )
         model = (
             shared_model
@@ -502,6 +520,7 @@ def _run_members_parallel(
     coarse_mode_skip_first: int = 0,
     graph_coarse_sigma: float = 0.0,
     graph_coarse_nodes: int = 0,
+    ic_zarr: str | None = None,
 ) -> None:
     """Run members in parallel across GPUs, one process per member.
 
@@ -544,6 +563,7 @@ def _run_members_parallel(
         coarse_mode_skip_first,
         graph_coarse_sigma,
         graph_coarse_nodes,
+        ic_zarr,
     )
 
     import gc
@@ -728,6 +748,7 @@ def run_inference(
     coarse_mode_skip_first: int = 0,
     graph_coarse_sigma: float = 0.0,
     graph_coarse_nodes: int = 0,
+    ic_zarr: str | None = None,
 ) -> Path:
     """Run an earth2studio model and emit a SwissClim-format zarr at `output`.
 
@@ -750,8 +771,10 @@ def run_inference(
 
     n_gpus = _available_gpus()
 
-    # Pre-fetch IC data to warm fsspec cache before spawning GPU workers
-    if n_members > 1 and n_gpus > 1:
+    # Pre-fetch IC data to warm fsspec cache before spawning GPU workers.
+    # Skipped for Phase 5 (ic_zarr): the IC comes from a local zarr, not the
+    # remote ARCO/CDS source, so there is nothing to warm.
+    if n_members > 1 and n_gpus > 1 and not ic_zarr:
         _prefetch_ic_data(model_name, data_source, init_time)
 
     # try/finally so work_dir always gets removed, even on inference failure.
@@ -784,6 +807,7 @@ def run_inference(
                 coarse_mode_skip_first=coarse_mode_skip_first,
                 graph_coarse_sigma=graph_coarse_sigma,
                 graph_coarse_nodes=graph_coarse_nodes,
+                ic_zarr=ic_zarr,
             )
         else:
             _run_members_sequential(
@@ -805,6 +829,7 @@ def run_inference(
                 coarse_mode_skip_first=coarse_mode_skip_first,
                 graph_coarse_sigma=graph_coarse_sigma,
                 graph_coarse_nodes=graph_coarse_nodes,
+                ic_zarr=ic_zarr,
             )
     finally:
         if work_dir.exists():

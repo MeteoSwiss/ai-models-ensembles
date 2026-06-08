@@ -176,22 +176,31 @@ The `ifs_analysis:` source is still wired up (extracts `lead_time=0` from a
 SwissClim-format IFS zarr) for the day you have a download with t+0 analysis
 and the full variable set.
 
-### IFS-ENS-perturbed-IC experiment (in flight 2026-05-29)
+### IFS-ENS-perturbed-IC experiment (Phase 5)
 
-The post-hoc weight-perturbation baselines (Aurora encoder, GraphCast all,
-SFNO modes10) currently re-use the same ERA5 IC across all 10 ensemble
-members. A hybrid run that adds **real physical IC perturbations** from IFS
-ENS analyses (the 50-member EDA-perturbed analyses, `stream=enfo type=pf
-step=0`) is being downloaded to
-`/capstor/store/cscs/swissai/a122/IFS/ifs_analysis_perturbed_ic.zarr` via
-the [sadamov/ifs_download](https://github.com/sadamov/ifs_download)
-`download_ic_perturbed.py` script. 224 init times (8 weeks × 28 6-hourly
-samples including the `t-6h` slot for autoregressive models), 50
-perturbed members, ~3.8 TB final size, ~4 days end-to-end wall time on a
-login node. Two PL levels (150, 600 hPa) are not archived for `type=pf
-step=0` on the ENFO PL stream; the download script fills them in via
-log-pressure linear interpolation from the adjacent archived levels.
-Once landed, will run a hybrid IC + weight perturbation experiment.
+The post-hoc weight-perturbation baselines re-use the same ERA5 IC across all
+ensemble members. The Phase 5 hybrid run instead initialises ensemble member
+`k` from IFS-ENS perturbed-analysis member `k` (the 50-member EDA-perturbed
+analyses, `stream=enfo type=pf step=0`), adding **real physical IC
+perturbations** on top of the existing weight perturbation. Pass the IC store
+with `--ic-zarr`:
+
+```bash
+ai-ens infer --model graphcast_operational --init 2024-02-15T00:00 \
+   --lead-hours 240 --members 10 --weight-magnitude 0.01 --layer all \
+   --ic-zarr /capstor/store/cscs/swissai/a122/IFS/ifs_analysis_perturbed_ic.zarr \
+   --output $STORE/test/gc_ic/forecast.zarr
+```
+
+`--ic-zarr` selects `ensemble=member_id` from the store and serves it as the
+IC (overriding `--data-source` and `--ic-magnitude`); combine it with
+`--weight-magnitude` for the hybrid. The store carries 224 6-hourly init times
+(8 weeks × 28 samples, including the `t-6h` slot autoregressive models need)
+and 50 members. Two PL levels (150, 600 hPa) are not archived for `type=pf
+step=0`, so they are filled by log-pressure interpolation
+(`fill_interp_levels.py`); the download writes MARS short names, which
+[tools/rename_ic_to_swissclim.py](tools/rename_ic_to_swissclim.py) renames to
+SwissClim long names so `from_swissclim` maps them to the earth2studio lexicon.
 
 ## Quickstart
 

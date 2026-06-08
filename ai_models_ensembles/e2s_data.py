@@ -127,6 +127,32 @@ def _ifs_analysis_source(zarr_path: str) -> XarrayDataSource:
     return XarrayDataSource.from_swissclim(ds)
 
 
+def ifs_ens_member_ic_source(
+    zarr_path: str,
+    member_id: int,
+    cached_ds: xr.Dataset | None = None,
+) -> tuple[XarrayDataSource, xr.Dataset]:
+    """Serve IFS-ENS perturbed-analysis member `member_id` as a per-member IC.
+
+    Phase 5: instead of every ensemble member starting from one shared ERA5
+    analysis, member k is initialised from IFS-ENS perturbed-analysis member k,
+    combining real EDA-derived IC spread with the weight perturbation applied
+    elsewhere. `cached_ds` lets the caller open the (lazy) store once and reuse
+    it across members. The store is SwissClim-format with an `ensemble` dim and
+    either a pure-analysis layout (no `lead_time`) or a forecast layout whose
+    `lead_time=0` slice is the analysis. Variable-name -> earth2studio lexicon
+    conversion and the init_time -> time rename happen in `from_swissclim`, so
+    the model can request both T and T-6h as long as the store carries those
+    init_times.
+    """
+    if cached_ds is None:
+        cached_ds = xr.open_zarr(zarr_path)
+        if "lead_time" in cached_ds.dims:
+            cached_ds = cached_ds.isel(lead_time=0).drop_vars("lead_time", errors="ignore")
+    member = cached_ds.isel(ensemble=member_id).drop_vars("ensemble", errors="ignore")
+    return XarrayDataSource.from_swissclim(member), cached_ds
+
+
 def build_data_source(spec: str, materialise: bool = False) -> Any:
     """Factory for earth2studio DataSource objects.
 
@@ -171,4 +197,5 @@ __all__ = [
     "XarrayDataSource",
     "build_data_source",
     "fetch_initial_conditions",
+    "ifs_ens_member_ic_source",
 ]
