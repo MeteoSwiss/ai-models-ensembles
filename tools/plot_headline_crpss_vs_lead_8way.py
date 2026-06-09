@@ -225,7 +225,7 @@ def crpss(model, lead):
     return sum(per_var) / len(per_var)
 
 
-fig, ax = plt.subplots(figsize=(6.5, 4.2))
+fig, ax = plt.subplots(figsize=(7.0, 6.5))
 
 for m in MODELS:
     xs, ys = [], []
@@ -291,7 +291,7 @@ else:
     print(f"WARN: {PERSISTENCE_JSON} missing; skipping persistence reference curve")
 ax.axhline(0, color="black", linewidth=1.0, linestyle="--", alpha=0.6, label="Climatology")
 ax.set_xlim(0, 360)
-ax.set_ylim(-0.7, 1.0)
+ax.set_ylim(-0.4, 1.0)
 ax.set_xticks([0, 24, 72, 120, 168, 240, 312, 360])
 ax.set_xlabel("Lead time (h)")
 ax.set_ylabel("CRPSS (variable-mean, 7 paper variables)")
