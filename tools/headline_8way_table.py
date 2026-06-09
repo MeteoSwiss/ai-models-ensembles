@@ -30,6 +30,10 @@ AIFS_PERT_PROB = Path(
     "/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles/baselines/"
     "aifs_perturbed/eval/probabilistic"
 )
+AIFS_PERT_IC_PROB = Path(
+    "/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles/baselines/"
+    "aifs_perturbed_ic/eval/probabilistic"
+)
 
 VARS_2D = ["2m_temperature"]  # MSL excluded per the ifs_ens MSL bug
 VARS_3D = [
@@ -50,7 +54,7 @@ MODELS_FROM_COMBINED = [
     "aurora_encoder",
     "sfno_modes10",
 ]
-MODELS_FROM_PERBASE = ["esfm", "aifs_perturbed"]
+MODELS_FROM_PERBASE = ["esfm", "aifs_perturbed", "aifs_perturbed_ic"]
 MODELS = MODELS_FROM_COMBINED + MODELS_FROM_PERBASE
 
 PRETTY = {
@@ -63,6 +67,7 @@ PRETTY = {
     "aurora_encoder": "aurora\\_encoder",
     "sfno_modes10": "sfno\\_modes10",
     "aifs_perturbed": "aifs\\_perturbed",
+    "aifs_perturbed_ic": "aifs\\_perturbed\\_ic",
 }
 
 ROLE = {
@@ -70,6 +75,7 @@ ROLE = {
     "graphcast_all": "post-hoc",
     "sfno_modes10": "post-hoc",
     "aifs_perturbed": "post-hoc",
+    "aifs_perturbed_ic": "post-hoc",
     "aifsens": "trained-prob",
     "atlas": "trained-prob",
     "fcn3": "trained-prob",
@@ -130,6 +136,7 @@ def _load_perbase(root: Path, model: str) -> None:
 
 _load_perbase(ESFM_PROB, "esfm")
 _load_perbase(AIFS_PERT_PROB, "aifs_perturbed")
+_load_perbase(AIFS_PERT_IC_PROB, "aifs_perturbed_ic")
 
 
 def crpss(model: str, lead: int) -> float | None:

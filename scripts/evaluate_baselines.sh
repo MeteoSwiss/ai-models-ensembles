@@ -55,11 +55,11 @@ for ws in "${WEEK_STARTS[@]}"; do
     done
 done
 
-MODELS="atlas fcn3 aifsens ifs_ens sfno_modes10 aurora_encoder graphcast_all aifs_perturbed"
+MODELS="atlas fcn3 aifsens ifs_ens sfno_modes10 aurora_encoder graphcast_all aifs_perturbed aifs_perturbed_ic"
 declare -A MODEL_KIND=(
     [atlas]=ai [fcn3]=ai [aifsens]=ai [ifs_ens]=ref
     [sfno_modes10]=ai [aurora_encoder]=ai [graphcast_all]=ai
-    [aifs_perturbed]=ai
+    [aifs_perturbed]=ai [aifs_perturbed_ic]=ai
 )
 
 IFS_ENS_ZARR="/capstor/store/cscs/swissai/a122/IFS/ifs_ens.zarr"
@@ -531,7 +531,7 @@ shift || true
 
 case "$ACTION" in
     all)           submit_per_module_eval "${1:-}" ;;
-    atlas|fcn3|aifsens|ifs_ens|sfno_modes10|aurora_encoder|graphcast_all|aifs_perturbed) submit_per_module_eval "$ACTION" ;;
+    atlas|fcn3|aifsens|ifs_ens|sfno_modes10|aurora_encoder|graphcast_all|aifs_perturbed|aifs_perturbed_ic) submit_per_module_eval "$ACTION" ;;
     intercompare)  run_intercompare ;;
     gen-configs)
         target_model="${1:-}"
