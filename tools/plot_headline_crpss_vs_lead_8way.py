@@ -225,7 +225,7 @@ def crpss(model, lead):
     return sum(per_var) / len(per_var)
 
 
-fig, ax = plt.subplots(figsize=(7.0, 9.0))
+fig, ax = plt.subplots(figsize=(7.0, 7.5))
 
 for m in MODELS:
     xs, ys = [], []
