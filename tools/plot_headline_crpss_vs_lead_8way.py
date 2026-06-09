@@ -45,6 +45,10 @@ ESFM_PROB = Path(
     "/capstor/store/cscs/swissai/a122/ESFM_Results/ESFM_s_nm_10ens/"
     "Evaluations_rollout/2023-2024/step10000/probabilistic"
 )
+AIFS_PERT_PROB = Path(
+    "/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles/baselines/"
+    "aifs_perturbed/eval/probabilistic"
+)
 OUT = "/users/sadamov/pyprojects/ai-models-ensembles/figures/headline_crpss_vs_lead_8way.pdf"
 
 VARS_2D = ["2m_temperature"]  # MSL excluded per the ifs_ens MSL bug
@@ -65,6 +69,7 @@ MODELS = [
     "graphcast_all",
     "aurora_encoder",
     "sfno_modes10",
+    "aifs_perturbed",
 ]
 
 PRETTY = {
@@ -76,12 +81,14 @@ PRETTY = {
     "graphcast_all": "graphcast_all",
     "aurora_encoder": "aurora_encoder",
     "sfno_modes10": "sfno_modes10",
+    "aifs_perturbed": "aifs_perturbed",
 }
 
 COLOUR = {
     "aurora_encoder": "#E67E22",
     "graphcast_all": "#27AE60",
     "sfno_modes10": "#2980B9",
+    "aifs_perturbed": "#8E44AD",
     "aifsens": "#8B5A2B",
     "atlas": "#C0392B",
     "fcn3": "#D4A017",
@@ -93,6 +100,7 @@ STYLE = {
     "aurora_encoder": "-",
     "graphcast_all": "-",
     "sfno_modes10": "-",
+    "aifs_perturbed": "-",
     "aifsens": "--",
     "atlas": "--",
     "fcn3": "--",
@@ -126,14 +134,14 @@ with open(CSV) as f:
         data[(row["model"], row["variable"], lead, lvl)] = val
 
 
-def load_esfm():
-    """Load ESFM per-variable CRPS into the same (model, var, lead, lvl) dict.
-    The 2D vars come from crps_line_<var>_by_lead_ensprob.csv with columns
-    (lead_time_hours, variable, level, CRPS); 3D vars are split across
-    geopotential_500 / geopotential_850 etc."""
+def _load_perbase(root, model):
+    """Per-baseline `crps_line_<stem>_by_lead_ensprob.csv` (lead_time_hours, variable, CRPS).
+    Used for ESFM (which is outside the SwissClim intercomp run) and
+    aifs_perturbed (which was added after the most recent combined-CSV regen).
+    """
 
     def _load(stem, var_label, level):
-        path = ESFM_PROB / f"crps_line_{stem}_by_lead_ensprob.csv"
+        path = root / f"crps_line_{stem}_by_lead_ensprob.csv"
         if not path.exists():
             return
         with open(path) as f:
@@ -143,7 +151,7 @@ def load_esfm():
                     val = float(row["CRPS"])
                 except ValueError:
                     continue
-                data[("esfm", var_label, lead, level)] = val
+                data[(model, var_label, lead, level)] = val
 
     _load("2m_temperature", "2m_temperature", None)
     for v in VARS_3D:
@@ -151,7 +159,8 @@ def load_esfm():
             _load(f"{v}_{lvl}", v, float(lvl))
 
 
-load_esfm()
+_load_perbase(ESFM_PROB, "esfm")
+_load_perbase(AIFS_PERT_PROB, "aifs_perturbed")
 LEADS = sorted({k[2] for k in data})
 
 
@@ -256,7 +265,7 @@ ax.set_xlabel("Lead time (h)")
 ax.set_ylabel("CRPSS (variable-mean, 6 paper variables)")
 ax.grid(True, linewidth=0.4, alpha=0.5)
 ax.legend(loc="lower left", fontsize=7, ncol=2, framealpha=0.95)
-ax.set_title("Headline 8-way intercomparison on the 112-init production grid", fontsize=10)
+ax.set_title("Headline intercomparison on the 112-init production grid", fontsize=10)
 
 plt.tight_layout()
 Path(OUT).parent.mkdir(parents=True, exist_ok=True)
