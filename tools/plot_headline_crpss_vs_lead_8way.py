@@ -58,7 +58,7 @@ ATMLLM_PROB = Path(
 )
 OUT = "/users/sadamov/pyprojects/ai-models-ensembles/figures/headline_crpss_vs_lead_8way.pdf"
 
-VARS_2D = ["2m_temperature"]  # MSL excluded per the ifs_ens MSL bug
+VARS_2D = ["2m_temperature", "mean_sea_level_pressure"]
 VARS_3D = [
     "geopotential",
     "temperature",
@@ -182,7 +182,8 @@ def _load_perbase(root, model):
                     continue
                 data[(model, var_label, lead, level)] = val
 
-    _load("2m_temperature", "2m_temperature", None)
+    for v in VARS_2D:
+        _load(v, v, None)
     for v in VARS_3D:
         for lvl in (500, 850):
             _load(f"{v}_{lvl}", v, float(lvl))
@@ -290,10 +291,10 @@ else:
     print(f"WARN: {PERSISTENCE_JSON} missing; skipping persistence reference curve")
 ax.axhline(0, color="black", linewidth=1.0, linestyle="--", alpha=0.6, label="Climatology")
 ax.set_xlim(0, 360)
-ax.set_ylim(-1.6, 1.0)
+ax.set_ylim(-0.7, 1.0)
 ax.set_xticks([0, 24, 72, 120, 168, 240, 312, 360])
 ax.set_xlabel("Lead time (h)")
-ax.set_ylabel("CRPSS (variable-mean, 6 paper variables)")
+ax.set_ylabel("CRPSS (variable-mean, 7 paper variables)")
 ax.grid(True, linewidth=0.4, alpha=0.5)
 ax.set_title("Headline intercomparison on the 112-init production grid", fontsize=10)
 # Legend below the plot in 2 horizontal rows -- keeps the y-axis full-height.

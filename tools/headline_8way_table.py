@@ -38,9 +38,11 @@ ATMLLM_PROB = Path(
     "/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles/baselines/" "atmllm/eval/probabilistic"
 )
 
-VARS_2D = [
-    "2m_temperature"
-]  # MSL excluded for fair-grid: WB2 IFS-ENS has structural NaN gaps in surface fields for some inits.
+VARS_2D = ["2m_temperature", "mean_sea_level_pressure"]
+# IFS-ENS has structural WB2 NaN gaps in ALL surface fields (T2m ~20% NaN,
+# MSL ~30% NaN). Excluding MSL but keeping T2m was inconsistent; we now
+# include both. The smaller IFS-ENS effective-n for surface vars is
+# absorbed by skipna averaging and acknowledged in the caption.
 VARS_3D = [
     "geopotential",
     "temperature",
@@ -147,7 +149,8 @@ def _load_perbase(root: Path, model: str) -> None:
                     continue
                 data[(model, var_label, lead, level)] = val
 
-    _load("2m_temperature", "2m_temperature", None)
+    for v in VARS_2D:
+        _load(v, v, None)
     for v in VARS_3D:
         for lvl in (500, 850):
             _load(f"{v}_{lvl}", v, float(lvl))
@@ -223,9 +226,9 @@ lines.append("% plus per-baseline ESFM + aifs_perturbed probabilistic CSVs at")
 lines.append(f"%   {ESFM_PROB}")
 lines.append(f"%   {AIFS_PERT_PROB}")
 lines.append("% via tools/headline_8way_table.py.")
-lines.append("% 112 inits x 10 members, 6 paper vars (MSL EXCLUDED to keep all baselines on the")
-lines.append("% same init grid: WB2 IFS-ENS has structural NaN gaps in surface fields for some")
-lines.append("% init times; see [[ifs-ens-10m-wind-nan-bug]]). CRPSS = 1 - CRPS/CRPS_clim against")
+lines.append("% 112 inits x 10 members, 7 paper vars (T2m + MSL + Z/T/u/v/q at 500+850 hPa).")
+lines.append("% IFS-ENS has WB2-archive NaN gaps in surface fields (T2m ~20%, MSL ~30%); skipna")
+lines.append("% averaging absorbs the reduced effective-n. CRPSS = 1 - CRPS/CRPS_clim against")
 lines.append("% analytical Gaussian climatology from the 30-year 1990-2019 ERA5 sigma_clim.")
 lines.append("")
 lines.append("\\begin{table}[t]")
@@ -237,10 +240,10 @@ lines.append("           (112 weekly initialisations $\\times$ 10 members in 202
 lines.append("           across the four trained-probabilistic, four post-hoc, and one")
 lines.append("           classical baselines. Higher is better; 1 = perfect, 0 =")
 lines.append("           climatology, $<0$ = worse than climatology. \\textbf{Bold}")
-lines.append("           marks the per-lead optimum. MSL excluded to keep all baselines on")
-lines.append("           the same 112-init grid -- the IFS-ENS WeatherBench-2 archive has")
-lines.append("           structural NaN gaps in surface fields for some init times (see")
-lines.append("           Sec.~\\ref{sec:methods-eval}). Derived variables (geopotential")
+lines.append("           marks the per-lead optimum. Variable mean over T2m, MSL, $Z$, $T$,")
+lines.append("           $u$, $v$, $q$ (latter five at 500 and 850\\,hPa). IFS-ENS surface")
+lines.append("           fields have WB2-archive NaN gaps (T2m $\\sim20\\%$, MSL $\\sim30\\%$")
+lines.append("           skipna averaging is applied. Derived variables (geopotential")
 lines.append("           height, wind speed,")
 lines.append("           gradient) excluded because no WB2 climatology $\\sigma$ is")
 lines.append("           available for them. ESFM \\citep{Ozdemir2026esfm} reports the")

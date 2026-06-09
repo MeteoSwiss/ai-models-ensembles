@@ -57,7 +57,7 @@ VARS_3D = [
     "specific_humidity",
 ]
 LEVELS = [500, 850]
-LEADS_H = list(range(6, 246, 6))  # 6 h .. 240 h, matches paper-headline lead range
+LEADS_H = list(range(6, 366, 6))  # 6 h .. 360 h, matches paper-headline lead range
 
 WB2_ZARRS = [
     "/capstor/store/cscs/swissai/weatherbench/weatherbench2_2022_2023.zarr",
