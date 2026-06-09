@@ -127,30 +127,94 @@ def _ifs_analysis_source(zarr_path: str) -> XarrayDataSource:
     return XarrayDataSource.from_swissclim(ds)
 
 
+class MergedDataSource:
+    """Wraps two data sources. For each requested variable, tries the primary;
+    on KeyError falls back to the secondary.
+
+    Phase 5: the IC zarr only carries the perturbed atmospheric variables
+    (z/t/u/v/q/w on PLs + msl/2t/10u/10v/100u/100v/sp/tcwv on the surface)
+    that ECMWF's EDA actually perturbs per member. Surface/boundary fields
+    that the AI model also needs (d2m, soil temperature/moisture, snow,
+    sea-ice, SST, land-sea mask) are not member-stratified in MARS
+    type=pf step=0 anyway -- they come from the deterministic background
+    and are shared across all members. So we serve those from the base
+    CDS analysis (already cached at /iopsstor/.../e2s_cache/cds/ from
+    the production aifs_perturbed runs, so no new CDS calls).
+    """
+
+    def __init__(self, primary: Any, fallback: Any) -> None:
+        self.primary = primary
+        self.fallback = fallback
+
+    def __call__(
+        self,
+        time: datetime | np.datetime64 | np.ndarray,
+        variable: str | list[str],
+    ) -> xr.DataArray:
+        var_list = [variable] if isinstance(variable, str) else list(variable)
+        chans = []
+        for v in var_list:
+            try:
+                chans.append(self.primary(time, v))
+            except KeyError:
+                chans.append(self.fallback(time, v))
+        stacked = xr.concat(chans, dim="variable")
+        stacked = stacked.assign_coords(variable=("variable", var_list))
+        # Match earth2studio CDS dim order: (time, variable, lat, lon).
+        # XarrayDataSource concats put 'variable' first; AIFS's handshake
+        # requires it AFTER 'time' (see aifs.output_coords).
+        canonical = [d for d in ("time", "variable", "lat", "lon") if d in stacked.dims]
+        extras = [d for d in stacked.dims if d not in canonical]
+        return stacked.transpose(*canonical, *extras)
+
+
 def ifs_ens_member_ic_source(
     zarr_path: str,
     member_id: int,
     cached_ds: xr.Dataset | None = None,
-) -> tuple[XarrayDataSource, xr.Dataset]:
+    fallback_source: Any | None = None,
+) -> tuple[Any, xr.Dataset]:
     """Serve IFS-ENS perturbed-analysis member `member_id` as a per-member IC.
 
     Phase 5: instead of every ensemble member starting from one shared ERA5
-    analysis, member k is initialised from IFS-ENS perturbed-analysis member k,
-    combining real EDA-derived IC spread with the weight perturbation applied
-    elsewhere. `cached_ds` lets the caller open the (lazy) store once and reuse
-    it across members. The store is SwissClim-format with an `ensemble` dim and
-    either a pure-analysis layout (no `lead_time`) or a forecast layout whose
-    `lead_time=0` slice is the analysis. Variable-name -> earth2studio lexicon
-    conversion and the init_time -> time rename happen in `from_swissclim`, so
-    the model can request both T and T-6h as long as the store carries those
-    init_times.
+    analysis, member k is initialised from a stratified IFS-ENS perturbed-
+    analysis member, combining real EDA-derived IC spread with the weight
+    perturbation applied elsewhere. `cached_ds` lets the caller open the
+    (lazy) store once and reuse it across members. The store is SwissClim-
+    format with an `ensemble` dim and either a pure-analysis layout (no
+    `lead_time`) or a forecast layout whose `lead_time=0` slice is the
+    analysis. Variable-name -> earth2studio lexicon conversion and the
+    init_time -> time rename happen in `from_swissclim`, so the model can
+    request both T and T-6h as long as the store carries those init_times.
+
+    Per-paper stratification: the IFS-ENS 50-member ensemble has adjacent
+    members that can share EDA centroids, so a stride-5 stratified subset
+    `[0, 5, 10, ..., 45]` is the standard 10-of-50 mapping the paper uses
+    elsewhere (headline IFS-ENS + Milton); we apply the same here.
+    `member_id = 0..9` -> IFS-ENS member `0, 5, 10, ..., 45`. Stride is
+    computed dynamically so callers can ask for any small N out of the
+    available ensemble dim and still get an evenly-spaced subset.
+
+    When `fallback_source` is provided, return a `MergedDataSource` that
+    falls back for surface/boundary fields the IC zarr does not carry
+    (e.g. d2m, soil temperature/moisture, snow depth, land-sea mask).
+    Those fields are shared across all members anyway in ECMWF's EDA.
     """
     if cached_ds is None:
         cached_ds = xr.open_zarr(zarr_path)
         if "lead_time" in cached_ds.dims:
             cached_ds = cached_ds.isel(lead_time=0).drop_vars("lead_time", errors="ignore")
-    member = cached_ds.isel(ensemble=member_id).drop_vars("ensemble", errors="ignore")
-    return XarrayDataSource.from_swissclim(member), cached_ds
+    # Stride-5 stratified mapping for the 50-member IFS-ENS; matches the
+    # rest of the paper's IFS-ENS 10-of-50 selection. Note this is not
+    # gated on n_ens == 50 because the stride is derived from the store.
+    n_ens = int(cached_ds.sizes.get("ensemble", 1))
+    stride = max(1, n_ens // 10)
+    actual_ensemble = (member_id * stride) % n_ens
+    member = cached_ds.isel(ensemble=actual_ensemble).drop_vars("ensemble", errors="ignore")
+    primary = XarrayDataSource.from_swissclim(member)
+    if fallback_source is None:
+        return primary, cached_ds
+    return MergedDataSource(primary, fallback_source), cached_ds
 
 
 def build_data_source(spec: str, materialise: bool = False) -> Any:

@@ -128,7 +128,15 @@ def _data_for_member(
     `ic_magnitude` (synthetic Gaussian IC noise) and the base data source.
     """
     if ic_zarr:
-        return ifs_ens_member_ic_source(ic_zarr, member_id, cached_ds=cached_ic)
+        # Phase 5: IC zarr only carries the perturbed atmospheric vars; the
+        # model also needs surface/boundary fields (d2m, soil, snow, ...)
+        # that ECMWF EDA does not perturb per-member anyway. Build a base
+        # CDS source as fallback for those (cached locally from prior runs
+        # so no new CDS calls).
+        fallback = build_data_source(base_source)
+        return ifs_ens_member_ic_source(
+            ic_zarr, member_id, cached_ds=cached_ic, fallback_source=fallback
+        )
     if ic_magnitude <= 0:
         return build_data_source(base_source), cached_ic
     if cached_ic is None:
