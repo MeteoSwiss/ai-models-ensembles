@@ -53,6 +53,9 @@ AIFS_PERT_IC_PROB = Path(
     "/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles/baselines/"
     "aifs_perturbed_ic/eval/probabilistic"
 )
+ATMLLM_PROB = Path(
+    "/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles/baselines/" "atmllm/eval/probabilistic"
+)
 OUT = "/users/sadamov/pyprojects/ai-models-ensembles/figures/headline_crpss_vs_lead_8way.pdf"
 
 VARS_2D = ["2m_temperature"]  # MSL excluded per the ifs_ens MSL bug
@@ -69,6 +72,7 @@ MODELS = [
     "atlas",
     "fcn3",
     "esfm",
+    "atmllm",
     "ifs_ens",
     "graphcast_all",
     "aurora_encoder",
@@ -88,6 +92,7 @@ PRETTY = {
     "sfno_modes10": "sfno_modes10",
     "aifs_perturbed": "aifs_perturbed",
     "aifs_perturbed_ic": "aifs_perturbed_ic",
+    "atmllm": "AtmLLM",
 }
 
 COLOUR = {
@@ -100,6 +105,7 @@ COLOUR = {
     "atlas": "#C0392B",
     "fcn3": "#D4A017",
     "esfm": "#16A085",
+    "atmllm": "#1ABC9C",
     "ifs_ens": "#7F8C8D",
 }
 
@@ -113,6 +119,7 @@ STYLE = {
     "atlas": "--",
     "fcn3": "--",
     "esfm": "--",
+    "atmllm": "--",
     "ifs_ens": ":",
 }
 
@@ -170,6 +177,7 @@ def _load_perbase(root, model):
 _load_perbase(ESFM_PROB, "esfm")
 _load_perbase(AIFS_PERT_PROB, "aifs_perturbed")
 _load_perbase(AIFS_PERT_IC_PROB, "aifs_perturbed_ic")
+_load_perbase(ATMLLM_PROB, "atmllm")
 LEADS = sorted({k[2] for k in data})
 
 
