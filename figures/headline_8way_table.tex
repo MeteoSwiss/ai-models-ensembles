@@ -4,9 +4,10 @@
 %   /capstor/store/cscs/swissai/a122/ESFM_Results/ESFM_s_nm_10ens/Evaluations_rollout/2023-2024/step10000/probabilistic
 %   /capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles/baselines/aifs_perturbed/eval/probabilistic
 % via tools/headline_8way_table.py.
-% 112 inits x 10 members, 7 paper vars (MSL EXCLUDED due to ifs_ens MSL bug,
-% see memory ifs-ens-msl-bug.md; re-run after patch). CRPSS = 1 - CRPS/CRPS_clim
-% against analytical Gaussian climatology from WB2 2022-2024.
+% 112 inits x 10 members, 6 paper vars (MSL EXCLUDED to keep all baselines on the
+% same init grid: WB2 IFS-ENS has structural NaN gaps in surface fields for some
+% init times; see [[ifs-ens-10m-wind-nan-bug]]). CRPSS = 1 - CRPS/CRPS_clim against
+% analytical Gaussian climatology from the 30-year 1990-2019 ERA5 sigma_clim.
 
 \begin{table}[t]
   \centering
@@ -17,9 +18,11 @@
            across the four trained-probabilistic, four post-hoc, and one
            classical baselines. Higher is better; 1 = perfect, 0 =
            climatology, $<0$ = worse than climatology. \textbf{Bold}
-           marks the per-lead optimum. MSL excluded due to an IFS-ENS MSL bug
-           (see Sec.~\ref{sec:methods-eval}); re-run with the patched data
-           is pending. Derived variables (geopotential height, wind speed,
+           marks the per-lead optimum. MSL excluded to keep all baselines on
+           the same 112-init grid -- the IFS-ENS WeatherBench-2 archive has
+           structural NaN gaps in surface fields for some init times (see
+           Sec.~\ref{sec:methods-eval}). Derived variables (geopotential
+           height, wind speed,
            gradient) excluded because no WB2 climatology $\sigma$ is
            available for them. ESFM \citep{Ozdemir2026esfm} reports the
            training-step-10000 checkpoint of ESFM\_s\_nm\_10ens, an
@@ -32,23 +35,23 @@
     \midrule
     \rowcolor{phaseBg}
     \multicolumn{6}{@{}l}{\textbf{Trained probabilistic}} \\
-    & AIFS-ENS & \textbf{0.757} & \textbf{0.654} & \textbf{0.405} & \textbf{0.287} \\
-    & Atlas & 0.748 & 0.638 & 0.391 & 0.273 \\
-    & FCN3 & 0.732 & 0.620 & 0.376 & 0.281 \\
-    & AtmLLM & 0.222 & 0.108 & 0.060 & 0.072 \\
-    & ESFM (step 10k) & 0.572 & 0.320 & $-$0.127 & $-$0.311 \\
+    & AIFS-ENS & \textbf{0.754} & \textbf{0.651} & \textbf{0.400} & \textbf{0.282} \\
+    & Atlas & 0.745 & 0.634 & 0.386 & 0.267 \\
+    & FCN3 & 0.729 & 0.617 & 0.371 & 0.275 \\
+    & AtmLLM & 0.216 & 0.101 & 0.053 & 0.065 \\
+    & ESFM (step 10k) & 0.567 & 0.314 & $-$0.136 & $-$0.321 \\
     \hline
     \rowcolor{phaseBg}
     \multicolumn{6}{@{}l}{\textbf{Post-hoc weight perturbation (this work)}} \\
-    & aifs\_perturbed\_ic & 0.739 & 0.629 & 0.379 & -- \\
-    & aifs\_perturbed & 0.733 & 0.625 & 0.379 & 0.271 \\
-    & graphcast\_all & 0.696 & 0.583 & 0.338 & 0.240 \\
-    & aurora\_encoder & 0.700 & 0.572 & 0.314 & 0.215 \\
-    & sfno\_modes10 & 0.639 & 0.506 & 0.305 & 0.242 \\
+    & aifs\_perturbed\_ic & 0.736 & 0.625 & 0.374 & -- \\
+    & aifs\_perturbed & 0.730 & 0.622 & 0.374 & 0.265 \\
+    & graphcast\_all & 0.693 & 0.579 & 0.333 & 0.234 \\
+    & aurora\_encoder & 0.697 & 0.568 & 0.308 & 0.209 \\
+    & sfno\_modes10 & 0.635 & 0.502 & 0.300 & 0.236 \\
     \hline
     \rowcolor{phaseBg}
     \multicolumn{6}{@{}l}{\textbf{Classical reference}} \\
-    & IFS-ENS & 0.715 & 0.608 & 0.370 & 0.280 \\
+    & IFS-ENS & 0.713 & 0.605 & 0.365 & 0.275 \\
     \bottomrule
   \end{tabular}
 \end{table}

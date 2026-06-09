@@ -31,7 +31,7 @@ parser.add_argument(
     "--climatology-json",
     type=Path,
     default=None,
-    help="Sigma_clim JSON (default: 4-yr sigma_clim_ablation.json)",
+    help="Sigma_clim JSON (default: 30-yr sigma_clim_1990_2019.json)",
 )
 cli = parser.parse_args()
 
@@ -39,7 +39,7 @@ CSV = "/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles/baselines/interco
 SIGMA = (
     str(cli.climatology_json)
     if cli.climatology_json is not None
-    else "/iopsstor/scratch/cscs/sadamov/sigma_clim_ablation.json"
+    else "/iopsstor/scratch/cscs/sadamov/sigma_clim_1990_2019.json"
 )
 ESFM_PROB = Path(
     "/capstor/store/cscs/swissai/a122/ESFM_Results/ESFM_s_nm_10ens/"
@@ -127,11 +127,25 @@ sigma = json.load(open(SIGMA))
 
 
 def sig_for(var, lvl):
-    if var in VARS_2D:
-        return sigma.get(var)
-    if var in VARS_3D and lvl is not None:
-        return sigma.get(f"{var}_{int(lvl)}")
-    return None
+    """Look up sigma_clim.
+
+    The 30-yr file structure is `{var: {"unconditional": float,
+    "doy_conditional": float}}`; the legacy 4-yr ablation file was a
+    flat `{var: float}`. Accept both transparently.
+    """
+    key = (
+        var
+        if var in VARS_2D
+        else f"{var}_{int(lvl)}"
+        if (var in VARS_3D and lvl is not None)
+        else None
+    )
+    if key is None:
+        return None
+    val = sigma.get(key)
+    if isinstance(val, dict):
+        return val.get("unconditional")
+    return val
 
 
 # Load the 7-way CRPS values from the SwissClim intercomp temporal-metrics CSV.
@@ -281,10 +295,21 @@ ax.set_xticks([0, 24, 72, 120, 168, 240, 312, 360])
 ax.set_xlabel("Lead time (h)")
 ax.set_ylabel("CRPSS (variable-mean, 6 paper variables)")
 ax.grid(True, linewidth=0.4, alpha=0.5)
-ax.legend(loc="lower left", fontsize=7, ncol=2, framealpha=0.95)
 ax.set_title("Headline intercomparison on the 112-init production grid", fontsize=10)
+# Legend below the plot in 2 horizontal rows -- keeps the y-axis full-height.
+handles, labels = ax.get_legend_handles_labels()
+ncol = math.ceil(len(handles) / 2)
+fig.legend(
+    handles,
+    labels,
+    loc="lower center",
+    ncol=ncol,
+    fontsize=7,
+    frameon=False,
+    bbox_to_anchor=(0.5, -0.02),
+)
 
-plt.tight_layout()
+plt.tight_layout(rect=(0, 0.10, 1, 1))
 Path(OUT).parent.mkdir(parents=True, exist_ok=True)
 plt.savefig(OUT, dpi=300, bbox_inches="tight")
 plt.savefig(OUT.replace(".pdf", ".png"), dpi=160, bbox_inches="tight")

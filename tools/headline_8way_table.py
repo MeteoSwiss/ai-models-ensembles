@@ -19,7 +19,7 @@ import math
 from pathlib import Path
 
 CSV_COMBINED = "/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles/baselines/intercomparison/probabilistic/temporal_metrics_combined.csv"
-SIGMA = "/iopsstor/scratch/cscs/sadamov/sigma_clim_ablation.json"
+SIGMA = "/iopsstor/scratch/cscs/sadamov/sigma_clim_1990_2019.json"
 OUT = "/users/sadamov/pyprojects/ai-models-ensembles/figures/headline_8way_table.tex"
 
 ESFM_PROB = Path(
@@ -38,7 +38,9 @@ ATMLLM_PROB = Path(
     "/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles/baselines/" "atmllm/eval/probabilistic"
 )
 
-VARS_2D = ["2m_temperature"]  # MSL excluded per the ifs_ens MSL bug
+VARS_2D = [
+    "2m_temperature"
+]  # MSL excluded for fair-grid: WB2 IFS-ENS has structural NaN gaps in surface fields for some inits.
 VARS_3D = [
     "geopotential",
     "temperature",
@@ -92,11 +94,23 @@ sigma = json.load(open(SIGMA))
 
 
 def sig_for(var: str, lvl: float | None) -> float | None:
-    if var in VARS_2D:
-        return sigma.get(var)
-    if var in VARS_3D and lvl is not None:
-        return sigma.get(f"{var}_{int(lvl)}")
-    return None
+    """Look up sigma_clim.
+
+    The 30-yr file structure is `{var: {"unconditional": float,
+    "doy_conditional": float}}`; the legacy 4-yr ablation file was a
+    flat `{var: float}`. Accept both transparently.
+    """
+    key = (
+        var
+        if var in VARS_2D
+        else (f"{var}_{int(lvl)}" if (var in VARS_3D and lvl is not None) else None)
+    )
+    if key is None:
+        return None
+    val = sigma.get(key)
+    if isinstance(val, dict):
+        return val.get("unconditional")
+    return val
 
 
 data: dict[tuple, float] = {}
@@ -209,9 +223,10 @@ lines.append("% plus per-baseline ESFM + aifs_perturbed probabilistic CSVs at")
 lines.append(f"%   {ESFM_PROB}")
 lines.append(f"%   {AIFS_PERT_PROB}")
 lines.append("% via tools/headline_8way_table.py.")
-lines.append("% 112 inits x 10 members, 7 paper vars (MSL EXCLUDED due to ifs_ens MSL bug,")
-lines.append("% see memory ifs-ens-msl-bug.md; re-run after patch). CRPSS = 1 - CRPS/CRPS_clim")
-lines.append("% against analytical Gaussian climatology from WB2 2022-2024.")
+lines.append("% 112 inits x 10 members, 6 paper vars (MSL EXCLUDED to keep all baselines on the")
+lines.append("% same init grid: WB2 IFS-ENS has structural NaN gaps in surface fields for some")
+lines.append("% init times; see [[ifs-ens-10m-wind-nan-bug]]). CRPSS = 1 - CRPS/CRPS_clim against")
+lines.append("% analytical Gaussian climatology from the 30-year 1990-2019 ERA5 sigma_clim.")
 lines.append("")
 lines.append("\\begin{table}[t]")
 lines.append("  \\centering")
@@ -222,9 +237,11 @@ lines.append("           (112 weekly initialisations $\\times$ 10 members in 202
 lines.append("           across the four trained-probabilistic, four post-hoc, and one")
 lines.append("           classical baselines. Higher is better; 1 = perfect, 0 =")
 lines.append("           climatology, $<0$ = worse than climatology. \\textbf{Bold}")
-lines.append("           marks the per-lead optimum. MSL excluded due to an IFS-ENS MSL bug")
-lines.append("           (see Sec.~\\ref{sec:methods-eval}); re-run with the patched data")
-lines.append("           is pending. Derived variables (geopotential height, wind speed,")
+lines.append("           marks the per-lead optimum. MSL excluded to keep all baselines on")
+lines.append("           the same 112-init grid -- the IFS-ENS WeatherBench-2 archive has")
+lines.append("           structural NaN gaps in surface fields for some init times (see")
+lines.append("           Sec.~\\ref{sec:methods-eval}). Derived variables (geopotential")
+lines.append("           height, wind speed,")
 lines.append("           gradient) excluded because no WB2 climatology $\\sigma$ is")
 lines.append("           available for them. ESFM \\citep{Ozdemir2026esfm} reports the")
 lines.append("           training-step-10000 checkpoint of ESFM\\_s\\_nm\\_10ens, an")
