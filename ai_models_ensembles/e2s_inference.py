@@ -172,14 +172,20 @@ def _model_for_member(
 
         _install_coarse_gc(graph_coarse_sigma, graph_coarse_nodes)
 
-    # SFNO Phase 6 fresh-per-step: skip the checkpoint perturbation entirely
-    # so the model loads with default weights, and let the forward-pre-hook
-    # in sfno_fresh_perturbation install the fresh noise per AR step.
+    # Phase 6c fresh-per-step: skip the checkpoint perturbation entirely so
+    # the model loads with default weights, and let each backbone's
+    # forward-pre-hook install the fresh noise per AR step. Each backbone
+    # owns its own env-var-gated installer module.
     import os as _os_fresh
 
     _sfno_fresh_active = _os_fresh.environ.get("SFNO_FRESH", "0") == "1" and model_name == "sfno"
+    _aurora_fresh_active = (
+        _os_fresh.environ.get("AURORA_FRESH", "0") == "1" and model_name == "aurora"
+    )
+    _aifs_fresh_active = _os_fresh.environ.get("AIFS_FRESH", "0") == "1" and model_name == "aifs"
+    _any_fresh_active = _sfno_fresh_active or _aurora_fresh_active or _aifs_fresh_active
 
-    if weight_magnitude <= 0 or _sfno_fresh_active:
+    if weight_magnitude <= 0 or _any_fresh_active:
         model, _ = load_model(model_name)
     else:
         pkg_dir = work_dir / f"weights_member_{member_id:03d}"
@@ -210,18 +216,26 @@ def _model_for_member(
 
             _gc_pert._FROZEN_MEMBER_KEY = jax.random.PRNGKey(seed + member_id)
 
-    # SFNO Phase 6 fresh-per-step weight perturbation, gated by SFNO_FRESH=1.
-    # Sigma comes from SFNO_FRESH_SIGMA, mode_cut from SFNO_FRESH_MODE_CUT.
+    # Phase 6c fresh-per-step weight perturbation, gated by <MODEL>_FRESH=1.
     # When this branch fires, the checkpoint perturbation upstream is skipped
-    # by the inference driver (it sets coarse_mode_cut=None in the perturb
-    # call but keeps it here so the hook still knows where the mode boundary
-    # is). See [[phase6-fresh-per-step-weight]].
+    # by the inference driver. Each backbone's installer reads its own env
+    # vars: SFNO_FRESH_SIGMA + SFNO_FRESH_MODE_CUT (+ refresh_every),
+    # AURORA_FRESH_SIGMA (+ refresh_every), AIFS_FRESH_SIGMA (+ refresh_every).
+    # See [[phase6-fresh-per-step-weight]].
     import os as _os2
 
-    if _os2.environ.get("SFNO_FRESH", "0") == "1":
+    if _os2.environ.get("SFNO_FRESH", "0") == "1" and model_name == "sfno":
         from . import sfno_fresh_perturbation as _sfno_fresh
 
         _sfno_fresh.maybe_install_from_env(model, seed + member_id)
+    if _os2.environ.get("AURORA_FRESH", "0") == "1" and model_name == "aurora":
+        from . import aurora_fresh_perturbation as _aurora_fresh
+
+        _aurora_fresh.maybe_install_from_env(model, seed + member_id)
+    if _os2.environ.get("AIFS_FRESH", "0") == "1" and model_name == "aifs":
+        from . import aifs_fresh_perturbation as _aifs_fresh
+
+        _aifs_fresh.maybe_install_from_env(model, seed + member_id)
     return model
 
 
@@ -315,7 +329,10 @@ def _gpu_worker(
     import os as _os_gpu
 
     _sfno_fresh_gpu = _os_gpu.environ.get("SFNO_FRESH", "0") == "1" and model_name == "sfno"
-    if weight_magnitude > 0 or graph_coarse_sigma > 0 or _sfno_fresh_gpu:
+    _aurora_fresh_gpu = _os_gpu.environ.get("AURORA_FRESH", "0") == "1" and model_name == "aurora"
+    _aifs_fresh_gpu = _os_gpu.environ.get("AIFS_FRESH", "0") == "1" and model_name == "aifs"
+    _any_fresh_gpu = _sfno_fresh_gpu or _aurora_fresh_gpu or _aifs_fresh_gpu
+    if weight_magnitude > 0 or graph_coarse_sigma > 0 or _any_fresh_gpu:
         model = _model_for_member(
             model_name=model_name,
             weight_magnitude=weight_magnitude,
@@ -459,7 +476,10 @@ def _run_members_sequential(
     import os as _os_seq
 
     _sfno_fresh_seq = _os_seq.environ.get("SFNO_FRESH", "0") == "1" and model_name == "sfno"
-    use_shared_model = weight_magnitude <= 0 and graph_coarse_sigma <= 0 and not _sfno_fresh_seq
+    _aurora_fresh_seq = _os_seq.environ.get("AURORA_FRESH", "0") == "1" and model_name == "aurora"
+    _aifs_fresh_seq = _os_seq.environ.get("AIFS_FRESH", "0") == "1" and model_name == "aifs"
+    _any_fresh_seq = _sfno_fresh_seq or _aurora_fresh_seq or _aifs_fresh_seq
+    use_shared_model = weight_magnitude <= 0 and graph_coarse_sigma <= 0 and not _any_fresh_seq
     shared_model = load_model(model_name)[0] if use_shared_model else None
     cached_ic: xr.Dataset | None = None
     tmp_dir = work_dir / "_seq_members"
