@@ -1,7 +1,6 @@
-% Headline 8-way CRPSS table. Generated from
+% Headline CRPSS table. Generated from
 %   $STORE/baselines/intercomparison/probabilistic/temporal_metrics_combined.csv
-% plus per-baseline ESFM + aifs_perturbed probabilistic CSVs at
-%   /capstor/store/cscs/swissai/a122/ESFM_Results/ESFM_s_nm_10ens/Evaluations_rollout/2023-2024/step10000/probabilistic
+% plus per-baseline aifs_perturbed probabilistic CSVs at
 %   /capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles/baselines/aifs_perturbed/eval/probabilistic
 % via tools/headline_8way_table.py.
 % 112 inits x 10 members, 7 paper vars (T2m + MSL + Z/T/u/v/q at 500+850 hPa).
@@ -15,7 +14,7 @@
   \setlength{\tabcolsep}{6pt}
   \caption{Headline CRPSS@(72,120,240,360)h on the production grid
            (112 weekly initialisations $\times$ 10 members in 2024)
-           across the four trained-probabilistic, four post-hoc, and one
+           across the three trained-probabilistic, the post-hoc, and one
            classical baselines. Higher is better; 1 = perfect, 0 =
            climatology, $<0$ = worse than climatology. \textbf{Bold}
            marks the per-lead optimum. Variable mean over T2m, MSL, $Z$, $T$,
@@ -24,10 +23,7 @@
            skipna averaging is applied. Derived variables (geopotential
            height, wind speed,
            gradient) excluded because no WB2 climatology $\sigma$ is
-           available for them. ESFM \citep{Ozdemir2026esfm} reports the
-           training-step-10000 checkpoint of ESFM\_s\_nm\_10ens, an
-           intermediate ensemble-finetune snapshot rather than a fully
-           trained production model.}
+           available for them.}
   \label{tab:headline8way}
   \begin{tabular}{@{}l l rrrr@{}}
     \toprule
@@ -38,8 +34,6 @@
     & AIFS-ENS & \textbf{0.769} & \textbf{0.662} & \textbf{0.397} & \textbf{0.265} \\
     & Atlas & 0.759 & 0.644 & 0.383 & 0.254 \\
     & FCN3 & 0.743 & 0.626 & 0.367 & 0.263 \\
-    & AtmLLM & 0.216 & 0.089 & 0.040 & 0.051 \\
-    & ESFM (step 10k) & 0.579 & 0.317 & $-$0.161 & $-$0.364 \\
     \hline
     \rowcolor{phaseBg}
     \multicolumn{6}{@{}l}{\textbf{Post-hoc weight perturbation (this work)}} \\

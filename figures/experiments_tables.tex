@@ -22,7 +22,6 @@
 \definecolor{atlasC}    {HTML}{C0392B}  % red
 \definecolor{fcn3C}     {HTML}{D4A017}  % gold
 \definecolor{ifsC}      {HTML}{7F8C8D}  % grey
-\definecolor{esfmC}     {HTML}{16A085}  % teal
 \definecolor{phaseBg}   {HTML}{ECF0F1}  % phase header band
 \definecolor{altRow}    {HTML}{F8F9FA}  % alt row tint
 
@@ -138,8 +137,6 @@
     \rowcolor{altRow}
     & \mbadge{atlasC}{atlas}               & latent DiT; stochastic-interpolant sampling       & drift regression \\
     & \mbadge{fcn3C}{fcn3}                 & spherical neural operator; per-step latent noise via spherical diffusion & spatial + spectral CRPS \\
-    \rowcolor{altRow}
-    & \mbadge{esfmC}{esfm}                 & Aurora 3D Swin U-Net backbone with axial inter-variable attention and AdaLN-Zero per-member conditioning; checkpoint at training step 10\,000 of ESFM\_s\_nm\_10ens \citep{Ozdemir2026esfm} & MAE $+$ almost-fair CRPS \\
     \hline
 
     \rowcolor{phaseBg}

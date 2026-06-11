@@ -1,11 +1,9 @@
-"""Produce the headline 8-way CRPSS vs lead-time PDF for the paper.
+"""Produce the headline CRPSS vs lead-time PDF for the paper.
 
-Like plot_headline_crpss_vs_lead.py (7-way) but adds ESFM as the 8th
-baseline. ESFM is read from its own per-variable CRPS CSVs at
-    /capstor/store/cscs/swissai/a122/ESFM_Results/ESFM_s_nm_10ens/
-    Evaluations_rollout/2023-2024/step10000/probabilistic/
-because ESFM is not part of the SwissClim intercomparison run that
-produced temporal_metrics_combined.csv.
+Trained-probabilistic baselines (AIFS-ENS, FCN3, Atlas) and the classical
+IFS-ENS reference come from the SwissClim intercomparison temporal-metrics
+CSV; the post-hoc baselines (weight-only and Phase 5 IC variants) are read
+from per-baseline probabilistic CSVs.
 """
 
 from __future__ import annotations
@@ -41,10 +39,6 @@ SIGMA = (
     if cli.climatology_json is not None
     else "/iopsstor/scratch/cscs/sadamov/sigma_clim_1990_2019.json"
 )
-ESFM_PROB = Path(
-    "/capstor/store/cscs/swissai/a122/ESFM_Results/ESFM_s_nm_10ens/"
-    "Evaluations_rollout/2023-2024/step10000/probabilistic"
-)
 AIFS_PERT_PROB = Path(
     "/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles/baselines/"
     "aifs_perturbed/eval/probabilistic"
@@ -52,9 +46,6 @@ AIFS_PERT_PROB = Path(
 AIFS_PERT_IC_PROB = Path(
     "/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles/baselines/"
     "aifs_perturbed_ic/eval/probabilistic"
-)
-ATMLLM_PROB = Path(
-    "/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles/baselines/" "atmllm/eval/probabilistic"
 )
 OUT = "/users/sadamov/pyprojects/ai-models-ensembles/figures/headline_crpss_vs_lead_8way.pdf"
 
@@ -71,8 +62,6 @@ MODELS = [
     "aifsens",
     "atlas",
     "fcn3",
-    "esfm",
-    "atmllm",
     "ifs_ens",
     "graphcast_all",
     "aurora_encoder",
@@ -85,14 +74,12 @@ PRETTY = {
     "aifsens": "AIFS-ENS",
     "atlas": "Atlas",
     "fcn3": "FCN3",
-    "esfm": "ESFM (step 10k)",
     "ifs_ens": "IFS-ENS",
     "graphcast_all": "graphcast_all",
     "aurora_encoder": "aurora_encoder",
     "sfno_modes10": "sfno_modes10",
     "aifs_perturbed": "aifs_perturbed",
     "aifs_perturbed_ic": "aifs_perturbed_ic",
-    "atmllm": "AtmLLM",
 }
 
 COLOUR = {
@@ -104,8 +91,6 @@ COLOUR = {
     "aifsens": "#8B5A2B",
     "atlas": "#C0392B",
     "fcn3": "#D4A017",
-    "esfm": "#16A085",
-    "atmllm": "#1ABC9C",
     "ifs_ens": "#7F8C8D",
 }
 
@@ -118,8 +103,6 @@ STYLE = {
     "aifsens": "--",
     "atlas": "--",
     "fcn3": "--",
-    "esfm": "--",
-    "atmllm": "--",
     "ifs_ens": ":",
 }
 
@@ -165,8 +148,8 @@ with open(CSV) as f:
 
 def _load_perbase(root, model):
     """Per-baseline `crps_line_<stem>_by_lead_ensprob.csv` (lead_time_hours, variable, CRPS).
-    Used for ESFM (which is outside the SwissClim intercomp run) and
-    aifs_perturbed (which was added after the most recent combined-CSV regen).
+    Used for the post-hoc baselines (aifs_perturbed + its Phase 5 IC variant)
+    which were added after the most recent combined-CSV regen.
     """
 
     def _load(stem, var_label, level):
@@ -189,10 +172,8 @@ def _load_perbase(root, model):
             _load(f"{v}_{lvl}", v, float(lvl))
 
 
-_load_perbase(ESFM_PROB, "esfm")
 _load_perbase(AIFS_PERT_PROB, "aifs_perturbed")
 _load_perbase(AIFS_PERT_IC_PROB, "aifs_perturbed_ic")
-_load_perbase(ATMLLM_PROB, "atmllm")
 LEADS = sorted({k[2] for k in data})
 
 

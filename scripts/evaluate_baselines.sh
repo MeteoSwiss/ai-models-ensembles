@@ -55,17 +55,16 @@ for ws in "${WEEK_STARTS[@]}"; do
     done
 done
 
-MODELS="atlas fcn3 aifsens ifs_ens sfno_modes10 aurora_encoder graphcast_all aifs_perturbed aifs_perturbed_ic aurora_encoder_ic graphcast_all_ic sfno_modes10_ic atmllm"
+MODELS="atlas fcn3 aifsens ifs_ens sfno_modes10 aurora_encoder graphcast_all aifs_perturbed aifs_perturbed_ic aurora_encoder_ic graphcast_all_ic sfno_modes10_ic aurora_p6c aifs_p6c"
 declare -A MODEL_KIND=(
     [atlas]=ai [fcn3]=ai [aifsens]=ai [ifs_ens]=ref
     [sfno_modes10]=ai [aurora_encoder]=ai [graphcast_all]=ai
     [aifs_perturbed]=ai [aifs_perturbed_ic]=ai
     [aurora_encoder_ic]=ai [graphcast_all_ic]=ai [sfno_modes10_ic]=ai
-    [atmllm]=combined
+    [aurora_p6c]=ai [aifs_p6c]=ai
 )
 
 IFS_ENS_ZARR="/capstor/store/cscs/swissai/a122/IFS/ifs_ens.zarr"
-ATMLLM_ZARR="/capstor/store/cscs/swissai/a122/lhuang/outputs/AtmLLM_inference_results/atmllm-evals-112initsteps-combined.zarr"
 
 # Stratified 10-member subsample of IFS ENS (50 members total). Members are
 # generated with systematic perturbation spread across indices, so step-5
@@ -82,15 +81,6 @@ _ml_yaml() {
     local kind="${MODEL_KIND[$model]}"
     if [[ "$kind" == "ref" ]]; then
         echo "[\"${IFS_ENS_ZARR}\"]"
-        return
-    fi
-    if [[ "$kind" == "combined" ]]; then
-        # External combined-zarr baselines (one zarr with init_time dim,
-        # not a per-init forecast.zarr layout). Currently only AtmLLM.
-        case "$model" in
-            atmllm) echo "[\"${ATMLLM_ZARR}\"]" ;;
-            *) echo "ERROR: kind=combined for unknown model '$model'" >&2; exit 1 ;;
-        esac
         return
     fi
     local out="["
@@ -543,7 +533,7 @@ shift || true
 
 case "$ACTION" in
     all)           submit_per_module_eval "${1:-}" ;;
-    atlas|fcn3|aifsens|ifs_ens|sfno_modes10|aurora_encoder|graphcast_all|aifs_perturbed|aifs_perturbed_ic|aurora_encoder_ic|graphcast_all_ic|sfno_modes10_ic|atmllm) submit_per_module_eval "$ACTION" ;;
+    atlas|fcn3|aifsens|ifs_ens|sfno_modes10|aurora_encoder|graphcast_all|aifs_perturbed|aifs_perturbed_ic|aurora_encoder_ic|graphcast_all_ic|sfno_modes10_ic|aurora_p6c|aifs_p6c) submit_per_module_eval "$ACTION" ;;
     intercompare)  run_intercompare ;;
     gen-configs)
         target_model="${1:-}"

@@ -73,8 +73,6 @@
     \rowcolor{altRow}
     & \mbadge{fcn3C}{fcn3}               & 711 M  & 2.8   & 90  & 114           & 0.40  & 26.6 & 76.6  & 127.7 \\
     & \mbadge{atlasC}{atlas}             & 4.3 B  & 17    & -$^{\bullet}$ & \textbf{2280} & \textbf{7.92}  & 43.5 & 125.3 & 208.8 \\
-    \rowcolor{altRow}
-    & \mbadge{esfmC}{esfm}$^{\ddag\ddag}$ & 110 M  & 0.44  & $\sim$10  & $\sim$25  & $\sim$0.09 & $\sim$6.5 & $\sim$19  & $\sim$31  \\
     \hline
 
     \rowcolor{phaseBg}
@@ -98,21 +96,6 @@
   $50 \times \text{s/mbr} / 4 / 3600$. Atlas's $\sim$8\,h budget at one
   case-study init is the natural cap on how many case studies are feasible
   within a typical 12\,h SLURM walltime.
-  $^{\ddag\ddag}$\,\textbf{esfm} = \citet{Ozdemir2026esfm}, Earth System
-  Foundation Model. Aurora 3D Swin U-Net backbone with axial inter-variable
-  attention and AdaLN-Zero per-member conditioning, trained on the joint
-  MAE\,+\,almost-fair-CRPS objective. The checkpoint used here is
-  ESFM\_s\_nm\_10ens at training step 10\,000, an intermediate ensemble-
-  finetune snapshot (not a fully trained production model). Production
-  training schedule is reported by the authors as
-  92\,k (CMIP6 pretrain) $+$ 40\,k (knowledge distillation) $+$ 100\,k
-  (ERA5 finetune) $+$ 10\,k (ensemble finetune) steps. Cost numbers in
-  the table are first-order estimates obtained by scaling Aurora-Small
-  ($\sim$110\,M architectural cousin) by parameter count for per-member
-  inference and by aggregating reasonable per-stage training compute
-  for the 240\,k-step pipeline; exact wall-clock figures from the
-  swiss-ai SDSC training logs will replace these estimates in the
-  camera-ready version.
   $^{\star\star}$\,\textbf{aifs\_perturbed} = post-hoc weight perturbation of
   the AIFS v1 deterministic checkpoint at the per-phase winner identified by
   AIFS Phase 1 + Phase 2 ablations (verified 2026-06-01): Phase 2
