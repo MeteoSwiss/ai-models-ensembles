@@ -1,16 +1,18 @@
-% Hurricane Milton case-study summary table. Generated 2026-06-04 from
+% Hurricane Milton case-study summary table. Regenerated 2026-06-11 from
 %   /iopsstor/scratch/cscs/sadamov/milton_case_study/milton_per_baseline_summary.csv
-% via tools_or_scratch/analyze_milton_stats.py.
-% 6 baselines x 14 inits x 10 members = 140 (init, member) pairs per row.
+% via /iopsstor/scratch/cscs/sadamov/milton_case_study/analyze_milton_stats.py.
+% Post-hoc rows updated to Phase 5 (IFS-ENS perturbed-IC + weight) configuration
+% per the post-Phase-5 narrative decision (see [[phase5-milton-redo-decision]]).
+% 8 baselines x 14 inits x 10 members = 140 (init, member) pairs per row.
 % Detection rate = fraction of those 140 that produced any track within the
 % Milton lifecycle window (2024-10-04 .. 2024-10-11). Position errors are
 % mean great-circle distance against IBTrACS v4 NA-basin best track and
 % against the 0.25 deg ERA5 control track, averaged over all matched
 % (init, member, lead) rows. Intensity bias is mean MSL minus IBTrACS MSL
-% at matched validating times, in hPa; the +39 to +47 hPa cluster reflects
+% at matched validating times, in hPa; the +37 to +44 hPa cluster reflects
 % the 0.25 deg ERA5 resolution-limited intensity ceiling. ESFM omitted, see
-% case-study text. IFS-ENS pending (consolidated-zarr tracker handler
-% added 2026-06-05; tracker array job 2473058 in flight for 8-way set).
+% case-study text. Weight-only post-hoc numbers preserved in the v0 commit
+% (cb6a156 paper repo) for the data release.
 
 \begin{table}[t]
   \centering
@@ -60,11 +62,11 @@
     & AIFS-ENS      & 86 & 300 & 163 & $+39.2$ & 300 \\
     \hline
     \rowcolor{phaseBg}
-    \multicolumn{7}{@{}l}{\textbf{Post-hoc weight perturbation (this work)}} \\
-    & sfno\_modes10    & 79 & 308 & 159 & $+41.1$ & 253 \\
-    & aurora\_encoder  & 74 & 229 & 141 & $+37.2$ & 209 \\
-    & aifs\_perturbed  & 64 & 236 & 113 & $+41.5$ & 219 \\
-    & graphcast\_all   & 54 & 207 &  98 & $+41.7$ & 186 \\
+    \multicolumn{7}{@{}l}{\textbf{Post-hoc IFS-ENS perturbed-IC + weight (Phase 5, this work)}} \\
+    & sfno\_modes10\_ic    & 76 & 306 & 161 & $+41.7$ & 254 \\
+    & graphcast\_all\_ic   & 73 & 258 & 157 & $+40.0$ & 250 \\
+    & aifs\_perturbed\_ic  & 67 & 262 & 133 & $+40.3$ & 245 \\
+    & aurora\_encoder\_ic  & 66 & 218 & 124 & $+38.6$ & 191 \\
     \hline
     \rowcolor{phaseBg}
     \multicolumn{7}{@{}l}{\textbf{Classical reference}} \\
