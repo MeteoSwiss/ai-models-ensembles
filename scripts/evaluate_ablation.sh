@@ -227,6 +227,15 @@ submit_eval() {
         return 0
     fi
 
+    # Partial init sets produce numbers incomparable with the 4-init design grid.
+    if [[ ${#zarr_paths[@]} -lt ${#INIT_TIMES[@]} ]]; then
+        if [[ "${ALLOW_PARTIAL_INITS:-0}" != "1" ]]; then
+            echo "  SKIP ${model} ${run_tag}: only ${#zarr_paths[@]}/${#INIT_TIMES[@]} init_times have forecast.zarr (ALLOW_PARTIAL_INITS=1 to override)"
+            return 0
+        fi
+        echo "  WARN ${model} ${run_tag}: evaluating partial ${#zarr_paths[@]}/${#INIT_TIMES[@]} init_times"
+    fi
+
     local config_path="$base/eval/${run_tag}_config.yaml"
     mkdir -p "$(dirname "$config_path")"
     generate_config "$eval_root" "${zarr_paths[@]}" > "$config_path"
