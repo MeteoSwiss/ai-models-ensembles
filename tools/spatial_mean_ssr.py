@@ -17,7 +17,8 @@ SSR definition (spatial-mean version):
     For each (init, variable, lead, level):
       S_n = sum_ij cos(lat_i) * field_n_ij / sum_ij cos(lat_i)   for member n
       T   = sum_ij cos(lat_i) * truth_ij    / sum_ij cos(lat_i)
-      spread^2  = ((M+1)/(M-1)) * var_n(S_n)
+      spread^2  = ((M+1)/M) * var_n(S_n)     [var_n = ddof=1 sample variance;
+                                              Fortin et al. 2014 finite-M factor]
       error^2   = ( mean_n(S_n) - T )^2
 
     Aggregating across inits:
@@ -105,7 +106,11 @@ def _compute_for_init(
         return None
 
     var_M = float(np.var(s_vals, ddof=1))  # unbiased sample variance
-    spread2 = var_M * (M + 1) / (M - 1)  # SSR convention: unbiased variance
+    # Fortin et al. 2014 finite-M factor for ddof=1 variance is (M+1)/M, NOT
+    # (M+1)/(M-1) (that factor pairs with the ddof=0 variance). The earlier
+    # (M+1)/(M-1) double-counted the M-1 adjustment and inflated SSR by
+    # sqrt(M/(M-1)) (~5.4% at M=10). Fixed 2026-06-13.
+    spread2 = var_M * (M + 1) / M
     err2 = float((s_vals.mean() - t_scalar) ** 2)
     return {"spread2": spread2, "error2": err2, "n_members": M}
 
