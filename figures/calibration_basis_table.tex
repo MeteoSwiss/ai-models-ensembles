@@ -21,7 +21,10 @@
 % mean_sea_level_pressure, geopotential, temperature, u/v wind, specific
 % humidity) and across pressure levels where applicable. Derived variables
 % (geopotential_height, wind_speed, gradient) are excluded because no
-% WB2 climatology sigma is available for them.
+% WB2 climatology reference is available for them.
+% CRPSS columns recomputed 2026-06-12 against the WB2 probabilistic
+% climatology (tools/data/crps_clim_eval_ablation_1990_2019.json) via
+% tools/calibration_crpss.py; non-CRPSS columns unchanged from 2026-05-31.
 
 \begin{sidewaystable*}[p]
   \centering
