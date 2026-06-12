@@ -29,15 +29,15 @@ parser.add_argument(
     "--climatology-json",
     type=Path,
     default=None,
-    help="Sigma_clim JSON (default: 30-yr sigma_clim_1990_2019.json)",
+    help="WB2 clim-CRPS denominator JSON (default: tools/data/crps_clim_eval_1990_2019.json)",
 )
 cli = parser.parse_args()
 
 CSV = "/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles/baselines/intercomparison/probabilistic/temporal_metrics_combined.csv"
-SIGMA = (
+CRPS_CLIM = (
     str(cli.climatology_json)
     if cli.climatology_json is not None
-    else "/iopsstor/scratch/cscs/sadamov/sigma_clim_1990_2019.json"
+    else str(Path(__file__).resolve().parent / "data" / "crps_clim_eval_1990_2019.json")
 )
 AIFS_PERT_PROB = Path(
     "/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles/baselines/"
@@ -106,16 +106,11 @@ STYLE = {
     "ifs_ens": ":",
 }
 
-sigma = json.load(open(SIGMA))
+crps_clim = json.load(open(CRPS_CLIM))
 
 
-def sig_for(var, lvl):
-    """Look up sigma_clim.
-
-    The 30-yr file structure is `{var: {"unconditional": float,
-    "doy_conditional": float}}`; the legacy 4-yr ablation file was a
-    flat `{var: float}`. Accept both transparently.
-    """
+def clim_for(var, lvl, lead):
+    """WB2 probabilistic-climatology CRPS denominator at this lead."""
     key = (
         var
         if var in VARS_2D
@@ -123,12 +118,9 @@ def sig_for(var, lvl):
         if (var in VARS_3D and lvl is not None)
         else None
     )
-    if key is None:
+    if key is None or key not in crps_clim:
         return None
-    val = sigma.get(key)
-    if isinstance(val, dict):
-        return val.get("unconditional")
-    return val
+    return crps_clim[key].get(str(lead))
 
 
 # Load the 7-way CRPS values from the SwissClim intercomp temporal-metrics CSV.
@@ -185,20 +177,20 @@ def crpss(model, lead):
         ]
         if not candidates:
             continue
-        s = sig_for(v, None)
-        if s is None:
+        c = clim_for(v, None, lead)
+        if c is None:
             continue
-        per_var.append(1 - candidates[0] / (s / math.sqrt(math.pi)))
+        per_var.append(1 - candidates[0] / c)
     for v in VARS_3D:
         skills = []
         for lvl in (500.0, 850.0):
             crps_v = data.get((model, v, lead, lvl))
             if crps_v is None:
                 continue
-            s = sig_for(v, lvl)
-            if s is None:
+            c = clim_for(v, lvl, lead)
+            if c is None:
                 continue
-            skills.append(1 - crps_v / (s / math.sqrt(math.pi)))
+            skills.append(1 - crps_v / c)
         if skills:
             per_var.append(sum(skills) / len(skills))
     if not per_var:
@@ -222,7 +214,7 @@ for m in MODELS:
 # (a) Climatology: CRPSS = 0 exactly, by definition of the CRPSS denominator.
 # (b) Persistence: forecast(t+h) = analysis(t). Empirical MAE from
 #     tools/compute_persistence_mae.py against the local 2022-2025 ERA5 zarr;
-#     converted to CRPSS using the same sigma_clim as the model baselines.
+#     converted to CRPSS using the same WB2 clim-CRPS denominator as the models.
 if cli.persistence_json is not None:
     PERSISTENCE_JSON = cli.persistence_json
 elif Path("/iopsstor/scratch/cscs/sadamov/persistence_mae_112inits.json").exists():
@@ -240,10 +232,10 @@ if PERSISTENCE_JSON.exists():
             if not mae_dict:
                 continue
             mae = mae_dict.get(str(lead))
-            s = sig_for(v, None)
-            if mae is None or s is None:
+            c = clim_for(v, None, lead)
+            if mae is None or c is None:
                 continue
-            per_var.append(1 - mae / (s / math.sqrt(math.pi)))
+            per_var.append(1 - mae / c)
         for v in VARS_3D:
             skills = []
             for lvl in (500, 850):
@@ -251,10 +243,10 @@ if PERSISTENCE_JSON.exists():
                 if not mae_dict:
                     continue
                 mae = mae_dict.get(str(lead))
-                s = sig_for(v, float(lvl))
-                if mae is None or s is None:
+                c = clim_for(v, float(lvl), lead)
+                if mae is None or c is None:
                     continue
-                skills.append(1 - mae / (s / math.sqrt(math.pi)))
+                skills.append(1 - mae / c)
             if skills:
                 per_var.append(sum(skills) / len(skills))
         return sum(per_var) / len(per_var) if per_var else None

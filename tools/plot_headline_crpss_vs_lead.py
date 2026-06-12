@@ -8,7 +8,6 @@ from __future__ import annotations
 import argparse
 import csv
 import json
-import math
 from pathlib import Path
 
 import matplotlib
@@ -17,7 +16,8 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 CSV = "/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles/baselines/intercomparison/probabilistic/temporal_metrics_combined.csv"
-SIGMA = "/iopsstor/scratch/cscs/sadamov/sigma_clim_ablation.json"
+# Exact-WB2 lead-resolved CRPS_clim denominator (superseded by the _8way plot).
+CRPS_CLIM_DEFAULT = str(Path(__file__).resolve().parent / "data" / "crps_clim_eval_1990_2019.json")
 OUT = "/users/sadamov/pyprojects/ai-models-ensembles/figures/headline_crpss_vs_lead_7way.pdf"
 
 parser = argparse.ArgumentParser(description=__doc__)
@@ -67,15 +67,16 @@ STYLE = {
     "ifs_ens": ":",
 }
 
-sigma = json.load(open(args.climatology_json if args.climatology_json is not None else SIGMA))
+crps_clim = json.load(
+    open(str(args.climatology_json) if args.climatology_json is not None else CRPS_CLIM_DEFAULT)
+)
 
 
-def sig_for(var, lvl):
-    if var in VARS_2D:
-        return sigma.get(var)
-    if var in VARS_3D and lvl is not None:
-        return sigma.get(f"{var}_{int(lvl)}")
-    return None
+def clim_for(var, lvl, lead):
+    key = var if var in VARS_2D else (f"{var}_{int(lvl)}" if lvl is not None else None)
+    if key is None or key not in crps_clim:
+        return None
+    return crps_clim[key].get(str(lead))
 
 
 data = {}
@@ -102,20 +103,20 @@ def crpss(model, lead):
         ]
         if not candidates:
             continue
-        s = sig_for(v, None)
-        if s is None:
+        c = clim_for(v, None, lead)
+        if c is None:
             continue
-        per_var.append(1 - candidates[0] / (s / math.sqrt(math.pi)))
+        per_var.append(1 - candidates[0] / c)
     for v in VARS_3D:
         skills = []
         for lvl in (500.0, 850.0):
             crps_v = data.get((model, v, lead, lvl))
             if crps_v is None:
                 continue
-            s = sig_for(v, lvl)
-            if s is None:
+            c = clim_for(v, lvl, lead)
+            if c is None:
                 continue
-            skills.append(1 - crps_v / (s / math.sqrt(math.pi)))
+            skills.append(1 - crps_v / c)
         if skills:
             per_var.append(sum(skills) / len(skills))
     if not per_var:
@@ -145,10 +146,10 @@ if args.persistence_json is not None and args.persistence_json.exists():
             if not mae_dict:
                 continue
             mae = mae_dict.get(str(lead))
-            s = sig_for(v, None)
-            if mae is None or s is None:
+            c = clim_for(v, None, lead)
+            if mae is None or c is None:
                 continue
-            per_var.append(1 - mae / (s / math.sqrt(math.pi)))
+            per_var.append(1 - mae / c)
         for v in VARS_3D:
             skills = []
             for lvl in (500, 850):
@@ -156,10 +157,10 @@ if args.persistence_json is not None and args.persistence_json.exists():
                 if not mae_dict:
                     continue
                 mae = mae_dict.get(str(lead))
-                s = sig_for(v, float(lvl))
-                if mae is None or s is None:
+                c = clim_for(v, float(lvl), lead)
+                if mae is None or c is None:
                     continue
-                skills.append(1 - mae / (s / math.sqrt(math.pi)))
+                skills.append(1 - mae / c)
             if skills:
                 per_var.append(sum(skills) / len(skills))
         return sum(per_var) / len(per_var) if per_var else None

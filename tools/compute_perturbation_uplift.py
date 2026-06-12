@@ -9,9 +9,10 @@ from __future__ import annotations
 
 import csv
 import json
-import math
+from pathlib import Path
 
-SIGMA = "/iopsstor/scratch/cscs/sadamov/sigma_clim_ablation.json"
+# Exact-WB2 ablation-grid CRPS_clim denominator (4 mid-season inits, lead-resolved).
+CRPS_CLIM = str(Path(__file__).resolve().parent / "data" / "crps_clim_eval_ablation_1990_2019.json")
 ROOT = "/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles/ablation/allphases"
 
 VARS_2D = ["2m_temperature", "mean_sea_level_pressure"]
@@ -31,18 +32,13 @@ PICKS = {
 }
 LEAD = 240
 
-sigma = json.load(open(SIGMA))
-
-
-def sig_for(v, lvl):
-    if v in VARS_2D:
-        return sigma.get(v)
-    return sigma.get(f"{v}_{int(lvl)}")
+clim = json.load(open(CRPS_CLIM))
 
 
 def crps_clim(v, lvl):
-    s = sig_for(v, lvl)
-    return s / math.sqrt(math.pi) if s else None
+    key = v if v in VARS_2D else f"{v}_{int(lvl)}"
+    d = clim.get(key)
+    return d.get(str(LEAD)) if d else None
 
 
 def load_metric(model_dir, key_model, metric):

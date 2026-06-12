@@ -7,11 +7,12 @@ Output: /users/sadamov/pyprojects/ai-models-ensembles/figures/headline_7way_tabl
 from __future__ import annotations
 import csv
 import json
-import math
 from pathlib import Path
 
 CSV = "/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles/baselines/intercomparison/probabilistic/temporal_metrics_combined.csv"
-SIGMA = "/iopsstor/scratch/cscs/sadamov/sigma_clim_ablation.json"
+# Superseded by headline_8way_table.py (the paper table); kept for the 7-baseline
+# view. Uses the same exact-WB2 lead-resolved CRPS_clim denominator.
+CRPS_CLIM = str(Path(__file__).resolve().parent / "data" / "crps_clim_eval_1990_2019.json")
 OUT = "/users/sadamov/pyprojects/ai-models-ensembles/figures/headline_7way_table.tex"
 
 # Paper variables, 3D need 500 + 850 averaging
@@ -39,15 +40,14 @@ PRETTY = {
     "sfno_modes10": "sfno\\_modes10",
 }
 
-sigma = json.load(open(SIGMA))
+crps_clim = json.load(open(CRPS_CLIM))
 
 
-def sig_for(var: str, lvl: float | None) -> float | None:
-    if var in VARS_2D:
-        return sigma.get(var)
-    if var in VARS_3D and lvl is not None:
-        return sigma.get(f"{var}_{int(lvl)}")
-    return None
+def clim_for(var: str, lvl: float | None, lead: int) -> float | None:
+    key = var if var in VARS_2D else (f"{var}_{int(lvl)}" if lvl is not None else None)
+    if key is None or key not in crps_clim:
+        return None
+    return crps_clim[key].get(str(lead))
 
 
 # Pull CRPS per (model, var, lead, level)
@@ -84,20 +84,20 @@ def crpss(model: str, lead: int) -> float | None:
         if not candidates:
             return None
         crps_v = candidates[0][1]
-        s = sig_for(v, None)
-        if s is None:
+        c = clim_for(v, None, lead)
+        if c is None:
             return None
-        per_var.append(1 - crps_v / (s / math.sqrt(math.pi)))
+        per_var.append(1 - crps_v / c)
     for v in VARS_3D:
         skills = []
         for lvl in (500.0, 850.0):
             crps_v = data.get((model, v, lead, lvl))
             if crps_v is None:
                 continue
-            s = sig_for(v, lvl)
-            if s is None:
+            c = clim_for(v, lvl, lead)
+            if c is None:
                 continue
-            skills.append(1 - crps_v / (s / math.sqrt(math.pi)))
+            skills.append(1 - crps_v / c)
         if not skills:
             return None
         per_var.append(sum(skills) / len(skills))
@@ -146,7 +146,7 @@ lines.append("%   $STORE/baselines/intercomparison/probabilistic/temporal_metric
 lines.append("% via tools_or_scratch/headline_7way_table.py.")
 lines.append("% 112 inits x 10 members, 7 paper vars (MSL EXCLUDED due to ifs_ens MSL bug,")
 lines.append("% see memory ifs-ens-msl-bug.md; re-run after patch). CRPSS = 1 - CRPS/CRPS_clim")
-lines.append("% against analytical Gaussian climatology from WB2 2022-2024.")
+lines.append("% against the WB2 probabilistic climatology (1990-2019, fair CRPS vs eval truth).")
 lines.append("")
 lines.append("\\begin{table}[t]")
 lines.append("  \\centering")

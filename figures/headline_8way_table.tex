@@ -5,8 +5,9 @@
 % via tools/headline_8way_table.py.
 % 112 inits x 10 members, 7 paper vars (T2m + MSL + Z/T/u/v/q at 500+850 hPa).
 % IFS-ENS has WB2-archive NaN gaps in surface fields (T2m ~20%, MSL ~30%); skipna
-% averaging absorbs the reduced effective-n. CRPSS = 1 - CRPS/CRPS_clim against
-% analytical Gaussian climatology from the 30-year 1990-2019 ERA5 sigma_clim.
+% averaging absorbs the reduced effective-n. CRPSS = 1 - CRPS/CRPS_clim against the
+% WB2 probabilistic climatology (1990-2019 years as members, fair CRPS vs eval
+% truth, lead-resolved) -- tools/compute_climatology_crps_vs_eval.py.
 
 \begin{table}[t]
   \centering
@@ -22,7 +23,7 @@
            fields have WB2-archive NaN gaps (T2m $\sim20\%$, MSL $\sim30\%$
            skipna averaging is applied. Derived variables (geopotential
            height, wind speed,
-           gradient) excluded because no WB2 climatology $\sigma$ is
+           gradient) excluded because no WB2 climatology reference is
            available for them.}
   \label{tab:headline8way}
   \begin{tabular}{@{}l l rrrr@{}}
@@ -31,21 +32,21 @@
     \midrule
     \rowcolor{phaseBg}
     \multicolumn{6}{@{}l}{\textbf{Trained probabilistic}} \\
-    & AIFS-ENS & \textbf{0.769} & \textbf{0.662} & \textbf{0.397} & \textbf{0.265} \\
-    & Atlas & 0.759 & 0.644 & 0.383 & 0.254 \\
-    & FCN3 & 0.743 & 0.626 & 0.367 & 0.263 \\
+    & AIFS-ENS & \textbf{0.707} & \textbf{0.580} & \textbf{0.256} & \textbf{0.084} \\
+    & Atlas & 0.695 & 0.558 & 0.238 & 0.065 \\
+    & FCN3 & 0.673 & 0.534 & 0.218 & 0.080 \\
     \hline
     \rowcolor{phaseBg}
     \multicolumn{6}{@{}l}{\textbf{Post-hoc weight perturbation (this work)}} \\
-    & aifs\_perturbed\_ic & 0.750 & 0.635 & 0.370 & -- \\
-    & aifs\_perturbed & 0.745 & 0.631 & 0.368 & 0.251 \\
-    & graphcast\_all & 0.710 & 0.591 & 0.329 & 0.224 \\
-    & aurora\_encoder & 0.715 & 0.580 & 0.308 & 0.202 \\
-    & sfno\_modes10 & 0.651 & 0.510 & 0.295 & 0.226 \\
+    & aifs\_perturbed\_ic & 0.684 & 0.547 & 0.223 & -- \\
+    & aifs\_perturbed & 0.677 & 0.542 & 0.221 & 0.066 \\
+    & graphcast\_all & 0.628 & 0.489 & 0.167 & 0.023 \\
+    & aurora\_encoder & 0.633 & 0.471 & 0.134 & $-$0.011 \\
+    & sfno\_modes10 & 0.556 & 0.388 & 0.125 & 0.029 \\
     \hline
     \rowcolor{phaseBg}
     \multicolumn{6}{@{}l}{\textbf{Classical reference}} \\
-    & IFS-ENS & 0.728 & 0.616 & 0.359 & 0.263 \\
+    & IFS-ENS & 0.650 & 0.518 & 0.207 & 0.080 \\
     \bottomrule
   \end{tabular}
 \end{table}

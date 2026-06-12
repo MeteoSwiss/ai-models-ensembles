@@ -15,11 +15,12 @@ Output: /users/sadamov/pyprojects/ai-models-ensembles/figures/headline_8way_tabl
 from __future__ import annotations
 import csv
 import json
-import math
 from pathlib import Path
 
 CSV_COMBINED = "/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles/baselines/intercomparison/probabilistic/temporal_metrics_combined.csv"
-SIGMA = "/iopsstor/scratch/cscs/sadamov/sigma_clim_1990_2019.json"
+# Exact-WB2 probabilistic-climatology CRPS denominator (lead-resolved),
+# crps_clim_eval_<tag>.json: {var_or_var_level: {lead_str: CRPS_clim}}.
+CRPS_CLIM = str(Path(__file__).resolve().parent / "data" / "crps_clim_eval_1990_2019.json")
 OUT = "/users/sadamov/pyprojects/ai-models-ensembles/figures/headline_8way_table.tex"
 
 AIFS_PERT_PROB = Path(
@@ -81,27 +82,19 @@ ROLE = {
     "ifs_ens": "classical",
 }
 
-sigma = json.load(open(SIGMA))
+crps_clim = json.load(open(CRPS_CLIM))
 
 
-def sig_for(var: str, lvl: float | None) -> float | None:
-    """Look up sigma_clim.
-
-    The 30-yr file structure is `{var: {"unconditional": float,
-    "doy_conditional": float}}`; the legacy 4-yr ablation file was a
-    flat `{var: float}`. Accept both transparently.
-    """
+def clim_for(var: str, lvl: float | None, lead: int) -> float | None:
+    """Look up the WB2 probabilistic-climatology CRPS denominator at this lead."""
     key = (
         var
         if var in VARS_2D
         else (f"{var}_{int(lvl)}" if (var in VARS_3D and lvl is not None) else None)
     )
-    if key is None:
+    if key is None or key not in crps_clim:
         return None
-    val = sigma.get(key)
-    if isinstance(val, dict):
-        return val.get("unconditional")
-    return val
+    return crps_clim[key].get(str(lead))
 
 
 data: dict[tuple, float] = {}
@@ -158,20 +151,20 @@ def crpss(model: str, lead: int) -> float | None:
         if not candidates:
             return None
         crps_v = candidates[0][1]
-        s = sig_for(v, None)
-        if s is None:
+        c = clim_for(v, None, lead)
+        if c is None:
             return None
-        per_var.append(1 - crps_v / (s / math.sqrt(math.pi)))
+        per_var.append(1 - crps_v / c)
     for v in VARS_3D:
         skills = []
         for lvl in (500.0, 850.0):
             crps_v = data.get((model, v, lead, lvl))
             if crps_v is None:
                 continue
-            s = sig_for(v, lvl)
-            if s is None:
+            c = clim_for(v, lvl, lead)
+            if c is None:
                 continue
-            skills.append(1 - crps_v / (s / math.sqrt(math.pi)))
+            skills.append(1 - crps_v / c)
         if not skills:
             return None
         per_var.append(sum(skills) / len(skills))
@@ -214,8 +207,9 @@ lines.append(f"%   {AIFS_PERT_PROB}")
 lines.append("% via tools/headline_8way_table.py.")
 lines.append("% 112 inits x 10 members, 7 paper vars (T2m + MSL + Z/T/u/v/q at 500+850 hPa).")
 lines.append("% IFS-ENS has WB2-archive NaN gaps in surface fields (T2m ~20%, MSL ~30%); skipna")
-lines.append("% averaging absorbs the reduced effective-n. CRPSS = 1 - CRPS/CRPS_clim against")
-lines.append("% analytical Gaussian climatology from the 30-year 1990-2019 ERA5 sigma_clim.")
+lines.append("% averaging absorbs the reduced effective-n. CRPSS = 1 - CRPS/CRPS_clim against the")
+lines.append("% WB2 probabilistic climatology (1990-2019 years as members, fair CRPS vs eval")
+lines.append("% truth, lead-resolved) -- tools/compute_climatology_crps_vs_eval.py.")
 lines.append("")
 lines.append("\\begin{table}[t]")
 lines.append("  \\centering")
@@ -231,7 +225,7 @@ lines.append("           $u$, $v$, $q$ (latter five at 500 and 850\\,hPa). IFS-E
 lines.append("           fields have WB2-archive NaN gaps (T2m $\\sim20\\%$, MSL $\\sim30\\%$")
 lines.append("           skipna averaging is applied. Derived variables (geopotential")
 lines.append("           height, wind speed,")
-lines.append("           gradient) excluded because no WB2 climatology $\\sigma$ is")
+lines.append("           gradient) excluded because no WB2 climatology reference is")
 lines.append("           available for them.}")
 lines.append("  \\label{tab:headline8way}")
 lines.append("  \\begin{tabular}{@{}l l rrrr@{}}")
