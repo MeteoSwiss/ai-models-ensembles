@@ -22,3 +22,33 @@ figures/experiments_tables_preview.pdf
 figures/experiments_tables_preview.synctex.gz
 figures/headline_crpss_vs_lead_8way_plus3.pdf
 figures/headline_crpss_vs_lead_8way_plus3.png
+
+# Untracked figures: exploratory/superseded renders + redundant .png siblings of
+# paper .pdf figures. Kept on disk (paper pulls from ../figures) but not in git.
+figures/milton_F6_member_spread_maps.pdf
+figures/milton_F6_member_spread_maps.png
+figures/milton_F7_member_spread_maps_72h.pdf
+figures/milton_F7_member_spread_maps_72h.png
+figures/milton_F8_member_spread_maps_96h.pdf
+figures/europe_kathleen_2024_maps.pdf
+figures/europe_kathleen_2024_maps.png
+figures/milton_F3_cascading_sfno_modes10.png
+figures/milton_F3_cascading_graphcast_all.png
+figures/milton_F3_cascading_aifs_perturbed.png
+figures/milton_F3_cascading_aurora_encoder.png
+figures/milton_era5_control.png
+figures/milton_aifsens_m0_sanity.png
+figures/bivariate_uv_500hPa_7way.pdf
+figures/phase6a_spatial_mean_ssr.png
+figures/phase6a_spatial_mean_ssr.pdf
+figures/sfno_phase6_lsd_bands.png
+figures/sfno_phase6_lsd_bands.pdf
+figures/ssr_phase5_aifs_lead.png
+figures/ssr_phase5_aifs_lead.pdf
+figures/graphcast_phase6_lsd_bands.png
+figures/graphcast_phase6_lsd_bands.pdf
+figures/headline_crpss_vs_lead_7way.pdf
+figures/bivariate_Tq_500hPa_7way.png
+figures/tier1b_7way_spatial_mean_ssr.png
+figures/phase6_sfno_spatial_mean_ssr.png
+figures/headline_crpss_vs_lead_8way.png
