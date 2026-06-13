@@ -407,7 +407,7 @@ uses the image's installed package).
 - **`config/`** - SwissClim YAML template + intercomparison config
 - **`scripts/`** - Slurm submitters for inference and SwissClim eval
 - **`containers/`** - per-model Dockerfiles and `submit_build.sh`
-- **`tools/`** - host venv helpers, weight inspection, zarr resharding
+- **`tools/`** - host venv helpers, weight inspection, zarr resharding; `tools/milton/` holds the Hurricane Milton case-study pipeline (TC tracking + figures)
 - **`figures/`** - perturbation schematics (regenerable SVG/PDF/PNG)
 
 ## Pre-commit & Ruff

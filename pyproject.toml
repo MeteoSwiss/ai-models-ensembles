@@ -82,6 +82,11 @@ ignore = []
 fixable = ["ALL"]
 unfixable = []
 
+[tool.ruff.lint.per-file-ignores]
+# Milton case-study scripts vendored verbatim from scratch; keep their terse
+# tracker-parsing style (multi-statement lines, sys.path-before-import).
+"tools/milton/*" = ["E701", "E702", "E402"]
+
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
