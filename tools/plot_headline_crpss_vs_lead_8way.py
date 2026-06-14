@@ -2,7 +2,7 @@
 
 Trained-probabilistic baselines (AIFS-ENS, FCN3, Atlas) and the classical
 IFS-ENS reference come from the SwissClim intercomparison temporal-metrics
-CSV; the post-hoc baselines (weight-only and Phase 5 IC variants) are read
+CSV; the post-hoc weight-only baselines are read
 from per-baseline probabilistic CSVs.
 """
 
@@ -43,10 +43,6 @@ AIFS_PERT_PROB = Path(
     "/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles/baselines/"
     "aifs_perturbed/eval/probabilistic"
 )
-AIFS_PERT_IC_PROB = Path(
-    "/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles/baselines/"
-    "aifs_perturbed_ic/eval/probabilistic"
-)
 OUT = "/users/sadamov/pyprojects/ai-models-ensembles/figures/headline_crpss_vs_lead_8way.pdf"
 
 VARS_2D = ["2m_temperature", "mean_sea_level_pressure"]
@@ -67,7 +63,6 @@ MODELS = [
     "aurora_encoder",
     "sfno_modes10",
     "aifs_perturbed",
-    "aifs_perturbed_ic",
 ]
 
 PRETTY = {
@@ -79,7 +74,6 @@ PRETTY = {
     "aurora_encoder": "aurora_encoder",
     "sfno_modes10": "sfno_modes10",
     "aifs_perturbed": "aifs_perturbed",
-    "aifs_perturbed_ic": "aifs_perturbed_ic",
 }
 
 COLOUR = {
@@ -87,7 +81,6 @@ COLOUR = {
     "graphcast_all": "#27AE60",
     "sfno_modes10": "#2980B9",
     "aifs_perturbed": "#8E44AD",
-    "aifs_perturbed_ic": "#D81B60",
     "aifsens": "#8B5A2B",
     "atlas": "#C0392B",
     "fcn3": "#D4A017",
@@ -99,7 +92,6 @@ STYLE = {
     "graphcast_all": "-",
     "sfno_modes10": "-",
     "aifs_perturbed": "-",
-    "aifs_perturbed_ic": "-",
     "aifsens": "--",
     "atlas": "--",
     "fcn3": "--",
@@ -140,8 +132,8 @@ with open(CSV) as f:
 
 def _load_perbase(root, model):
     """Per-baseline `crps_line_<stem>_by_lead_ensprob.csv` (lead_time_hours, variable, CRPS).
-    Used for the post-hoc baselines (aifs_perturbed + its Phase 5 IC variant)
-    which were added after the most recent combined-CSV regen.
+    Used for the post-hoc aifs_perturbed baseline, which was added after the
+    most recent combined-CSV regen.
     """
 
     def _load(stem, var_label, level):
@@ -165,7 +157,6 @@ def _load_perbase(root, model):
 
 
 _load_perbase(AIFS_PERT_PROB, "aifs_perturbed")
-_load_perbase(AIFS_PERT_IC_PROB, "aifs_perturbed_ic")
 LEADS = sorted({k[2] for k in data})
 
 
