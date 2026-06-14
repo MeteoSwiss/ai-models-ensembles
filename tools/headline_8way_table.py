@@ -215,7 +215,7 @@ lines.append("           classical baselines. Higher is better; 1 = perfect, 0 =
 lines.append("           climatology, $<0$ = worse than climatology. \\textbf{Bold}")
 lines.append("           marks the per-lead optimum. Variable mean over T2m, MSL, $Z$, $T$,")
 lines.append("           $u$, $v$, $q$ (latter five at 500 and 850\\,hPa). IFS-ENS surface")
-lines.append("           fields have WB2-archive NaN gaps (T2m $\\sim20\\%$, MSL $\\sim30\\%$")
+lines.append("           fields have WB2-archive NaN gaps (T2m $\\sim20\\%$, MSL $\\sim30\\%$);")
 lines.append("           skipna averaging is applied. Derived variables (geopotential")
 lines.append("           height, wind speed,")
 lines.append("           gradient) excluded because no WB2 climatology reference is")
