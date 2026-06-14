@@ -185,7 +185,7 @@ order = sorted(MODELS, key=lambda m: -(rows[m][240] or -99))
 
 def fmt(v: float | None) -> str:
     if v is None:
-        return "--"
+        return "-"
     s = f"{v:.3f}" if v >= 0 else f"$-${abs(v):.3f}"
     return s
 
@@ -209,7 +209,7 @@ lines.append("% 112 inits x 10 members, 7 paper vars (T2m + MSL + Z/T/u/v/q at 5
 lines.append("% IFS-ENS has WB2-archive NaN gaps in surface fields (T2m ~20%, MSL ~30%); skipna")
 lines.append("% averaging absorbs the reduced effective-n. CRPSS = 1 - CRPS/CRPS_clim against the")
 lines.append("% WB2 probabilistic climatology (1990-2019 years as members, fair CRPS vs eval")
-lines.append("% truth, lead-resolved) -- tools/compute_climatology_crps_vs_eval.py.")
+lines.append("% truth, lead-resolved) - tools/compute_climatology_crps_vs_eval.py.")
 lines.append("")
 lines.append("\\begin{table}[t]")
 lines.append("  \\centering")
