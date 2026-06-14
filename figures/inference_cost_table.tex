@@ -2,7 +2,7 @@
 % comparison. Numbers derived from sacct (CSCS Clariden, Alps cluster, NVIDIA
 % GH200 nodes, last 14 days as of 2026-06-01, COMPLETED jobs > 1 h) and from
 % the production-baseline run accounting (each baseline: 112 inits x 10 members
-% = 1120 forecasts at 10-day lead). Rates and infrastructure facts verified
+% = 1120 forecasts at 15-day (360 h) lead). Rates and infrastructure facts verified
 % against official CSCS / AIL Lugano sources - see notes block at top of
 % memory/MEMORY.md ("Inference cost and environmental footprint, Verified
 % sources").
@@ -31,7 +31,8 @@
   \renewcommand{\arraystretch}{1.20}
   \caption{Per-baseline inference cost on CSCS Alps (NVIDIA GH200; 1 Alps
            node = 4 Grace-Hopper superchips). Per-baseline workload: 1120
-           forecasts (112 inits $\times$ 10 members, 10-day lead). The
+           forecasts (112 inits $\times$ 10 members, 15-day / 360\,h
+           lead). The
            s/mbr column is the median pure-inference time per member; CS\,h
            is the wall-clock for a 50-member case-study on one Alps node.
            Cost and energy are computed at CHF 2.88/NH (Swiss-academia tier
@@ -84,13 +85,12 @@
   \vspace{2pt}
 
   \scriptsize
-  $^{\dag}$\,Pure inference seconds per ensemble member per 10-day forecast
-  (excludes data fetch, model load, container startup, zarr write). Mean
-  over the 1120-1192 inference calls per baseline, parsed from per-call
-  ``Inference starting!''/``Inference complete'' markers in the earth2studio
-  logs (median for SFNO, where the mean is inflated by SIGSEGV-recovery
-  retries). Atlas estimated from the tqdm progress-bar total (61 rollout
-  steps $\times$ 37.5 s/step).
+  $^{\dag}$\,Pure inference seconds per ensemble member per 15-day (360\,h) forecast
+  (excludes data fetch, model load, container startup, zarr write).
+  Approximate, derived from the earth2studio per-call progress markers in
+  the production-run logs (median for SFNO, where SIGSEGV-recovery retries
+  inflate the mean). Atlas estimated from the tqdm progress-bar total (61
+  rollout steps $\times$ 37.5 s/step).
   $^{\S}$\,\textbf{CS h} = wall-clock hours for a 50-member case-study
   forecast on a single Alps node (4 GH200 in parallel):
   $50 \times \text{s/mbr} / 4 / 3600$. Atlas's $\sim$8\,h budget at one
@@ -103,9 +103,10 @@
   is the most decisive multi-metric winner of the four perturb baselines -
   Phase 2 decoder wins 15 of 20 multi-metric cells (CRPS all 4 leads, SSR
   short-mid lead, SSIM and LSD all 4 leads) vs Phase 1's 5 (FSS 95\% all 4
-  leads + SSR@240\,h). The per-member, CS h, NH, CHF, kWh values here are
-  estimates from the AIFS-ENS architectural twin (same forward graph,
-  parameters perturbed but not retrained).
+  leads + SSR@240\,h). The per-member and derived values equal the
+  AIFS-ENS figures because aifs\_perturbed shares the identical AIFS
+  forward graph (weights perturbed, not retrained); a real 112-init
+  aifs\_perturbed production run confirms this configuration.
 
   $^{\#}$\,Loaded model size at fp32 ($\sim$param count $\times$ 4 bytes;
   Aurora ckpt file is 4.68 GB at fp32; AIFS .ckpt is anemoi-packaged so
@@ -126,12 +127,12 @@
 
   $^{\bullet}$\,Atlas training cost is not documented on the model card
   ([huggingface.co/nvidia/atlas-era5](https://huggingface.co/nvidia/atlas-era5)).
-  The benchmark paper arXiv:2601.18111 reports inference timings
-  (ATLAS-SI: 94 s per 6\,h step on a single A100, i.e.\ 63 min for a
-  10-day forecast) but does not give training cost. Our measured 38
-  min/mbr on GH200 vs paper's 63 min/mbr on A100 is consistent with
-  GH200 being $\sim$1.5x faster than A100 at this workload, so our setup
-  is NOT pathologically slow - the cost is structural to the
+  The benchmark paper arXiv:2601.18111 reports ATLAS-SI inference at
+  94 s per 6\,h step on a single A100. Our GH200 runs the same sampler
+  at 37.5 s per 6\,h step, $\sim$2.5x faster than the A100 per step (our
+  38 min/mbr is the full 15-day, 61-step rollout; the paper's 63 min is
+  a 10-day, 40-step forecast, so the per-step rate is the like-for-like
+  comparison), so our setup is NOT pathologically slow - the cost is structural to the
   stochastic-interpolant DiT's multi-step sampling. NVIDIA also ships
   a faster ATLAS-CRPS variant (3.3 s per 6\,h step, 28x faster than
   ATLAS-SI) but it is a separately-trained CRPS-loss model rather than
