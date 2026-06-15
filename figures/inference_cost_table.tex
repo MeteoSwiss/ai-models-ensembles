@@ -38,7 +38,7 @@
            Cost and energy are computed at CHF 2.88/NH (Swiss-academia tier
            3 with ETH 25\% discount) and 4.0 kW node power $\times$ PUE 1.2;
            full sourcing of metric definitions and rates is in the
-           footnotes. Atlas at 38 min/mbr ($\sim$20-40$\times$ slower than
+           footnotes. Atlas at 38\,min/mbr ($\sim$18-40$\times$ slower than
            the other six) reflects its multi-step stochastic-interpolant
            DiT sampler, while the post-hoc baselines (59-125 s/mbr) match
            the single-forward-pass trained-probabilistic baselines.}
@@ -89,8 +89,8 @@
   (excludes data fetch, model load, container startup, zarr write).
   Approximate, derived from the earth2studio per-call progress markers in
   the production-run logs (median for SFNO, where SIGSEGV-recovery retries
-  inflate the mean). Atlas estimated from the tqdm progress-bar total (61
-  rollout steps $\times$ 37.5 s/step).
+  inflate the mean). Atlas estimated from the tqdm progress-bar total (60
+  rollout steps $\times$ 38 s/step).
   $^{\S}$\,\textbf{CS h} = wall-clock hours for a 50-member case-study
   forecast on a single Alps node (4 GH200 in parallel):
   $50 \times \text{s/mbr} / 4 / 3600$. Atlas's $\sim$8\,h budget at one
@@ -129,8 +129,8 @@
   ([huggingface.co/nvidia/atlas-era5](https://huggingface.co/nvidia/atlas-era5)).
   The benchmark paper arXiv:2601.18111 reports ATLAS-SI inference at
   94 s per 6\,h step on a single A100. Our GH200 runs the same sampler
-  at 37.5 s per 6\,h step, $\sim$2.5x faster than the A100 per step (our
-  38 min/mbr is the full 15-day, 61-step rollout; the paper's 63 min is
+  at 38 s per 6\,h step, $\sim$2.5x faster than the A100 per step (our
+  38\,min/mbr is the full 15-day, 60-step rollout; the paper's 63\,min is
   a 10-day, 40-step forecast, so the per-step rate is the like-for-like
   comparison), so our setup is NOT pathologically slow - the cost is structural to the
   stochastic-interpolant DiT's multi-step sampling. NVIDIA also ships

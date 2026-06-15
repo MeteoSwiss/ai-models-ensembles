@@ -44,7 +44,7 @@
            Phase 2b refinements that beat the $\sqrt{N}$ anchor. Phase 3
            hooks target the synoptic-and-larger scale
            ($\lambda \gtrsim 3000$~km); Phase 3b broadens this reach at
-           the per-row $\sqrt{N}$ sigma. Configuration tags, sigma
+           the per-row $\sqrt{N}$ $\sigma$. Configuration tags, $\sigma$
            encoding, and the unperturbed mag\_0 reference are documented
            in appendix~\ref{appendix:reproducibility}.}
   \label{tab:ablation}
@@ -123,7 +123,7 @@
 
     \rowcolor{phaseBg}
     \multicolumn{4}{@{}l}{\textbf{Post-hoc weight perturbation} (this work)} \\
-    & \mbadge{auroraC}{aurora\_encoder}    & encoder layer group, $\sigma = 0.025$ (Phase 2)         & weighted MAE \\
+    & \mbadge{auroraC}{aurora\_encoder}    & encoder layer group, $\sigma = 0.025$ (Phase 2b)        & weighted MAE \\
     \rowcolor{altRow}
     & \mbadge{graphcastC}{graphcast\_all}  & all layers, $\sigma = 0.01$ (Phase 1)                   & weighted MSE \\
     & \mbadge{sfnoC}{sfno\_modes10}        & coarse spectral modes $\ell<10$, $\sigma = 0.25$ (Phase 3); refined to refresh-every-20 with $\sigma = 0.35$ for spatial-mean SSR (Phase 6c, Sec.~\ref{sec:results-spatial}) & relative spherical L2 \\
