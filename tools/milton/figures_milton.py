@@ -117,8 +117,9 @@ def f1_track_spaghetti(master):
         y=0.995,
     )
     fig.tight_layout()
-    out = FIGS / "milton_F1_track_spaghetti.png"
-    fig.savefig(out, dpi=140, bbox_inches="tight")
+    for ext in ("png", "pdf"):
+        out = FIGS / f"milton_F1_track_spaghetti.{ext}"
+        fig.savefig(out, dpi=140, bbox_inches="tight")
     print(f"-> {out}")
 
 
@@ -162,8 +163,9 @@ def f2_intensity_vs_lead(master):
         y=0.995,
     )
     fig.tight_layout()
-    out = FIGS / "milton_F2_intensity_vs_lead.png"
-    fig.savefig(out, dpi=140, bbox_inches="tight")
+    for ext in ("png", "pdf"):
+        out = FIGS / f"milton_F2_intensity_vs_lead.{ext}"
+        fig.savefig(out, dpi=140, bbox_inches="tight")
     print(f"-> {out}")
 
 
@@ -210,8 +212,9 @@ def f5_track_intensity_err_vs_lead(verif):
         "Milton verification: track position error and MSL intensity bias vs lead time", fontsize=11
     )
     fig.tight_layout()
-    out = FIGS / "milton_F5_verification_vs_lead.png"
-    fig.savefig(out, dpi=140, bbox_inches="tight")
+    for ext in ("png", "pdf"):
+        out = FIGS / f"milton_F5_verification_vs_lead.{ext}"
+        fig.savefig(out, dpi=140, bbox_inches="tight")
     print(f"-> {out}")
 
 
@@ -316,8 +319,9 @@ def f3_cascading_detection(baseline: str = "aifsens"):
     )
     for ax, init_tag in zip(axes.flat, ALL_INITS):
         msl = _msl_ensmean_at(baseline, init_tag, VALID_TIME)
-        ax.add_feature(cfeature.COASTLINE, linewidth=0.5)
-        ax.add_feature(cfeature.BORDERS, linewidth=0.3, linestyle=":")
+        ax.set_rasterization_zorder(0)
+        ax.add_feature(cfeature.COASTLINE, linewidth=0.5, zorder=3)
+        ax.add_feature(cfeature.BORDERS, linewidth=0.3, linestyle=":", zorder=3)
         ax.set_extent([LON_MIN - 360, LON_MAX - 360, LAT_MIN, LAT_MAX], crs=ccrs.PlateCarree())
         if msl is None:
             ax.text(
@@ -339,6 +343,7 @@ def f3_cascading_detection(baseline: str = "aifsens"):
                 cmap="RdYlBu_r",
                 extend="both",
                 transform=ccrs.PlateCarree(),
+                zorder=-1,
             )
             ax.contour(
                 msl["longitude"],
@@ -348,6 +353,7 @@ def f3_cascading_detection(baseline: str = "aifsens"):
                 colors="black",
                 linewidths=0.3,
                 transform=ccrs.PlateCarree(),
+                zorder=-1,
             )
         if truth_lat is not None:
             ax.plot(
@@ -374,8 +380,9 @@ def f3_cascading_detection(baseline: str = "aifsens"):
     cbar_ax = fig.add_axes([0.25, -0.03, 0.5, 0.02])
     fig.colorbar(cf, cax=cbar_ax, orientation="horizontal", label="MSL (hPa)")
     fig.tight_layout()
-    out = FIGS / f"milton_F3_cascading_{baseline}.png"
-    fig.savefig(out, dpi=140, bbox_inches="tight")
+    for ext in ("png", "pdf"):
+        out = FIGS / f"milton_F3_cascading_{baseline}.{ext}"
+        fig.savefig(out, dpi=140, bbox_inches="tight")
     print(f"-> {out}")
 
 
@@ -459,6 +466,7 @@ def f4_storm_relative_composite(
                 levels=np.arange(960, 1020, 3),
                 cmap="RdYlBu_r",
                 extend="both",
+                rasterized=True,
             )
             ax.contour(
                 rel_lon,
@@ -467,7 +475,7 @@ def f4_storm_relative_composite(
                 levels=np.arange(960, 1020, 6),
                 colors="black",
                 linewidths=0.3,
-            )
+            ).set_rasterized(True)
             ax.plot(0, 0, marker="x", color="black", markersize=8)
             ax.set_xlabel("dlon (deg)", fontsize=8)
             ax.set_ylabel("dlat (deg)", fontsize=8)
@@ -492,8 +500,9 @@ def f4_storm_relative_composite(
     cbar_ax = fig.add_axes([0.25, -0.03, 0.5, 0.02])
     fig.colorbar(cf, cax=cbar_ax, orientation="horizontal", label="MSL (hPa)")
     fig.tight_layout()
-    out = FIGS / "milton_F4_storm_relative_composite.png"
-    fig.savefig(out, dpi=140, bbox_inches="tight")
+    for ext in ("png", "pdf"):
+        out = FIGS / f"milton_F4_storm_relative_composite.{ext}"
+        fig.savefig(out, dpi=140, bbox_inches="tight")
     print(f"-> {out}")
 
 
@@ -504,6 +513,8 @@ def main():
     f1_track_spaghetti(master)
     f2_intensity_vs_lead(master)
     f3_cascading_detection("aifsens")
+    f3_cascading_detection("atlas")
+    f3_cascading_detection("fcn3")
     f3_cascading_detection("aurora_encoder_ic")
     f3_cascading_detection("graphcast_all_ic")
     f3_cascading_detection("sfno_modes10_ic")

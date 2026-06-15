@@ -10,6 +10,7 @@ dependencies = [
     "rich>=13.0",
     "zarr>=3.0",
     "xarray>=2024.10",
+    "h5netcdf",
     "dask",
     "numpy>=2.0",
     "pyyaml>=6.0",
