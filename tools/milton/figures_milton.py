@@ -253,7 +253,7 @@ def _msl_ensmean_at(baseline: str, init_tag: str, valid_t: np.datetime64) -> xr.
                 f"{init_tag[0:4]}-{init_tag[4:6]}-{init_tag[6:8]}T{init_tag[9:11]}:{init_tag[11:13]}"
             )
             ds_all = xr.open_zarr(
-                "/capstor/store/cscs/mch/s83/IFS/ifs_ens.zarr",
+                "/capstor/store/cscs/swissai/a122/IFS/ifs_ens.zarr",
                 consolidated=False,
                 chunks={},
             )
@@ -519,6 +519,7 @@ def main():
     f3_cascading_detection("graphcast_all_ic")
     f3_cascading_detection("sfno_modes10_ic")
     f3_cascading_detection("aifs_perturbed_ic")
+    f3_cascading_detection("ifs_ens")
     f4_storm_relative_composite()
     f5_track_intensity_err_vs_lead(verif)
 
