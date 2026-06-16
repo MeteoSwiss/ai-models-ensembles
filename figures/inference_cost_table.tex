@@ -101,9 +101,9 @@
   AIFS Phase 1 + Phase 2 ablations (verified 2026-06-01): Phase 2
   \texttt{mag\_0.0275\_layer\_decoder} chosen as the production baseline. AIFS
   is the most decisive multi-metric winner of the four perturb baselines -
-  Phase 2 decoder wins 15 of 20 multi-metric cells (CRPS all 4 leads, SSR
-  short-mid lead, SSIM and LSD all 4 leads) vs Phase 1's 5 (FSS 95\% all 4
-  leads + SSR@240\,h). The per-member and derived values equal the
+  Phase 2 decoder wins 14 of 20 multi-metric cells (CRPS all 4 leads, SSR
+  at 24/72\,h, SSIM and LSD all 4 leads) vs Phase 1's 6 (FSS 95\% all 4
+  leads + SSR at 120 and 240\,h). The per-member and derived values equal the
   AIFS-ENS figures because aifs\_perturbed shares the identical AIFS
   forward graph (weights perturbed, not retrained); a real 112-init
   aifs\_perturbed production run confirms this configuration.
