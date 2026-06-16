@@ -124,7 +124,7 @@ def f1_track_spaghetti(master):
 
 
 def f2_intensity_vs_lead(master):
-    fig, axes = plt.subplots(2, 3, figsize=(15, 9), sharex=True, sharey=True)
+    fig, axes = plt.subplots(2, 4, figsize=(20, 9), sharex=True, sharey=True)
     for ax, b in zip(axes.flat, BASELINES):
         sub = master[master["baseline"] == b]
         for (init_tag, m), grp in sub.groupby(["init_tag", "member"]):
@@ -386,120 +386,147 @@ def f3_cascading_detection(baseline: str = "aifsens"):
     print(f"-> {out}")
 
 
+def _storm_relative_thickness(thick, center_field, rel_lat, rel_lon, box):
+    """Recentre a 500-850 thickness field on the center_field minimum.
+
+    thick / center_field are 2D (lat, lon) DataArrays on the same grid.
+    Returns the storm-relative thickness anomaly (field minus box mean) sampled
+    onto the +-10 deg rel grid, or None if the search box is empty.
+    """
+    LON_MIN, LON_MAX, LAT_MIN, LAT_MAX = box
+    c_box = center_field.sel(latitude=slice(LAT_MAX, LAT_MIN), longitude=slice(LON_MIN, LON_MAX))
+    if c_box.size == 0:
+        return None
+    flat_idx = int(np.argmin(c_box.values))
+    ny, nx = c_box.shape
+    iy, ix = flat_idx // nx, flat_idx % nx
+    ctr_lat = float(c_box["latitude"].values[iy])
+    ctr_lon = float(c_box["longitude"].values[ix])
+    a = thick.interp(
+        latitude=ctr_lat + rel_lat, longitude=ctr_lon + rel_lon, method="linear"
+    ).values
+    # Remove the background meridional thickness gradient: fit a plane to the
+    # environment (radius > 5 deg, little storm influence) and subtract it, so
+    # the residual isolates the warm-core anomaly above its local surroundings.
+    RLON, RLAT = np.meshgrid(rel_lon, rel_lat)
+    r = np.sqrt(RLON**2 + RLAT**2)
+    env = (r > 5.0) & np.isfinite(a)
+    A = np.column_stack([np.ones(env.sum()), RLON[env], RLAT[env]])
+    coef = np.linalg.lstsq(A, a[env], rcond=None)[0]
+    plane = coef[0] + coef[1] * RLON + coef[2] * RLAT
+    return a - plane
+
+
 def f4_storm_relative_composite(
     baselines: list[str] | None = None, init_tag: str = "20241004_0000"
 ):
-    """Storm-relative MSL composite per baseline at a chosen valid time.
+    """Storm-relative 500-850 hPa thickness anomaly composite, with ERA5 control.
 
-    For each member of each baseline at a given init, recentre the MSL field
-    on the member's predicted MSL minimum (within a search box), bilinearly
-    interpolate onto a fixed +-10 deg storm-relative grid, then mean across
-    members. Shows the typical TC structure each baseline produces,
-    independent of position bias. (Marks&Houze 1987 / Rogers 2013 standard.)
+    The 500-850 hPa thickness is the warm-core signature of a TC. For each
+    member of each baseline at a given init, recentre the thickness field on the
+    member's predicted MSL minimum (within a search box), bilinearly interpolate
+    onto a fixed +-10 deg storm-relative grid, take the anomaly relative to the
+    box mean, then mean across members. The ERA5 panel composites the analysis
+    thickness the same way (centred on the ERA5 MSL minimum) and sets the
+    reference warm-core amplitude. Suppression = 1 - (baseline peak)/(ERA5 peak).
     """
     if baselines is None:
         baselines = BASELINES
-    LON_MIN, LON_MAX, LAT_MIN, LAT_MAX = 260, 290, 12, 38
-    # Storm-relative grid: +-10 deg, 0.25 deg = 81 x 81 cells.
+    G = 9.80665  # m s^-2; convert geopotential (m^2 s^-2) to geopotential metres
+    BOX = (260, 290, 12, 38)
+    # Inner 3 deg disc used to read off the central warm-core amplitude.
     rel_lat = np.arange(-10.0, 10.25, 0.25)
     rel_lon = np.arange(-10.0, 10.25, 0.25)
+    RLON, RLAT = np.meshgrid(rel_lon, rel_lat)
+    inner = np.sqrt(RLON**2 + RLAT**2) <= 3.0
     init_t = np.datetime64(
         f"{init_tag[0:4]}-{init_tag[4:6]}-{init_tag[6:8]}T{init_tag[9:11]}:{init_tag[11:13]}"
     )
     valid_t = init_t + np.timedelta64(120, "h")  # lead 120 h ~ 09 Oct 00 UTC
 
-    fig, axes = plt.subplots(2, 3, figsize=(13, 8.5))
-    composites = {}
-    for ax, b in zip(axes.flat, baselines):
+    composites: dict[str, np.ndarray] = {}
+    # ERA5 control (analysis thickness, single realisation).
+    era = xr.open_dataset(BASE / "era5_milton_window.nc")
+    e_thick = era["z_thick_500m850"].sel(time=valid_t) / G
+    e_psl = era["psl"].sel(time=valid_t)
+    composites["ERA5"] = _storm_relative_thickness(e_thick, e_psl, rel_lat, rel_lon, BOX)
+
+    for b in baselines:
         zp = STORE / "baselines" / b / init_tag / "forecast.zarr"
         if not zp.exists():
-            ax.text(0.5, 0.5, "no forecast", ha="center", va="center", transform=ax.transAxes)
-            ax.set_title(b.replace("_", " "), fontsize=10)
+            composites[b] = None
             continue
-        try:
-            ds = xr.open_zarr(zp, consolidated=True, chunks={})
-            if "init_time" in ds.dims:
-                ds = ds.isel(init_time=0)
-            if "lead_time" in ds.dims:
-                lt = ds["lead_time"].values
-                if np.issubdtype(lt.dtype, np.timedelta64):
-                    leads_valid = init_t + lt
-                else:
-                    leads_valid = lt
-                if valid_t not in leads_valid:
-                    ax.text(
-                        0.5,
-                        0.5,
-                        "valid time out of range",
-                        ha="center",
-                        va="center",
-                        transform=ax.transAxes,
-                    )
-                    ax.set_title(b.replace("_", " "), fontsize=10)
-                    continue
-                ds = ds.isel(lead_time=int(np.where(leads_valid == valid_t)[0][0]))
-            msl_ens = ds["mean_sea_level_pressure"].load() / 100  # to hPa
-            n_mem = msl_ens.sizes.get("ensemble", 1)
-            # Per-member: find MSL minimum within search box, then bilinear interp.
-            stack = np.full((n_mem, len(rel_lat), len(rel_lon)), np.nan)
-            for mi in range(n_mem):
-                m = msl_ens.isel(ensemble=mi) if "ensemble" in msl_ens.dims else msl_ens
-                m_box = m.sel(latitude=slice(LAT_MAX, LAT_MIN), longitude=slice(LON_MIN, LON_MAX))
-                if m_box.size == 0:
-                    continue
-                flat_idx = int(np.argmin(m_box.values))
-                ny, nx = m_box.shape
-                iy, ix = flat_idx // nx, flat_idx % nx
-                ctr_lat = float(m_box["latitude"].values[iy])
-                ctr_lon = float(m_box["longitude"].values[ix])
-                # Bilinear sample on shifted grid
-                target_lat = ctr_lat + rel_lat
-                target_lon = ctr_lon + rel_lon
-                samp = m.interp(latitude=target_lat, longitude=target_lon, method="linear")
-                stack[mi] = samp.values
-            comp = np.nanmean(stack, axis=0)
-            composites[b] = comp
-            cf = ax.contourf(
-                rel_lon,
-                rel_lat,
-                comp,
-                levels=np.arange(960, 1020, 3),
-                cmap="RdYlBu_r",
-                extend="both",
-                rasterized=True,
-            )
-            ax.contour(
-                rel_lon,
-                rel_lat,
-                comp,
-                levels=np.arange(960, 1020, 6),
-                colors="black",
-                linewidths=0.3,
-            ).set_rasterized(True)
-            ax.plot(0, 0, marker="x", color="black", markersize=8)
-            ax.set_xlabel("dlon (deg)", fontsize=8)
-            ax.set_ylabel("dlat (deg)", fontsize=8)
+        ds = xr.open_zarr(zp, consolidated=True, chunks={})
+        if "init_time" in ds.dims:
+            ds = ds.isel(init_time=0)
+        if "lead_time" in ds.dims:
+            lt = ds["lead_time"].values
+            leads_valid = init_t + lt if np.issubdtype(lt.dtype, np.timedelta64) else lt
+            if valid_t not in leads_valid:
+                composites[b] = None
+                continue
+            ds = ds.isel(lead_time=int(np.where(leads_valid == valid_t)[0][0]))
+        thick_ens = (
+            ds["geopotential"].sel(level=500) - ds["geopotential"].sel(level=850)
+        ).load() / G
+        msl_ens = ds["mean_sea_level_pressure"].load()
+        n_mem = thick_ens.sizes.get("ensemble", 1)
+        stack = np.full((n_mem, len(rel_lat), len(rel_lon)), np.nan)
+        for mi in range(n_mem):
+            th = thick_ens.isel(ensemble=mi) if "ensemble" in thick_ens.dims else thick_ens
+            ms = msl_ens.isel(ensemble=mi) if "ensemble" in msl_ens.dims else msl_ens
+            a = _storm_relative_thickness(th, ms, rel_lat, rel_lon, BOX)
+            if a is not None:
+                stack[mi] = a
+        composites[b] = np.nanmean(stack, axis=0)
+
+    # IFS-ENS is not stored in the per-init baselines/ layout this reads, so it
+    # has no composite; drop such baselines rather than render an empty panel.
+    panels = ["ERA5"] + [b for b in baselines if composites.get(b) is not None]
+    era_peak = np.nanmean(composites["ERA5"][inner])
+    vmax = np.nanmax([np.nanmax(np.abs(c)) for c in composites.values() if c is not None])
+    levels = np.linspace(-vmax, vmax, 21)
+
+    fig, axes = plt.subplots(3, 3, figsize=(13, 12))
+    for ax, p in zip(axes.flat, panels):
+        comp = composites.get(p)
+        title = "ERA5 (analysis)" if p == "ERA5" else p.replace("_", " ")
+        if comp is None:
+            ax.text(0.5, 0.5, "no forecast", ha="center", va="center", transform=ax.transAxes)
+            ax.set_title(title, fontsize=10)
             ax.set_aspect("equal")
-            ax.set_title(f"{b.replace('_', ' ')}  min={np.nanmin(comp):.1f}hPa", fontsize=10)
-        except Exception as e:
-            ax.text(
-                0.5,
-                0.5,
-                f"ERR: {type(e).__name__}",
-                ha="center",
-                va="center",
-                transform=ax.transAxes,
-            )
-            ax.set_title(b.replace("_", " "), fontsize=10)
+            continue
+        cf = ax.contourf(
+            rel_lon, rel_lat, comp, levels=levels, cmap="RdBu_r", extend="both", rasterized=True
+        )
+        ax.contour(
+            rel_lon, rel_lat, comp, levels=levels[::4], colors="black", linewidths=0.3
+        ).set_rasterized(True)
+        ax.plot(0, 0, marker="x", color="black", markersize=8)
+        ax.set_xlabel("dlon (deg)", fontsize=8)
+        ax.set_ylabel("dlat (deg)", fontsize=8)
+        ax.set_aspect("equal")
+        peak = np.nanmean(comp[inner])
+        if p == "ERA5":
+            lab = f"{title}  peak={peak:.0f} m"
+        else:
+            supp = 100 * (1 - peak / era_peak)
+            lab = f"{title}  peak={peak:.0f} m ({supp:+.0f}%)"
+            print(f"  {p}: warm-core peak {peak:.1f} m, suppression {supp:+.1f}% vs ERA5")
+        ax.set_title(lab, fontsize=9)
+    for ax in axes.flat[len(panels) :]:
+        ax.axis("off")
+    print(f"  ERA5 warm-core peak {era_peak:.1f} m")
 
     fig.suptitle(
-        f"Storm-relative MSL composite at lead 120 h (init {init_tag}; valid {str(valid_t)[:13]} UTC)",
+        f"Storm-relative 500-850 hPa thickness anomaly at lead 120 h "
+        f"(init {init_tag}; valid {str(valid_t)[:13]} UTC)",
         fontsize=11,
         y=0.99,
     )
-    cbar_ax = fig.add_axes([0.25, -0.03, 0.5, 0.02])
-    fig.colorbar(cf, cax=cbar_ax, orientation="horizontal", label="MSL (hPa)")
-    fig.tight_layout()
+    cbar_ax = fig.add_axes([0.25, 0.06, 0.5, 0.015])
+    fig.colorbar(cf, cax=cbar_ax, orientation="horizontal", label="thickness anomaly (m)")
+    fig.tight_layout(rect=[0, 0.08, 1, 0.98])
     for ext in ("png", "pdf"):
         out = FIGS / f"milton_F4_storm_relative_composite.{ext}"
         fig.savefig(out, dpi=140, bbox_inches="tight")

@@ -59,8 +59,13 @@ def main() -> None:
         [m for m in df_lvl["model"].unique() if m.startswith("fresh_")],
         key=lambda x: float(x.split("_")[1]),
     )
+    refresh_models = sorted(
+        [m for m in df_lvl["model"].unique() if m.startswith("refresh")],
+        key=lambda x: float(x.split("_")[1]),
+    )
     colors_frozen = plt.cm.Reds(np.linspace(0.35, 0.95, len(frozen_sigmas)))
     colors_fresh = plt.cm.Blues(np.linspace(0.45, 0.95, len(fresh_sigmas)))
+    colors_refresh = plt.cm.Greens(np.linspace(0.5, 0.95, max(len(refresh_models), 1)))
 
     for ax, var in zip(axs.flat, VARS_PLOT, strict=False):
         sub = df_lvl[df_lvl["variable"] == var]
@@ -87,6 +92,20 @@ def main() -> None:
                 color=colors_fresh[i],
                 lw=2.0,
                 label=f"fresh s={sig:g}",
+                alpha=0.9,
+                markersize=6,
+            )
+        for i, m in enumerate(refresh_models):
+            d = sub[sub["model"] == m].sort_values("lead_time_hours")
+            n = "".join(c for c in m.split("_")[0] if c.isdigit())
+            sig = float(m.split("_")[1])
+            ax.plot(
+                d["lead_time_hours"],
+                d["ssr"],
+                "^-",
+                color=colors_refresh[i],
+                lw=2.0,
+                label=f"refresh-{n} s={sig:g}",
                 alpha=0.9,
                 markersize=6,
             )
