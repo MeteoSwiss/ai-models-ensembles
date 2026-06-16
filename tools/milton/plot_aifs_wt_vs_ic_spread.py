@@ -13,7 +13,9 @@ Output: figures/milton_F9_aifs_wt_vs_ic_spread.{pdf,png}
 from __future__ import annotations
 import csv
 import math
+import os
 import statistics as st
+import sys
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
@@ -23,14 +25,18 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # tools/
+from model_colors import AIFS_IC_CONTRAST, color_for
+
 BASE = Path("/iopsstor/scratch/cscs/sadamov/milton_case_study")
 MASTER = BASE / "milton_master_tracks.csv"
 OUT = Path(
     "/users/sadamov/pyprojects/ai-models-ensembles/figures/milton_F9_aifs_wt_vs_ic_spread.pdf"
 )
 
-# Match the headline figure: weight-only purple, weight+IC magenta.
-COLOUR = {"aifs_perturbed": "#8E44AD", "aifs_perturbed_ic": "#D81B60"}
+# Match the headline figure: weight-only purple, weight+IC pink (the one figure
+# where the AIFS variants are deliberately drawn apart, see model_colors.py).
+COLOUR = {"aifs_perturbed": color_for("aifs_perturbed"), "aifs_perturbed_ic": AIFS_IC_CONTRAST}
 PRETTY = {"aifs_perturbed": "weight-only", "aifs_perturbed_ic": "weight + IC (Phase 5)"}
 BINS = [(0, 24), (24, 48), (48, 72), (72, 96), (96, 120), (120, 144)]
 

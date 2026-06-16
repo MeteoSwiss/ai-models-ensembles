@@ -21,12 +21,17 @@ Run after aifs_perturbed_ic eval/probabilistic lands.
 from __future__ import annotations
 import csv
 import math
+import os
+import sys
 from pathlib import Path
 
 import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # tools/
+from model_colors import AIFS_IC_CONTRAST, color_for
 
 OUT_PDF = Path("/users/sadamov/pyprojects/ai-models-ensembles/figures/ssr_phase5_aifs_lead.pdf")
 
@@ -38,7 +43,7 @@ BASELINES = {
         ),
         "label": "aifs_perturbed (weight only)",
         "style": "--",
-        "colour": "#8E44AD",
+        "colour": color_for("aifs_perturbed"),
     },
     "aifs_perturbed_ic": {
         "root": Path(
@@ -47,7 +52,7 @@ BASELINES = {
         ),
         "label": "aifs_perturbed_ic (IFS-ENS IC + weight)",
         "style": "-",
-        "colour": "#D81B60",
+        "colour": AIFS_IC_CONTRAST,
     },
 }
 

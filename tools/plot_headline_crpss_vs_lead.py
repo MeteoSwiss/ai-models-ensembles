@@ -8,12 +8,18 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import os
+import sys
 from pathlib import Path
 
 import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # tools/
+from model_colors import MODEL_COLORS as COLOUR
+from model_colors import LINESTYLE as STYLE
 
 CSV = "/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles/baselines/intercomparison/probabilistic/temporal_metrics_combined.csv"
 # Exact-WB2 lead-resolved CRPS_clim denominator (superseded by the _8way plot).
@@ -44,27 +50,6 @@ PRETTY = {
     "graphcast_all": "graphcast_all",
     "aurora_encoder": "aurora_encoder",
     "sfno_modes10": "sfno_modes10",
-}
-
-# Match the paper's table colour palette (experiments_tables.tex)
-COLOUR = {
-    "aurora_encoder": "#E67E22",
-    "graphcast_all": "#27AE60",
-    "sfno_modes10": "#2980B9",
-    "aifsens": "#8B5A2B",
-    "atlas": "#C0392B",
-    "fcn3": "#D4A017",
-    "ifs_ens": "#7F8C8D",
-}
-
-STYLE = {
-    "aurora_encoder": "-",
-    "graphcast_all": "-",
-    "sfno_modes10": "-",
-    "aifsens": "--",
-    "atlas": "--",
-    "fcn3": "--",
-    "ifs_ens": ":",
 }
 
 crps_clim = json.load(

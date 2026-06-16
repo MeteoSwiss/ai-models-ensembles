@@ -11,12 +11,18 @@ import argparse
 import csv
 import json
 import math
+import os
+import sys
 from pathlib import Path
 
 import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # tools/
+from model_colors import MODEL_COLORS as COLOUR
+from model_colors import LINESTYLE as STYLE
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument(
@@ -74,28 +80,6 @@ PRETTY = {
     "aurora_encoder": "aurora_encoder",
     "sfno_modes10": "sfno_modes10",
     "aifs_perturbed": "aifs_perturbed",
-}
-
-COLOUR = {
-    "aurora_encoder": "#E67E22",
-    "graphcast_all": "#27AE60",
-    "sfno_modes10": "#2980B9",
-    "aifs_perturbed": "#8E44AD",
-    "aifsens": "#8B5A2B",
-    "atlas": "#C0392B",
-    "fcn3": "#D4A017",
-    "ifs_ens": "#7F8C8D",
-}
-
-STYLE = {
-    "aurora_encoder": "-",
-    "graphcast_all": "-",
-    "sfno_modes10": "-",
-    "aifs_perturbed": "-",
-    "aifsens": "--",
-    "atlas": "--",
-    "fcn3": "--",
-    "ifs_ens": ":",
 }
 
 crps_clim = json.load(open(CRPS_CLIM))

@@ -17,11 +17,14 @@ from __future__ import annotations
 import argparse
 import glob
 import os
+import sys
 from pathlib import Path
 
 import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # tools/
+from model_colors import color_for, marker_for, style_for
 
 BASE = "/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles/baselines"
 OUT_ROOT = "/users/sadamov/pyprojects/ai-models-ensembles/figures/tier1b_7way_spatial_mean_ssr"
@@ -68,31 +71,18 @@ def main() -> None:
     df_lvl = df.groupby(["baseline", "variable", "lead_time_hours"])["ssr"].mean().reset_index()
 
     fig, axs = plt.subplots(2, 4, figsize=(17, 7.5), sharex=True)
-    colors_pert = plt.cm.Blues(np.linspace(0.45, 0.95, len(PERTURBED)))
-    colors_trnd = plt.cm.Oranges(np.linspace(0.45, 0.95, len(TRAINED)))
 
     for ax, var in zip(axs.flat[: len(VARS_PLOT)], VARS_PLOT, strict=False):
         sub = df_lvl[df_lvl["variable"] == var]
-        for i, (b, lab) in enumerate(PERTURBED.items()):
+        for b, lab in {**PERTURBED, **TRAINED}.items():
             d = sub[sub["baseline"] == b].sort_values("lead_time_hours")
             if len(d):
                 ax.plot(
                     d["lead_time_hours"],
                     d["ssr"],
-                    "o-",
-                    color=colors_pert[i],
-                    lw=1.6,
-                    label=lab,
-                    alpha=0.9,
-                )
-        for i, (b, lab) in enumerate(TRAINED.items()):
-            d = sub[sub["baseline"] == b].sort_values("lead_time_hours")
-            if len(d):
-                ax.plot(
-                    d["lead_time_hours"],
-                    d["ssr"],
-                    "s--",
-                    color=colors_trnd[i],
+                    marker=marker_for(b),
+                    linestyle=style_for(b),
+                    color=color_for(b),
                     lw=1.6,
                     label=lab,
                     alpha=0.9,

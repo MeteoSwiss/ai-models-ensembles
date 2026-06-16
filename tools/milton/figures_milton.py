@@ -11,6 +11,8 @@ Figures:
 """
 
 from __future__ import annotations
+import os
+import sys
 from pathlib import Path
 import numpy as np
 import pandas as pd
@@ -18,6 +20,9 @@ import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 import xarray as xr
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # tools/
+from model_colors import color_for
 
 BASE = Path("/iopsstor/scratch/cscs/sadamov/milton_case_study")
 FIGS = Path("/users/sadamov/pyprojects/ai-models-ensembles/figures")
@@ -33,16 +38,7 @@ BASELINES = [
     "atlas",
     "ifs_ens",
 ]
-BASELINE_COLORS = {
-    "aurora_encoder_ic": "#E67E22",
-    "graphcast_all_ic": "#27AE60",
-    "sfno_modes10_ic": "#2980B9",
-    "aifs_perturbed_ic": "#D81B60",
-    "aifsens": "#8B5A2B",
-    "fcn3": "#D4A017",
-    "atlas": "#C0392B",
-    "ifs_ens": "#7F8C8D",
-}
+BASELINE_COLORS = {b: color_for(b) for b in BASELINES}
 
 
 def load():
@@ -73,11 +69,11 @@ def f1_track_spaghetti(master):
             ax.add_feature(cfeature.COASTLINE, linewidth=0.5)
             ax.add_feature(cfeature.BORDERS, linewidth=0.3, linestyle=":")
             ax.set_extent([LON_MIN - 360, LON_MAX - 360, LAT_MIN, LAT_MAX], crs=ccrs.PlateCarree())
-            # Truth
+            # Truth (black so it never collides with the Atlas baseline colour)
             ax.plot(
                 ibt_lon,
                 ibt_lat,
-                color="red",
+                color="black",
                 linewidth=1.5,
                 transform=ccrs.PlateCarree(),
                 label="IBTrACS" if (r == 0 and c == 0) else None,
