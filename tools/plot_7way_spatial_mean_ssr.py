@@ -33,6 +33,7 @@ PERTURBED = {
     "aurora_encoder": "Aurora encoder s=0.025",
     "graphcast_all": "GraphCast all s=0.01",
     "sfno_modes10": "SFNO modes10 s=0.25",
+    "aifs_perturbed": "AIFS decoder s=0.028",
 }
 TRAINED = {
     "aifsens": "AIFS-ENS",

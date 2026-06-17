@@ -37,16 +37,17 @@
   \small
   \setlength{\tabcolsep}{6pt}
   \renewcommand{\arraystretch}{1.15}
-  \caption{Ablation experiments. Each cell: 4 mid-season inits $\times$
-           10 members at 10-day lead. \textbf{Bold} marks the within-phase
-           per-model winner; \winner\ marks the per-model production
-           baseline (Tab.~\ref{tab:baselines}); $^{\dagger}$ marks the two
-           Phase 2b refinements that beat the $\sqrt{N}$ anchor. Phase 3
-           hooks target the synoptic-and-larger scale
-           ($\lambda \gtrsim 3000$~km); Phase 3b broadens this reach at
-           the per-row $\sqrt{N}$ $\sigma$. Configuration tags, $\sigma$
-           encoding, and the unperturbed mag\_0 reference are documented
-           in appendix~\ref{appendix:reproducibility}.}
+  \caption{The three-phase ablation (Phases 1-3, with the 2b and 3b
+           refinements). Each cell: 4 mid-season inits $\times$ 10 members
+           at 10-day lead. \textbf{Bold} marks the within-phase per-model
+           winner; \winner\ marks the per-model production baseline
+           (Tab.~\ref{tab:baselines}); $^{\dagger}$ marks the two Phase 2b
+           refinements that beat the $\sqrt{N}$ anchor. Phase 3 hooks
+           target the synoptic-and-larger scale ($\lambda \gtrsim
+           3000$~km); Phase 3b broadens this reach at the per-row
+           $\sqrt{N}$ $\sigma$. Configuration tags and the $\sigma$
+           encoding are documented in
+           appendix~\ref{appendix:reproducibility}.}
   \label{tab:ablation}
   \begin{tabular}{@{}l l l l@{}}
     \toprule
@@ -61,7 +62,6 @@
     & \mbadge{sfnoC}{sfno}         & all weights          & 0.001 / 0.003 / 0.01 / \textbf{0.03} / 0.1 \\
     \rowcolor{altRow}
     & \mbadge{aifsC}{aifs}         & all weights (lite)   & 0.003 / \textbf{0.01} / 0.03 \\
-    & all 4 models                 & \emph{mag\_0} reference & - \\
     \hline
 
     \rowcolor{phaseBg}
@@ -98,23 +98,18 @@
   \small
   \setlength{\tabcolsep}{6pt}
   \renewcommand{\arraystretch}{1.20}
-  \caption{Production baselines. Each baseline: 112 weekly inits in 2024
-           $\times$ 10 members. Post-hoc baselines (this work) reuse a
+  \caption{Production baselines, evaluated on the 112-init production
+           grid (4 seasonal weeks per year in 2023-2024 $\times$ 10
+           members). The post-hoc baselines (this work) reuse a
            pre-trained deterministic checkpoint at the \winner-marked
-           configuration of Tab.~\ref{tab:ablation}; the listed loss is the
-           checkpoint's deterministic training loss. Trained probabilistic
-           baselines: AIFS-ENS \citep{Lang2024aifsens} - GNN +
-           sliding-window transformer, per-member noise in processor
-           conditional-LN, almost-fair CRPS loss; NVIDIA Atlas-ERA5
-           \citep{Chen2026atlas} - latent DiT sampled via stochastic
-           interpolant (drift regression); FourCastNet 3
-           \citep{Bonev2025fcn3} - spherical neural operator with per-step
-           latent noise via spherical diffusion, joint spatial+spectral
-           CRPS loss. Classical reference IFS-ENS Cy49r1
-           \citep{ECMWF2024Cy49r1}: TCo1279L137 primitive equations, EDA +
-           48\,h singular-vector ICs, SPP stochastic physics; we subsample
-           10 of the 50 perturbed members (stratified, dropping the
-           control).}
+           configuration of Tab.~\ref{tab:ablation}, so the listed loss is
+           the checkpoint's deterministic training loss. The
+           trained-probabilistic and classical baselines and their
+           training objectives are described in
+           Sec.~\ref{sec:related-prob} and Sec.~\ref{sec:methods-models};
+           for IFS-ENS we subsample 10 of the 50 perturbed members
+           (stratified, dropping the control) to match the other
+           baselines.}
   \label{tab:baselines}
   \begin{tabularx}{\textwidth}{@{}l l X l@{}}
     \toprule

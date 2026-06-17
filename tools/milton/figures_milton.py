@@ -22,7 +22,7 @@ import cartopy.feature as cfeature
 import xarray as xr
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # tools/
-from model_colors import color_for
+from model_colors import color_for, style_for
 
 BASE = Path("/iopsstor/scratch/cscs/sadamov/milton_case_study")
 FIGS = Path("/users/sadamov/pyprojects/ai-models-ensembles/figures")
@@ -48,9 +48,13 @@ def load():
 
 
 def f1_track_spaghetti(master):
-    """3 init rows x len(BASELINES) cols. Selected inits: 02 00 / 04 00 / 06 00."""
+    """3 init rows x 3 baseline cols. Selected inits: 02 00 / 04 00 / 06 00.
+
+    Reviewer asked to show only IFS-ENS, AIFS and AIFS-ENS, in that order.
+    """
+    f1_baselines = ["ifs_ens", "aifs_perturbed_ic", "aifsens"]
     init_picks = ["20241002_0000", "20241004_0000", "20241006_0000"]
-    nrows, ncols = len(init_picks), len(BASELINES)
+    nrows, ncols = len(init_picks), len(f1_baselines)
     fig, axes = plt.subplots(
         nrows,
         ncols,
@@ -63,7 +67,7 @@ def f1_track_spaghetti(master):
     ibt_lon = ibt["lon"].values % 360
     LON_MIN, LON_MAX, LAT_MIN, LAT_MAX = 255, 290, 13, 32
     for r, init_tag in enumerate(init_picks):
-        for c, b in enumerate(BASELINES):
+        for c, b in enumerate(f1_baselines):
             ax = axes[r, c] if nrows > 1 else axes[c]
             sub = master[(master["baseline"] == b) & (master["init_tag"] == init_tag)]
             ax.add_feature(cfeature.COASTLINE, linewidth=0.5)
@@ -108,7 +112,7 @@ def f1_track_spaghetti(master):
                     fontsize=9,
                 )
     fig.suptitle(
-        "Milton track spaghetti (10 members) per baseline x init  (red: IBTrACS truth)",
+        "Milton track spaghetti (10 members) per baseline x init  (black: IBTrACS truth)",
         fontsize=12,
         y=0.995,
     )
@@ -130,29 +134,30 @@ def f2_intensity_vs_lead(master):
             )
             lead = [(t - init_t).total_seconds() / 3600 for t in grp["time"]]
             ax.plot(lead, grp["psl_hpa"], color="steelblue", alpha=0.18, linewidth=0.6)
-        ax.set_title(b.replace("_", " "), fontsize=10)
-        ax.set_xlabel("lead time (h)")
-        ax.set_ylabel("min MSL (hPa)")
+        ax.set_title(b.replace("_", " "), fontsize=12)
+        ax.set_xlabel("lead time (h)", fontsize=11)
+        ax.set_ylabel("min MSL (hPa)", fontsize=11)
+        ax.tick_params(axis="both", labelsize=10)
         ax.axhline(
             895,
             color="red",
             linestyle="--",
-            linewidth=0.6,
-            alpha=0.6,
+            linewidth=0.8,
+            alpha=0.7,
             label="IBTrACS peak (895 hPa)",
         )
         ax.axhline(
-            989,
+            976,
             color="purple",
             linestyle="--",
-            linewidth=0.6,
-            alpha=0.6,
-            label="ERA5 ceiling (~989 hPa)",
+            linewidth=0.8,
+            alpha=0.7,
+            label="0.25deg ERA5 control min (976 hPa)",
         )
         ax.set_ylim(890, 1015)
         ax.grid(True, alpha=0.3)
         if b == BASELINES[0]:
-            ax.legend(loc="lower right", fontsize=7)
+            ax.legend(loc="lower right", fontsize=10)
     fig.suptitle(
         "Hurricane Milton MSL minimum vs lead time, per baseline (each line = one member from one init)",
         fontsize=11,
@@ -184,6 +189,7 @@ def f5_track_intensity_err_vs_lead(verif):
             x,
             agg["pos_err_ibt_km"],
             color=BASELINE_COLORS.get(b, "black"),
+            linestyle=style_for(b),
             marker="o",
             linewidth=1.5,
             label=b.replace("_", " "),
@@ -192,6 +198,7 @@ def f5_track_intensity_err_vs_lead(verif):
             x,
             agg["psl_err_era5"],
             color=BASELINE_COLORS.get(b, "black"),
+            linestyle=style_for(b),
             marker="o",
             linewidth=1.5,
             label=b.replace("_", " "),
@@ -382,18 +389,21 @@ def f3_cascading_detection(baseline: str = "aifsens"):
     print(f"-> {out}")
 
 
-def _storm_relative_thickness(thick, center_field, rel_lat, rel_lon, box):
-    """Recentre a 500-850 thickness field on the center_field minimum.
+def _storm_relative_thickness(thick, center_field, rel_lat, rel_lon, box, center_on="min"):
+    """Recentre a 500-850 thickness field on the center_field extremum.
 
     thick / center_field are 2D (lat, lon) DataArrays on the same grid.
-    Returns the storm-relative thickness anomaly (field minus box mean) sampled
-    onto the +-10 deg rel grid, or None if the search box is empty.
+    center_on="min" locates the MSL minimum (the cyclone centre); "max" locates
+    the thickness maximum (warm-core peak), used as a fallback when MSL is
+    missing at this lead (e.g. the IFS-ENS consolidated zarr has NaN MSL slices).
+    Returns the storm-relative thickness anomaly (field minus a fitted background
+    plane) on the +-10 deg rel grid, or None if the search box is empty / all-NaN.
     """
     LON_MIN, LON_MAX, LAT_MIN, LAT_MAX = box
     c_box = center_field.sel(latitude=slice(LAT_MAX, LAT_MIN), longitude=slice(LON_MIN, LON_MAX))
-    if c_box.size == 0:
+    if c_box.size == 0 or not np.isfinite(c_box.values).any():
         return None
-    flat_idx = int(np.argmin(c_box.values))
+    flat_idx = int(np.nanargmax(c_box.values) if center_on == "max" else np.nanargmin(c_box.values))
     ny, nx = c_box.shape
     iy, ix = flat_idx // nx, flat_idx % nx
     ctr_lat = float(c_box["latitude"].values[iy])
@@ -447,20 +457,15 @@ def f4_storm_relative_composite(
     e_psl = era["psl"].sel(time=valid_t)
     composites["ERA5"] = _storm_relative_thickness(e_thick, e_psl, rel_lat, rel_lon, BOX)
 
-    for b in baselines:
-        zp = STORE / "baselines" / b / init_tag / "forecast.zarr"
-        if not zp.exists():
-            composites[b] = None
-            continue
-        ds = xr.open_zarr(zp, consolidated=True, chunks={})
+    def _composite_from_ds(ds):
+        """Mean storm-relative thickness anomaly over the ensemble at valid_t."""
         if "init_time" in ds.dims:
             ds = ds.isel(init_time=0)
         if "lead_time" in ds.dims:
             lt = ds["lead_time"].values
             leads_valid = init_t + lt if np.issubdtype(lt.dtype, np.timedelta64) else lt
             if valid_t not in leads_valid:
-                composites[b] = None
-                continue
+                return None
             ds = ds.isel(lead_time=int(np.where(leads_valid == valid_t)[0][0]))
         thick_ens = (
             ds["geopotential"].sel(level=500) - ds["geopotential"].sel(level=850)
@@ -468,16 +473,48 @@ def f4_storm_relative_composite(
         msl_ens = ds["mean_sea_level_pressure"].load()
         n_mem = thick_ens.sizes.get("ensemble", 1)
         stack = np.full((n_mem, len(rel_lat), len(rel_lon)), np.nan)
+        any_member = False
         for mi in range(n_mem):
             th = thick_ens.isel(ensemble=mi) if "ensemble" in thick_ens.dims else thick_ens
             ms = msl_ens.isel(ensemble=mi) if "ensemble" in msl_ens.dims else msl_ens
-            a = _storm_relative_thickness(th, ms, rel_lat, rel_lon, BOX)
-            if a is not None:
+            # The IFS-ENS consolidated zarr has NaN MSL at scattered leads
+            # (incl. 120 h for some inits); fall back to the thickness-max as
+            # the storm centre there so the warm-core composite still renders.
+            if np.isfinite(ms.values).any():
+                a = _storm_relative_thickness(th, ms, rel_lat, rel_lon, BOX, center_on="min")
+            else:
+                a = _storm_relative_thickness(th, th, rel_lat, rel_lon, BOX, center_on="max")
+            # Skip all-NaN members so a partial-NaN field still contributes.
+            if a is not None and np.isfinite(a).any():
                 stack[mi] = a
-        composites[b] = np.nanmean(stack, axis=0)
+                any_member = True
+        if not any_member:
+            return None
+        return np.nanmean(stack, axis=0)
 
-    # IFS-ENS is not stored in the per-init baselines/ layout this reads, so it
-    # has no composite; drop such baselines rather than render an empty panel.
+    for b in baselines:
+        if b == "ifs_ens":
+            # IFS-ENS is not in the per-init baselines/ layout; read its
+            # 500/850 geopotential + MSL from the consolidated multi-init zarr
+            # (same source _msl_ensmean_at uses), selected to this init.
+            try:
+                ds = xr.open_zarr(
+                    "/capstor/store/cscs/swissai/a122/IFS/ifs_ens.zarr",
+                    consolidated=False,
+                    chunks={},
+                ).sel(init_time=init_t)
+                composites[b] = _composite_from_ds(ds)
+            except Exception as e:
+                print(f"  WARN ifs_ens F4: {type(e).__name__} {str(e)[:80]}")
+                composites[b] = None
+            continue
+        zp = STORE / "baselines" / b / init_tag / "forecast.zarr"
+        if not zp.exists():
+            composites[b] = None
+            continue
+        ds = xr.open_zarr(zp, consolidated=True, chunks={})
+        composites[b] = _composite_from_ds(ds)
+
     panels = ["ERA5"] + [b for b in baselines if composites.get(b) is not None]
     era_peak = np.nanmean(composites["ERA5"][inner])
     vmax = np.nanmax([np.nanmax(np.abs(c)) for c in composites.values() if c is not None])

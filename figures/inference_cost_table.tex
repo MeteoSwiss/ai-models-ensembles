@@ -24,24 +24,19 @@
 % each plus interconnect), conservative average ~4.0 kW under steady inference
 % load, x PUE 1.2 -> ~4.8 kWh per node-hour delivered.
 
-\begin{sidewaystable}[p]
+\begin{sidewaystable}[htbp]
   \centering
   \small
   \setlength{\tabcolsep}{4pt}
-  \renewcommand{\arraystretch}{1.20}
-  \caption{Per-baseline inference cost on CSCS Alps (NVIDIA GH200; 1 Alps
-           node = 4 Grace-Hopper superchips). Per-baseline workload: 1120
-           forecasts (112 inits $\times$ 10 members, 15-day / 360\,h
-           lead). The
-           s/mbr column is the median pure-inference time per member; CS\,h
-           is the wall-clock for a 50-member case-study on one Alps node.
-           Cost and energy are computed at CHF 2.88/NH (Swiss-academia tier
-           3 with ETH 25\% discount) and 4.0 kW node power $\times$ PUE 1.2;
-           full sourcing of metric definitions and rates is in the
-           footnotes. Atlas at 38\,min/mbr ($\sim$18-40$\times$ slower than
-           the other six) reflects its multi-step stochastic-interpolant
-           DiT sampler, while the post-hoc baselines (59-125 s/mbr) match
-           the single-forward-pass trained-probabilistic baselines.}
+  \renewcommand{\arraystretch}{1.15}
+  \caption{Per-baseline inference cost and footprint on CSCS Alps (NVIDIA
+           GH200; 1 node = 4 superchips) for the 1120-forecast production
+           workload (112 inits $\times$ 10 members, 360\,h). s/mbr is the
+           median pure-inference time per member; training cost is the
+           single-pass figure reported by each source paper or model card,
+           re-verified against the sources (footnotes). Atlas is
+           $\sim$18-40$\times$ slower per member than the other six, a
+           consequence of its multi-step diffusion sampler.}
   \label{tab:inference-cost}
   \begin{tabular}{@{}l l r r r r r r r r@{}}
     \toprule
@@ -59,8 +54,8 @@
     \midrule
 
     \rowcolor{phaseBg}
-    \multicolumn{10}{@{}l}{\textbf{Post-hoc weight perturbation} (this work) - shares the underlying deterministic-checkpoint training cost; \emph{zero marginal training cost} for the perturbation itself} \\
-    & \mbadge{sfnoC}{sfno\_modes10}       & 573 M  & 2.3  & 4   & \textbf{59}   & 0.20  & 15.3 & 44.1  & 73.4  \\
+    \multicolumn{10}{@{}l}{\textbf{Post-hoc weight perturbation} (this work) - \emph{zero marginal training cost}} \\
+    & \mbadge{sfnoC}{sfno\_modes10}       & 573 M  & 2.3  & $\sim$4   & \textbf{59}   & 0.20  & 15.3 & 44.1  & 73.4  \\
     \rowcolor{altRow}
     & \mbadge{auroraC}{aurora\_encoder}   & 1.3 B  & 5.2  & 13  & 90            & 0.31  & 23.0 & 66.2  & 110.4 \\
     & \mbadge{graphcastC}{graphcast\_all}  & 37 M   & 0.15 & 22  & 125           & 0.43  & 28.7 & 82.7  & 137.8 \\
@@ -69,10 +64,10 @@
     \hline
 
     \rowcolor{phaseBg}
-    \multicolumn{10}{@{}l}{\textbf{Trained probabilistic} - requires a separate stochastic-training run beyond the deterministic baseline} \\
+    \multicolumn{10}{@{}l}{\textbf{Trained probabilistic} - separate probabilistic training run on top of a deterministic backbone} \\
     & \mbadge{aifsensC}{AIFS-ENS}       & 229 M  & 0.9   & 22  & 75            & 0.26  & 18.3 & 52.7  & 87.8  \\
     \rowcolor{altRow}
-    & \mbadge{fcn3C}{fcn3}               & 711 M  & 2.8   & 90  & 114           & 0.40  & 26.6 & 76.6  & 127.7 \\
+    & \mbadge{fcn3C}{fcn3}               & 711 M  & 2.8   & 80  & 114           & 0.40  & 26.6 & 76.6  & 127.7 \\
     & \mbadge{atlasC}{atlas}             & 4.3 B  & 17    & -$^{\bullet}$ & \textbf{2280} & \textbf{7.92}  & 43.5 & 125.3 & 208.8 \\
     \hline
 
@@ -96,17 +91,12 @@
   $50 \times \text{s/mbr} / 4 / 3600$. Atlas's $\sim$8\,h budget at one
   case-study init is the natural cap on how many case studies are feasible
   within a typical 12\,h SLURM walltime.
-  $^{\star\star}$\,\textbf{aifs\_perturbed} = post-hoc weight perturbation of
-  the AIFS v1 deterministic checkpoint at the per-phase winner identified by
-  AIFS Phase 1 + Phase 2 ablations (verified 2026-06-01): Phase 2
-  \texttt{mag\_0.0275\_layer\_decoder} chosen as the production baseline. AIFS
-  is the most decisive multi-metric winner of the four perturb baselines -
-  Phase 2 decoder wins 14 of 20 multi-metric cells (CRPS all 4 leads, SSR
-  at 24/72\,h, SSIM and LSD all 4 leads) vs Phase 1's 6 (FSS 95\% all 4
-  leads + SSR at 120 and 240\,h). The per-member and derived values equal the
-  AIFS-ENS figures because aifs\_perturbed shares the identical AIFS
-  forward graph (weights perturbed, not retrained); a real 112-init
-  aifs\_perturbed production run confirms this configuration.
+  $^{\star\star}$\,\textbf{aifs\_perturbed} is the AIFS v1 deterministic
+  checkpoint with the Phase 2 decoder perturbation
+  (\texttt{mag\_0.0275\_layer\_decoder}, $\sigma=0.028$). Its per-member
+  time and memory match AIFS-ENS because it shares the identical AIFS
+  forward graph (weights perturbed, not retrained); the 255\,M parameter
+  count is from our checkpoint audit (not stated in the source paper).
 
   $^{\#}$\,Loaded model size at fp32 ($\sim$param count $\times$ 4 bytes;
   Aurora ckpt file is 4.68 GB at fp32; AIFS .ckpt is anemoi-packaged so
@@ -116,26 +106,21 @@
   reported by the source paper / model card. Aurora 13K A100-h
   (pretraining 32 $\times$ A100, $\sim$2.5 weeks; fine-tuning not separately
   documented; arXiv:2405.13063). GraphCast 22K TPU v4-hours (32 TPU
-  $\times$ 4 weeks; arXiv:2212.12794). SFNO 4K A100-h for the 73-channel
-  production checkpoint (256 A100 $\times$ 16\,h; reported in Mahesh
-  \& Pathak arXiv:2408.03100, not in the original ICML Bonev et al.\
-  2023 paper which describes the architecture). AIFS v1 11K A100-h
-  (64 A100 40 GB $\times$ 1 week; arXiv:2406.01465). AIFS-ENS 22K H100-h
-  (128 H100 64 GB $\times$ 7 days, N320 config; arXiv:2412.15832 Table 3).
-  FCN3 90K H100-h (Phase 1 only: 1024 H100 $\times$ 78\,h; the full
-  three-stage training is more; arXiv:2507.12144).
+  $\times$ 4 weeks; arXiv:2212.12794). SFNO $\sim$4K A100-h: the public
+  \texttt{sfno\_73ch\_small} checkpoint's training cost is not separately
+  documented, so we use the 256 A100 $\times$ 16\,h figure Mahesh \&
+  Pathak report (arXiv:2408.03100) for an SFNO of the same family as an
+  order-of-magnitude estimate. AIFS v1 11K A100-h (64 A100 40 GB
+  $\times$ 1 week; arXiv:2406.01465). AIFS-ENS 22K H100-h (128 H100 64 GB
+  $\times$ 7 days, N320 config; arXiv:2412.15832 Table 3). FCN3 $\sim$80K
+  H100-h (Stage-1 pre-training only: 1024 H100 $\times$ 78\,h $=$ 79{,}872;
+  the full three-stage training is larger; arXiv:2507.12144).
 
-  $^{\bullet}$\,Atlas training cost is not documented on the model card
-  ([huggingface.co/nvidia/atlas-era5](https://huggingface.co/nvidia/atlas-era5)).
-  The benchmark paper arXiv:2601.18111 reports ATLAS-SI inference at
-  94 s per 6\,h step on a single A100. Our GH200 runs the same sampler
-  at 38 s per 6\,h step, $\sim$2.5x faster than the A100 per step (our
-  38\,min/mbr is the full 15-day, 60-step rollout; the paper's 63\,min is
-  a 10-day, 40-step forecast, so the per-step rate is the like-for-like
-  comparison), so our setup is NOT pathologically slow - the cost is structural to the
-  stochastic-interpolant DiT's multi-step sampling. NVIDIA also ships
-  a faster ATLAS-CRPS variant (3.3 s per 6\,h step, 28x faster than
-  ATLAS-SI) but it is a separately-trained CRPS-loss model rather than
-  a hyperparameter switch on the same checkpoint.
+  $^{\bullet}$\,Atlas training cost is not disclosed (model card
+  nvidia/atlas-era5 or arXiv:2601.18111). The benchmark paper reports
+  ATLAS-SI at 94\,s per 6\,h step on an A100; our GH200 runs the same
+  sampler at 38\,s/step, so the cost is structural to the multi-step
+  diffusion sampler, not our setup. NVIDIA also ships a faster
+  separately-trained CRPS variant (3.3\,s/step).
   $^{\ddag}$\,Per production-baseline run (1120 forecasts).
 \end{sidewaystable}

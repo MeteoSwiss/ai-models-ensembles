@@ -15,6 +15,28 @@ From tools/milton/ (one level deeper):
 
 from __future__ import annotations
 
+# Shared paper figure style so every plot that imports this module uses one
+# font family and a consistent size scale (the reviewer asked for a uniform
+# font across figures; matplotlib's default DejaVu Sans is kept, sizes are
+# bumped so legends/ticks are legible at print size).
+try:  # importing matplotlib must not break callers that only want the colours
+    import matplotlib as _mpl
+
+    _mpl.rcParams.update(
+        {
+            "font.family": "DejaVu Sans",
+            "font.size": 11,
+            "axes.titlesize": 11,
+            "axes.labelsize": 11,
+            "xtick.labelsize": 10,
+            "ytick.labelsize": 10,
+            "legend.fontsize": 10,
+            "figure.titlesize": 13,
+        }
+    )
+except Exception:  # pragma: no cover
+    pass
+
 # 8 headline baselines, canonical hex (mirrors experiments_tables.tex).
 MODEL_COLORS = {
     "aurora_encoder": "#E67E22",  # orange
