@@ -719,8 +719,8 @@ MODELS = [
     {
         "name": "GraphCast",
         "subtitle": "Multi-Mesh Graph Neural Network",
-        "mechanism": "runtime hook on coarse mesh-node activations",
-        "target": "mesh nodes at refinement levels 0–1 (first 42)",
+        "mechanism": "activation hook on coarse mesh nodes",
+        "target": "first 42 mesh nodes (levels 0–1)",
         "scale": "λ ≥ 3300 km  (upper synoptic → planetary)",
         "viz": draw_graphcast_multimesh,
     },
