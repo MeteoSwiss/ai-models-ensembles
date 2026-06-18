@@ -218,8 +218,8 @@ bash containers/submit_build.sh <model|all>    # writes $STORE/<model>.sqsh
 2. (Optional) Minimal host venv for editor / scripting
 
 ```bash
-# Place the venv on fast scratch and symlink into the repo
-VENV_DIR=$SCRATCH/venvs/ai-models-ensembles
+# Place the venv on persistent capstor store (scratch purges it) and symlink into the repo
+VENV_DIR=/capstor/store/cscs/mch/s83/sadamov/venvs/ai-models-ensembles
 uv venv --python 3.11 "$VENV_DIR"
 ln -s "$VENV_DIR" .venv
 source .venv/bin/activate

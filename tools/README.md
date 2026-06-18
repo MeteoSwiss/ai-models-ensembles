@@ -8,7 +8,7 @@ under [containers/](../containers/)).
 ## Host venv (one-time)
 
 ```bash
-VENV_DIR=$SCRATCH/venvs/ai-models-ensembles
+VENV_DIR=/capstor/store/cscs/mch/s83/sadamov/venvs/ai-models-ensembles  # persistent capstor; scratch purges
 uv venv --python 3.11 "$VENV_DIR"
 ln -s "$VENV_DIR" ../.venv
 source ../.venv/bin/activate

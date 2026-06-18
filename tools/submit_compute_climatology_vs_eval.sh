@@ -28,7 +28,7 @@
 
 set -euo pipefail
 
-PY=/iopsstor/scratch/cscs/sadamov/venvs/ai-models-ensembles/bin/python
+PY=/capstor/store/cscs/mch/s83/sadamov/venvs/ai-models-ensembles/bin/python
 export PYTHONUNBUFFERED=1
 export TMPDIR=/iopsstor/scratch/cscs/sadamov/tmp
 export DASK_TEMPORARY_DIRECTORY=/iopsstor/scratch/cscs/sadamov/tmp

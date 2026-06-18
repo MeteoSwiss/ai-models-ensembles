@@ -14,7 +14,7 @@ Two outputs per (variable, level):
 
 Reads the WB2 ARCO-ERA5 zarr over HTTPS (no gcsfs needed; the bucket is
 public). Designed for the project venv at
-/iopsstor/scratch/cscs/sadamov/venvs/ai-models-ensembles. The HTTPS path
+/capstor/store/cscs/mch/s83/sadamov/venvs/ai-models-ensembles. The HTTPS path
 also dodges the broken cffi/_cffi_backend wheel in that venv.
 
 Usage:

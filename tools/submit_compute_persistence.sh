@@ -24,7 +24,7 @@
 
 set -euo pipefail
 
-PY=/iopsstor/scratch/cscs/sadamov/venvs/ai-models-ensembles/bin/python
+PY=/capstor/store/cscs/mch/s83/sadamov/venvs/ai-models-ensembles/bin/python
 export SSL_CERT_FILE=$($PY -c 'import certifi; print(certifi.where())')
 export TMPDIR=/iopsstor/scratch/cscs/sadamov/tmp
 export DASK_TEMPORARY_DIRECTORY=/iopsstor/scratch/cscs/sadamov/tmp
