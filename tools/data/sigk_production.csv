@@ -1,0 +1,8 @@
+model,score,lead_hours,n_inits,n_members,n_pixels,value
+aifsens,signature_kernel_score,240,112,10,128,-37.09702775880375
+atlas,signature_kernel_score,240,112,10,128,-33.09741018414166
+aifs_perturbed,signature_kernel_score,240,112,10,128,-12.239119344593549
+fcn3,signature_kernel_score,240,112,10,128,-29.399522883640536
+graphcast_all,signature_kernel_score,240,112,10,128,18.055788688506933
+aurora_encoder,signature_kernel_score,240,112,10,128,-9.915131679872726
+sfno_modes10,signature_kernel_score,240,112,10,128,1.006086878190373
