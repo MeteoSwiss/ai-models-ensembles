@@ -68,7 +68,7 @@
     & \mbadge{aifsensC}{AIFS-ENS}       & 229 M  & 0.9   & 22  & 75            & 0.26  & 18.3 & 52.7  & 87.8  \\
     \rowcolor{altRow}
     & \mbadge{fcn3C}{fcn3}               & 711 M  & 2.8   & 80  & 114           & 0.40  & 26.6 & 76.6  & 127.7 \\
-    & \mbadge{atlasC}{atlas}             & 4.3 B  & 17    & -$^{\bullet}$ & \textbf{2280} & \textbf{7.92}  & 43.5 & 125.3 & 208.8 \\
+    & \mbadge{atlasC}{atlas}             & 4.2 B  & 17    & -$^{\bullet}$ & \textbf{2280} & \textbf{7.92}  & 43.5 & 125.3 & 208.8 \\
     \hline
 
     \rowcolor{phaseBg}
@@ -121,6 +121,8 @@
   ATLAS-SI at 94\,s per 6\,h step on an A100; our GH200 runs the same
   sampler at 38\,s/step, so the cost is structural to the multi-step
   diffusion sampler, not our setup. NVIDIA also ships a faster
-  separately-trained CRPS variant (3.3\,s/step).
+  separately-trained CRPS variant (3.3\,s/step). The 4.2\,B parameter
+  count is the 2.4\,B latent predictive transformer (ATLAS-SI) plus the
+  shared 1.8\,B decoder, both loaded at inference (arXiv:2601.18111).
   $^{\ddag}$\,Per production-baseline run (1120 forecasts).
 \end{sidewaystable}
