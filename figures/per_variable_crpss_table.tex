@@ -1,0 +1,47 @@
+% Per-variable CRPSS table (Appendix B). Generated from
+%   $STORE/baselines/intercomparison/probabilistic/temporal_metrics_combined.csv
+% plus per-baseline aifs_perturbed probabilistic CSVs at
+%   /capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles/baselines/aifs_perturbed/eval/probabilistic
+% via tools/per_variable_crpss_table.py.
+% Same pipeline as tools/headline_8way_table.py; the variable mean of each row
+% reproduces that baseline's variable-mean CRPSS in figures/headline_8way_table.tex.
+
+\begin{table}[t]
+  \centering
+  \small
+  \setlength{\tabcolsep}{4.5pt}
+  \caption{Per-variable CRPSS at 240\,h on the 112-init production grid
+           (112 initialisations $\times$ 10 members, 2023-2024), broken out by
+           the seven paper variables. Three-dimensional variables ($Z$, $T$,
+           $u$, $v$, $q$) are averaged over 500 and 850\,hPa first. Higher is
+           better; 1 = perfect, 0 = climatology, $<0$ = worse than climatology.
+           \textbf{Bold} marks the per-variable optimum. The mean of each row
+           reproduces that baseline's variable-mean CRPSS@240\,h in
+           Tab.~\ref{tab:headline8way}. CRPSS $= 1 - \mathrm{CRPS}/\mathrm{CRPS_{clim}}$
+           against the WB2 probabilistic climatology (1990-2019 years as members,
+           lead-resolved). IFS-ENS surface fields carry WB2-archive NaN gaps
+           (T2m $\sim20\%$, MSL $\sim30\%$); skipna averaging is applied.}
+  \label{tab:per-variable-crpss}
+  \begin{tabular}{@{}l l rrrrrrr@{}}
+    \toprule
+    \textbf{Role} & \textbf{Model} & \textbf{2m\_t} & \textbf{MSL} & \textbf{$Z$} & \textbf{$T$} & \textbf{$u$} & \textbf{$v$} & \textbf{$q$} \\
+    \midrule
+    \rowcolor{phaseBg}
+    \multicolumn{9}{@{}l}{\textbf{Trained probabilistic}} \\
+    & AIFS-ENS & \textbf{0.282} & \textbf{0.285} & \textbf{0.349} & \textbf{0.299} & \textbf{0.232} & \textbf{0.168} & \textbf{0.178} \\
+    & Atlas & 0.252 & 0.268 & 0.332 & 0.277 & 0.216 & 0.154 & 0.164 \\
+    & FCN3 & 0.231 & 0.245 & 0.311 & 0.264 & 0.196 & 0.138 & 0.140 \\
+    \hline
+    \rowcolor{phaseBg}
+    \multicolumn{9}{@{}l}{\textbf{Post-hoc weight perturbation (this work)}} \\
+    & aifs\_perturbed & 0.247 & 0.235 & 0.303 & 0.270 & 0.202 & 0.141 & 0.146 \\
+    & graphcast\_all & 0.118 & 0.205 & 0.267 & 0.228 & 0.159 & 0.112 & 0.079 \\
+    & aurora\_encoder & 0.022 & 0.200 & 0.207 & 0.160 & 0.162 & 0.113 & 0.073 \\
+    & sfno\_modes10 & 0.109 & 0.153 & 0.211 & 0.149 & 0.120 & 0.078 & 0.056 \\
+    \hline
+    \rowcolor{phaseBg}
+    \multicolumn{9}{@{}l}{\textbf{Classical reference}} \\
+    & IFS-ENS & 0.218 & 0.219 & 0.306 & 0.255 & 0.199 & 0.140 & 0.113 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
