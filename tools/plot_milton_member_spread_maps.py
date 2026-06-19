@@ -241,13 +241,6 @@ def main():
     )
     cb2.set_label("ensemble std of 10 m wind speed (m s$^{-1}$)", fontsize=10)
 
-    vt = str(valid.astype("datetime64[h]")).replace("T", " ")
-    fig.suptitle(
-        f"Hurricane Milton 10 m wind: ensemble members, mean, spread "
-        f"(init {init_dt.astype('datetime64[h]')} UTC, +{args.lead_h} h, valid {vt} UTC)",
-        fontsize=12,
-    )
-
     FIGS.mkdir(parents=True, exist_ok=True)
     for ext in ("png", "pdf"):
         out = FIGS / f"{args.out}.{ext}"

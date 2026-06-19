@@ -108,10 +108,6 @@ def main() -> None:
     for ax in axs[:, 0]:
         ax.set_ylabel("Spatial-mean SSR")
 
-    fig.suptitle(
-        "Tier 1b: Spatial-mean SSR -- post-hoc weight perturbation vs trained probabilistic",
-        fontsize=12,
-    )
     fig.tight_layout()
     os.makedirs(os.path.dirname(OUT_ROOT), exist_ok=True)
     for ext in ("pdf", "png"):

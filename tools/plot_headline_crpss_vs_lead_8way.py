@@ -244,7 +244,6 @@ ax.set_xticks([0, 24, 72, 120, 168, 240, 312, 360])
 ax.set_xlabel("Lead time (h)")
 ax.set_ylabel("CRPSS (variable-mean, 7 paper variables)")
 ax.grid(True, linewidth=0.4, alpha=0.5)
-ax.set_title("Headline intercomparison on the 112-init production grid", fontsize=10)
 # Legend below the plot in 2 horizontal rows -- keeps the y-axis full-height.
 handles, labels = ax.get_legend_handles_labels()
 ncol = math.ceil(len(handles) / 2)

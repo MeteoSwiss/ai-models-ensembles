@@ -14,6 +14,9 @@ numbers from the same code path are trustworthy.
 
 from __future__ import annotations
 
+import argparse
+import csv
+
 import numpy as np
 import xarray as xr
 
@@ -23,7 +26,7 @@ WB2 = [
     "/capstor/store/cscs/swissai/weatherbench/weatherbench2_2024_2025.zarr",
 ]
 INITS = ["20230515", "20230815", "20241115", "20240215"]
-LEAD_IDX = 40  # 240 h (6-h steps)
+LEAD_IDX = 40  # 240 h (6-h steps); overridden by --lead at runtime
 VARS_2D = ["2m_temperature", "mean_sea_level_pressure"]
 VARS_3D = [
     "geopotential",
@@ -87,10 +90,21 @@ def rmse_member_and_mean(model, phase, cell, vname):
 
 
 def main():
+    global LEAD_IDX
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--lead", type=int, default=240, help="lead time in hours (6-h steps)")
+    ap.add_argument("--out", default=None, help="optional CSV output path")
+    args = ap.parse_args()
+    if args.lead % 6 != 0:
+        raise ValueError(f"--lead must be a multiple of 6 h, got {args.lead}")
+    LEAD_IDX = args.lead // 6
+
     print(
-        f"{'Production pick':16s} {'dRMSE member':>14s} {'dRMSE ens-mean':>16s}  (7-var mean, 240 h)"
+        f"{'Production pick':16s} {'dRMSE member':>14s} {'dRMSE ens-mean':>16s}  "
+        f"(7-var mean, {args.lead} h)"
     )
     print("-" * 70)
+    rows = []
     for pretty, (model, phase, cell) in PICKS.items():
         rel_mem, rel_em = [], []
         for vname in VARS_2D + VARS_3D:
@@ -98,7 +112,28 @@ def main():
             p_em, p_mem = rmse_member_and_mean(model, phase, cell, vname)
             rel_mem.append((p_mem - c_em) / c_em)
             rel_em.append((p_em - c_em) / c_em)
-        print(f"{pretty:16s} {np.mean(rel_mem) * 100:>+13.1f}% {np.mean(rel_em) * 100:>+15.1f}%")
+        d_mem = float(np.mean(rel_mem) * 100)
+        d_em = float(np.mean(rel_em) * 100)
+        print(f"{pretty:16s} {d_mem:>+13.1f}% {d_em:>+15.1f}%")
+        rows.append(
+            {
+                "pick": pretty,
+                "model": model,
+                "lead_h": args.lead,
+                "drmse_member_pct": round(d_mem, 3),
+                "drmse_ensmean_pct": round(d_em, 3),
+            }
+        )
+
+    if args.out:
+        with open(args.out, "w", newline="") as fh:
+            w = csv.DictWriter(
+                fh,
+                fieldnames=["pick", "model", "lead_h", "drmse_member_pct", "drmse_ensmean_pct"],
+            )
+            w.writeheader()
+            w.writerows(rows)
+        print(f"\nwrote {args.out}")
 
 
 if __name__ == "__main__":

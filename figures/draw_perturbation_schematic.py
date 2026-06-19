@@ -23,8 +23,9 @@ from matplotlib.patches import FancyArrowPatch, FancyBboxPatch
 
 plt.rcParams.update(
     {
-        "font.family": "sans-serif",
-        "font.sans-serif": ["Helvetica", "Arial", "DejaVu Sans"],
+        "font.family": "serif",
+        "font.serif": ["STIXGeneral", "Times New Roman", "Times", "DejaVu Serif"],
+        "mathtext.fontset": "stix",  # Times-compatible serif math, matches the AMS LaTeX paper
         "font.size": 9,
         "axes.spines.top": False,
         "axes.spines.right": False,
@@ -255,7 +256,7 @@ def draw_box(ax, x, y, w, h, colour, label, n, sigma, detail, highlight=None):
     ax.text(
         x + w / 2,
         y + h * 0.68,
-        f"N = {n}",
+        rf"$N_\mathrm{{group}} = {n}$",
         ha="center",
         va="center",
         fontsize=9.0,
@@ -266,7 +267,7 @@ def draw_box(ax, x, y, w, h, colour, label, n, sigma, detail, highlight=None):
     ax.text(
         x + w / 2,
         y + h * 0.52,
-        f"σ = {sigma:.4f}",
+        rf"$\sigma_\mathrm{{group}} = {sigma:.4f}$",
         ha="center",
         va="center",
         fontsize=8.5,
@@ -537,7 +538,7 @@ def draw_model_row(ax, y_center, model, n_max_global):
     ax.text(
         lx,
         y_center - 0.075 * s + LEFT_COL_OFFSET,
-        f"N_total = {model['n_total']}",
+        rf"$N_\mathrm{{total}} = {model['n_total']}$",
         ha="left",
         va="top",
         fontsize=8,
@@ -612,12 +613,25 @@ def main():
     )
     ax.text(
         LEFT_COL_X,
-        0.940,
-        r"Phase 2 layer-group ablation at $\sigma_{\rm full}=0.01$ with $\sqrt{N_{\rm total}/N_{\rm group}}$ "
-        "variance scaling.  Multiplicative noise: w' = w (1 + σ · N(0,1)).",
+        0.945,
+        r"Multiplicative weight noise  $\tilde W_m = W \odot (1 + \sigma\,\xi_m)$,  "
+        r"$\xi_m \sim \mathcal{N}(0, 1)$, independent across members.",
         ha="left",
         va="top",
         fontsize=9.5,
+        color=COL_MUTED,
+    )
+    ax.text(
+        LEFT_COL_X,
+        0.910,
+        r"Phase 1: perturb all weights, sweep magnitude "
+        r"$\sigma \in \{0.001, 0.003, 0.01, 0.03, 0.1\}$.  "
+        r"Phase 2: one layer group, "
+        r"$\sigma_\mathrm{group} = \sigma_\mathrm{full}\,\sqrt{N_\mathrm{total}/N_\mathrm{group}}$ "
+        r"(shown here at $\sigma_\mathrm{full}=0.01$).",
+        ha="left",
+        va="top",
+        fontsize=9.0,
         color=COL_MUTED,
     )
 

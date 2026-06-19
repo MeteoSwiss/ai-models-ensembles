@@ -27,16 +27,14 @@
            bias is dominated by the 0.25\,$^\circ$ ERA5 resolution-limited
            intensity ceiling and is therefore not a baseline-quality
            discriminator (see text). Sorted by detection rate descending
-           within each role group. All baselines including
-           IFS-ENS evaluate on the same stratified 10-member ensemble
-           (140 cells per baseline). Tracker StitchNodes
-           configured with \texttt{--maxgap 18h} to bridge the WB2
-           IFS-ENS NaN gaps without producing spurious cross-storm
-           stitches; for the ML baselines (which have no missing leads)
-           this is a no-op. IFS-ENS MSL bias of $+36.6$ hPa is the
-           lowest of the eight, reflecting the higher native resolution
-           of the IFS analysis (TCo1279, $\sim 9$\,km) versus the
-           0.25$^\circ$ ERA5 ceiling.}
+           within each role group. All baselines, including IFS-ENS,
+           evaluate on the same stratified 10-member ensemble (140 cells
+           per baseline). The tracker bridges the WeatherBench-2 IFS-ENS
+           archive gaps (Sec.~\ref{sec:methods-metrics}) with an 18\,h
+           maximum-gap setting. IFS-ENS, the only physically-based solver,
+           attains the lowest MSL bias ($+36.6$\,hPa); it samples Milton on
+           its native $\sim 9$\,km TCo1279 grid before downsampling to
+           0.25$^\circ$ for evaluation.}
   \label{tab:milton-summary}
   \begin{tabular}{@{}l l rrrrr@{}}
     \toprule

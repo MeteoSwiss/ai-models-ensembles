@@ -1,128 +1,96 @@
 % Inference cost + environmental footprint table for the 7-way baseline
 % comparison. Numbers derived from sacct (CSCS Clariden, Alps cluster, NVIDIA
-% GH200 nodes, last 14 days as of 2026-06-01, COMPLETED jobs > 1 h) and from
-% the production-baseline run accounting (each baseline: 112 inits x 10 members
-% = 1120 forecasts at 15-day (360 h) lead). Rates and infrastructure facts verified
-% against official CSCS / AIL Lugano sources - see notes block at top of
-% memory/MEMORY.md ("Inference cost and environmental footprint, Verified
-% sources").
+% GH200 nodes) and from the production-baseline run accounting (each baseline:
+% 112 inits x 10 members = 1120 forecasts at 15-day (360 h) lead).
+% Training-cost column removed 2026-06-19 (review): not comparable across the
+% different hardware/software/accounting of each source; moved to prose.
+% CS h recomputed for the 10-member case-study ensemble (was 50).
 %
 % Required packages (already in main preamble per experiments_tables.tex):
 %   amsmath, booktabs, xcolor[table], array
 %
 % Reference via \ref{tab:inference-cost}.
-%
-% Per-member wall-clock formula: (mean job time in min) / (14 init_times) /
-% (10 members) for week-helper jobs. Trained-prob baselines (aifsens, atlas,
-% fcn3) here use fewer sample jobs in the 14-day window because their
-% production runs completed earlier; the per-job mean is still representative.
-%
-% Total NH per production-baseline run = 8 week-helper jobs x ~3-4 h x 1 node.
-% CHF rate: Swiss academia tier 3 (> 10000 NH/yr) at CHF 3.84/NH, with the
-% ETH 25% discount applied: CHF 2.88 / node-hour.
-% kWh per NH at GH200 node: peak ~5.6 kW per node (4x Grace-Hopper at ~1 kW
-% each plus interconnect), conservative average ~4.0 kW under steady inference
-% load, x PUE 1.2 -> ~4.8 kWh per node-hour delivered.
 
 \begin{sidewaystable}[htbp]
   \centering
   \small
-  \setlength{\tabcolsep}{4pt}
+  \setlength{\tabcolsep}{5pt}
   \renewcommand{\arraystretch}{1.15}
   \caption{Per-baseline inference cost and footprint on CSCS Alps (NVIDIA
            GH200; 1 node = 4 superchips) for the 1120-forecast production
            workload (112 inits $\times$ 10 members, 360\,h). s/mbr is the
-           median pure-inference time per member; training cost is the
-           single-pass figure reported by each source paper or model card,
-           re-verified against the sources (footnotes). Atlas is
+           median pure-inference time per member; CS h is the single-node
+           wall-clock for one 10-member case-study ensemble. Atlas is
            $\sim$18-40$\times$ slower per member than the other six, a
-           consequence of its multi-step diffusion sampler.}
+           consequence of its multi-step diffusion sampler. \textbf{Bold}
+           marks the fastest and slowest per-member time. Training cost is
+           omitted and discussed in the text, since the reported figures
+           are not comparable across the different hardware and accounting
+           of each source.}
   \label{tab:inference-cost}
-  \begin{tabular}{@{}l l r r r r r r r r@{}}
+  \begin{tabular}{@{}l l r r r r r r r@{}}
     \toprule
     \textbf{Role}
         & \textbf{Model}
         & \textbf{Params}
         & \textbf{Mem$^{\#}$}
-        & \textbf{Train$^{\ast}$}
         & \textbf{s/mbr$^{\dag}$}
         & \textbf{CS h$^{\S}$}
         & \textbf{NH$^{\ddag}$}
         & \textbf{CHF$^{\ddag}$}
         & \textbf{kWh$^{\ddag}$} \\
-     &  & & \textbf{(GB)} & \textbf{(K GPU-h)} &  &  &  &  &  \\
+     &  & & \textbf{(GB)} &  &  &  &  &  \\
     \midrule
 
     \rowcolor{phaseBg}
-    \multicolumn{10}{@{}l}{\textbf{Post-hoc weight perturbation} (this work) - \emph{zero marginal training cost}} \\
-    & \mbadge{sfnoC}{sfno\_modes10}       & 573 M  & 2.3  & $\sim$4   & \textbf{59}   & 0.20  & 15.3 & 44.1  & 73.4  \\
+    \multicolumn{9}{@{}l}{\textbf{Post-hoc weight perturbation} (this work) - \emph{zero marginal training cost}} \\
+    & \mbadge{sfnoC}{sfno\_modes10}       & 573 M  & 2.3  & \textbf{59}   & 0.04  & 15.3 & 44.1  & 73.4  \\
     \rowcolor{altRow}
-    & \mbadge{auroraC}{aurora\_encoder}   & 1.3 B  & 5.2  & 13  & 90            & 0.31  & 23.0 & 66.2  & 110.4 \\
-    & \mbadge{graphcastC}{graphcast\_all}  & 37 M   & 0.15 & 22  & 125           & 0.43  & 28.7 & 82.7  & 137.8 \\
+    & \mbadge{auroraC}{aurora\_encoder}   & 1.3 B  & 5.2  & 90            & 0.06  & 23.0 & 66.2  & 110.4 \\
+    & \mbadge{graphcastC}{graphcast\_all}  & 37 M   & 0.15 & 125           & 0.09  & 28.7 & 82.7  & 137.8 \\
     \rowcolor{altRow}
-    & \mbadge{aifsC}{aifs\_perturbed}$^{\star\star}$ & 255 M & 1.0 & 11 & $\sim$75 & $\sim$0.26 & $\sim$18 & $\sim$52 & $\sim$88 \\
+    & \mbadge{aifsC}{aifs\_perturbed}$^{\star\star}$ & 255 M & 1.0 & 75 & 0.05 & 18.3 & 52.7 & 87.8 \\
     \hline
 
     \rowcolor{phaseBg}
-    \multicolumn{10}{@{}l}{\textbf{Trained probabilistic} - separate probabilistic training run on top of a deterministic backbone} \\
-    & \mbadge{aifsensC}{AIFS-ENS}       & 229 M  & 0.9   & 22  & 75            & 0.26  & 18.3 & 52.7  & 87.8  \\
+    \multicolumn{9}{@{}l}{\textbf{Trained probabilistic}} \\
+    & \mbadge{aifsensC}{AIFS-ENS}       & 229 M  & 0.9   & 75            & 0.05  & 18.3 & 52.7  & 87.8  \\
     \rowcolor{altRow}
-    & \mbadge{fcn3C}{fcn3}               & 711 M  & 2.8   & 80  & 114           & 0.40  & 26.6 & 76.6  & 127.7 \\
-    & \mbadge{atlasC}{atlas}             & 4.2 B  & 17    & -$^{\bullet}$ & \textbf{2280} & \textbf{7.92}  & 43.5 & 125.3 & 208.8 \\
+    & \mbadge{fcn3C}{fcn3}               & 711 M  & 2.8   & 114           & 0.08  & 26.6 & 76.6  & 127.7 \\
+    & \mbadge{atlasC}{atlas}             & 4.2 B  & 17    & \textbf{2280} & 1.58  & 43.5 & 125.3 & 208.8 \\
     \hline
 
     \rowcolor{phaseBg}
-    \multicolumn{10}{@{}l}{\textbf{Classical reference} (off-site)} \\
-    & \mbadge{ifsC}{ifs\_ens}          & -    & -   & -  & \multicolumn{5}{l}{ECMWF MARS download only; no CSCS compute} \\
+    \multicolumn{9}{@{}l}{\textbf{Classical reference} (off-site)} \\
+    & \mbadge{ifsC}{ifs\_ens}          & -    & -   & \multicolumn{5}{l}{WeatherBench-2 download only; no CSCS compute} \\
 
     \bottomrule
   \end{tabular}
   \vspace{2pt}
 
   \scriptsize
-  $^{\dag}$\,Pure inference seconds per ensemble member per 15-day (360\,h) forecast
-  (excludes data fetch, model load, container startup, zarr write).
-  Approximate, derived from the earth2studio per-call progress markers in
-  the production-run logs (median for SFNO, where SIGSEGV-recovery retries
-  inflate the mean). Atlas estimated from the tqdm progress-bar total (60
-  rollout steps $\times$ 38 s/step).
-  $^{\S}$\,\textbf{CS h} = wall-clock hours for a 50-member case-study
-  forecast on a single Alps node (4 GH200 in parallel):
-  $50 \times \text{s/mbr} / 4 / 3600$. Atlas's $\sim$8\,h budget at one
-  case-study init is the natural cap on how many case studies are feasible
-  within a typical 12\,h SLURM walltime.
-  $^{\star\star}$\,\textbf{aifs\_perturbed} is the AIFS v1 deterministic
-  checkpoint with the Phase 2 decoder perturbation
-  (\texttt{mag\_0.0275\_layer\_decoder}, $\sigma=0.028$). Its per-member
-  time and memory match AIFS-ENS because it shares the identical AIFS
-  forward graph (weights perturbed, not retrained); the 255\,M parameter
-  count is from our checkpoint audit (not stated in the source paper).
-
   $^{\#}$\,Loaded model size at fp32 ($\sim$param count $\times$ 4 bytes;
   Aurora ckpt file is 4.68 GB at fp32; AIFS .ckpt is anemoi-packaged so
-  raw param-byte estimate undercounts by metadata overhead, $\sim$10\%).
+  the raw param-byte estimate undercounts by $\sim$10\%).
 
-  $^{\ast}$\,Single-pass training cost in thousands of GPU-hours, as
-  reported by the source paper / model card. Aurora 13K A100-h
-  (pretraining 32 $\times$ A100, $\sim$2.5 weeks; fine-tuning not separately
-  documented; arXiv:2405.13063). GraphCast 22K TPU v4-hours (32 TPU
-  $\times$ 4 weeks; arXiv:2212.12794). SFNO $\sim$4K A100-h: the public
-  \texttt{sfno\_73ch\_small} checkpoint's training cost is not separately
-  documented, so we use the 256 A100 $\times$ 16\,h figure Mahesh \&
-  Pathak report (arXiv:2408.03100) for an SFNO of the same family as an
-  order-of-magnitude estimate. AIFS v1 11K A100-h (64 A100 40 GB
-  $\times$ 1 week; arXiv:2406.01465). AIFS-ENS 22K H100-h (128 H100 64 GB
-  $\times$ 7 days, N320 config; arXiv:2412.15832 Table 3). FCN3 $\sim$80K
-  H100-h (Stage-1 pre-training only: 1024 H100 $\times$ 78\,h $=$ 79{,}872;
-  the full three-stage training is larger; arXiv:2507.12144).
+  $^{\dag}$\,Pure inference seconds per ensemble member per 15-day (360\,h)
+  forecast (excludes data fetch, model load, container startup, zarr
+  write), from the earth2studio per-call progress markers in the
+  production-run logs. Atlas estimated from its sampler (60 rollout steps
+  $\times$ 38 s/step).
 
-  $^{\bullet}$\,Atlas training cost is not disclosed (model card
-  nvidia/atlas-era5 or arXiv:2601.18111). The benchmark paper reports
-  ATLAS-SI at 94\,s per 6\,h step on an A100; our GH200 runs the same
-  sampler at 38\,s/step, so the cost is structural to the multi-step
-  diffusion sampler, not our setup. NVIDIA also ships a faster
-  separately-trained CRPS variant (3.3\,s/step). The 4.2\,B parameter
-  count is the 2.4\,B latent predictive transformer (ATLAS-SI) plus the
-  shared 1.8\,B decoder, both loaded at inference (arXiv:2601.18111).
-  $^{\ddag}$\,Per production-baseline run (1120 forecasts).
+  $^{\S}$\,\textbf{CS h} = wall-clock hours for one 10-member case-study
+  ensemble on a single Alps node (4 GH200 in parallel):
+  $10 \times \text{s/mbr} / 4 / 3600$.
+
+  $^{\ddag}$\,Per production-baseline run (1120 forecasts). NH = node-hours;
+  CHF at the Swiss academic tier-3 rate with the ETH discount
+  (CHF 2.88 / node-hour); kWh at $\sim$4.8 kWh per node-hour delivered.
+
+  $^{\star\star}$\,\textbf{aifs\_perturbed} is the deterministic AIFS
+  checkpoint with the Phase 2 decoder perturbation ($\sigma=0.028$); its
+  per-member time and memory match AIFS-ENS because it shares the identical
+  AIFS forward graph (weights perturbed, not retrained). The 255\,M
+  parameter count is from our checkpoint audit (not stated in the source
+  paper).
 \end{sidewaystable}

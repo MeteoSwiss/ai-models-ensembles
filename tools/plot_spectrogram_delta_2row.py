@@ -76,10 +76,6 @@ def main() -> None:
         ax.set_xlabel("Lead time (h)")
     for ax in axs[:, 0]:
         ax.set_ylabel("Wavenumber (cycles/km)")
-    fig.suptitle(
-        r"Delta spectrogram of $Z_{500}$ ($\Delta\log_{10}$ energy, forecast $-$ truth)",
-        fontsize=13,
-    )
     fig.tight_layout(rect=[0, 0, 0.92, 1])
     cax = fig.add_axes([0.94, 0.12, 0.013, 0.76])
     fig.colorbar(im, cax=cax, label=r"$\Delta\log_{10}$ energy (forecast $-$ truth)")

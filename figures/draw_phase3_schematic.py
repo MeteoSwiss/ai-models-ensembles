@@ -22,8 +22,9 @@ from matplotlib.patches import Circle, FancyBboxPatch
 
 plt.rcParams.update(
     {
-        "font.family": "sans-serif",
-        "font.sans-serif": ["Helvetica", "Arial", "DejaVu Sans"],
+        "font.family": "serif",
+        "font.serif": ["STIXGeneral", "Times New Roman", "Times", "DejaVu Serif"],
+        "mathtext.fontset": "stix",  # Times-compatible serif math, matches the AMS LaTeX paper
         "font.size": 9,
         "axes.spines.top": False,
         "axes.spines.right": False,
@@ -49,8 +50,8 @@ LEFT_COL_X = 0.02
 LEFT_COL_W = 0.21
 VIZ_AREA_X = LEFT_COL_X + LEFT_COL_W + 0.020
 VIZ_AREA_W = 1.0 - VIZ_AREA_X - 0.015
-ROW_HEIGHT = 0.225
-ROW_CENTERS = [0.755, 0.475, 0.195]
+ROW_HEIGHT = 0.250
+ROW_CENTERS = [0.815, 0.505, 0.195]
 
 
 # -- Model-specific visualizations -------------------------------------------
@@ -67,7 +68,10 @@ def draw_sfno_spectral_lattice(ax, x, y, w, h):
     l) and the partition into perturbed vs untouched regions.
     """
     lmax_show = 25
-    l_cut = 10
+    # Phase 3 targets the lowest ten degrees l in [0, 9] (10 modes,
+    # including the l = 0 global mean). l_top is the last targeted degree.
+    l_top = 9
+    n_modes = l_top + 1  # = 10
 
     pad_left = 0.050
     pad_right = 0.025
@@ -90,7 +94,7 @@ def draw_sfno_spectral_lattice(ax, x, y, w, h):
         modes = 2 * l_idx + 1
         bar_h = modes * v_unit
         cx = base_x + l_idx * col_w + col_w / 2
-        target = l_idx <= l_cut
+        target = l_idx <= l_top
         col = COL_TARGET if target else COL_MUTED_REG
         alpha = 0.95 if target else 0.45
         ax.add_patch(
@@ -107,8 +111,8 @@ def draw_sfno_spectral_lattice(ax, x, y, w, h):
             )
         )
 
-    # Vertical dashed threshold between l_cut and l_cut+1
-    x_cut = base_x + (l_cut + 1) * col_w
+    # Vertical dashed threshold just past the last targeted degree (l = 9)
+    x_cut = base_x + (l_top + 1) * col_w
     ax.plot(
         [x_cut, x_cut],
         [y + pad_bot - 0.003, y + pad_bot + grid_h + 0.003],
@@ -118,11 +122,15 @@ def draw_sfno_spectral_lattice(ax, x, y, w, h):
         alpha=0.95,
         zorder=4,
     )
-    # Threshold label
+    # Threshold label: Lcut_10 = lowest ten degrees l in [0, 9]
     ax.text(
         x_cut + 0.008,
         y + h - pad_top - 0.005,
-        f"l ≤ {l_cut}\nλ ≥ 4000 km",
+        rf"$\mathtt{{Lcut\_{n_modes}}}$"
+        "\n"
+        rf"$\ell \in [0, {l_top}]$"
+        "\n"
+        r"$\lambda \gtrsim 3000$ km",
         ha="left",
         va="top",
         fontsize=9,
@@ -135,7 +143,7 @@ def draw_sfno_spectral_lattice(ax, x, y, w, h):
     ax.text(
         x + w / 2,
         y + 0.008,
-        "total wavenumber  l   →",
+        r"total wavenumber  $\ell$  $\rightarrow$",
         ha="center",
         va="bottom",
         fontsize=7.5,
@@ -145,7 +153,7 @@ def draw_sfno_spectral_lattice(ax, x, y, w, h):
     ax.text(
         x + pad_left * 0.25,
         cy_mid,
-        "# modes per l  (= 2l+1)",
+        r"# modes per $\ell$  $(= 2\ell+1)$",
         ha="center",
         va="center",
         fontsize=7.5,
@@ -158,7 +166,7 @@ def draw_sfno_spectral_lattice(ax, x, y, w, h):
     ax.text(
         x + w / 2,
         y + h - 0.012,
-        "modes per block × 8 blocks  ·  bar height = 2l+1 modes per l",
+        r"modes per block $\times$ 8 blocks  ·  bar height $= 2\ell+1$ modes per $\ell$",
         ha="center",
         va="top",
         fontsize=8.5,
@@ -233,10 +241,11 @@ def draw_aurora_unet_bottleneck(ax, x, y, w, h):
                 )
             )
         # Single-line annotation under the block: name + compact dims
+        name_txt = rf"$\mathtt{{{blk['name'].replace('_', chr(92) + '_')}}}$"
         ax.text(
             rx + col_w / 2,
             y + pad_bot - 0.005,
-            blk["name"],
+            name_txt,
             ha="center",
             va="top",
             fontsize=7.5,
@@ -246,7 +255,7 @@ def draw_aurora_unet_bottleneck(ax, x, y, w, h):
         ax.text(
             rx + col_w / 2,
             y + pad_bot - 0.020,
-            f"{blk['ch']}c · {blk['res_deg']}°",
+            rf"{blk['ch']}c · {blk['res_deg']}$^\circ$",
             ha="center",
             va="top",
             fontsize=6.8,
@@ -269,7 +278,8 @@ def draw_aurora_unet_bottleneck(ax, x, y, w, h):
     ax.text(
         x + w / 2,
         y + h - 0.012,
-        "block widths ∝ spatial resolution  ·  c = channels  ·  " "enc_2 attn window ≈ 5000 km",
+        r"block widths $\propto$ spatial resolution  ·  c = channels  ·  "
+        r"$\mathtt{enc\_2}$ attn window $\approx 5000$ km",
         ha="center",
         va="top",
         fontsize=8.0,
@@ -604,13 +614,37 @@ def draw_graphcast_multimesh(ax, x, y, w, h):
         ax.text(
             cx,
             cy - r - 0.028,
-            f"{lvl['n_actual']} nodes\nλ {lvl['edge_km']} km",
+            rf"{lvl['n_actual']} nodes" "\n" rf"$\lambda$ {lvl['edge_km']} km",
             ha="center",
             va="top",
             fontsize=7,
             color=COL_FAINT,
             linespacing=1.2,
         )
+
+    # Bracket + label marking the targeted coarse mesh (levels 0 and 1 = 42 nodes)
+    cx0 = x_start + r
+    cx1 = x_start + r + 1 * (globe_d + gap)
+    bracket_y = cy + r + 0.012
+    ax.plot(
+        [cx0 - r * 0.9, cx0 - r * 0.9, cx1 + r * 0.9, cx1 + r * 0.9],
+        [bracket_y - 0.010, bracket_y, bracket_y, bracket_y - 0.010],
+        color=COL_TARGET,
+        lw=1.2,
+        alpha=0.9,
+        zorder=4,
+    )
+    ax.text(
+        (cx0 + cx1) / 2,
+        bracket_y + 0.006,
+        r"$\mathtt{n\_coarse\_42}$  (levels 0-1)",
+        ha="center",
+        va="bottom",
+        fontsize=8.5,
+        fontweight="bold",
+        color=COL_TARGET,
+        zorder=5,
+    )
 
 
 # -- Architectural icon (reused from Phase 2 figure for consistency) ---------
@@ -703,25 +737,31 @@ MODELS = [
     {
         "name": "SFNO",
         "subtitle": "Spherical Fourier Neural Operator",
-        "mechanism": "spectral weight sub-slice perturbation",
-        "target": "l ≤ 10 modes of every block's filter weight",
-        "scale": "λ ≥ 4000 km  (upper synoptic → planetary)",
+        "panel": "(a)",
+        "mechanism": "spectral weight sub-slice",
+        "code": r"$\mathtt{Lcut\_10}$",
+        "target": r"lowest ten modes $\ell \in [0, 9]$",
+        "scale": r"$\lambda \gtrsim 3000$ km",
         "viz": draw_sfno_spectral_lattice,
     },
     {
         "name": "Aurora",
         "subtitle": "Swin-Transformer 3D U-Net",
-        "mechanism": "U-net-bottom weight perturbation",
-        "target": "encoder_layers.2 only",
-        "scale": "λ ≈ 0.5–5 Mm  (synoptic → planetary)",
+        "panel": "(b)",
+        "mechanism": "U-net encoder bottleneck",
+        "code": r"$\mathtt{enc\_2}$",
+        "target": r"$\mathtt{encoder\_layers.2}$ only",
+        "scale": r"$\lambda \gtrsim 3000$ km",
         "viz": draw_aurora_unet_bottleneck,
     },
     {
         "name": "GraphCast",
         "subtitle": "Multi-Mesh Graph Neural Network",
-        "mechanism": "activation hook on coarse mesh nodes",
-        "target": "first 42 mesh nodes (levels 0–1)",
-        "scale": "λ ≥ 3300 km  (upper synoptic → planetary)",
+        "panel": "(c)",
+        "mechanism": "coarse-mesh activation hook",
+        "code": r"$\mathtt{n\_coarse\_42}$",
+        "target": "first 42 nodes (levels 0-1)",
+        "scale": r"$\lambda \gtrsim 3000$ km",
         "viz": draw_graphcast_multimesh,
     },
 ]
@@ -739,15 +779,15 @@ def draw_row(ax, y_center, model):
     if icon_fn:
         icon_fn(ax, lx, y_box_top - 0.058, 0.07, 0.05)
 
-    # Model name aligned just below the icon.
+    # Panel sub-label (a)/(b)/(c) + model name aligned just below the icon.
     name_y = y_box_top - 0.07
     ax.text(
         lx,
         name_y,
-        model["name"],
+        f"{model['panel']} {model['name']}",
         ha="left",
         va="top",
-        fontsize=14,
+        fontsize=13,
         fontweight="bold",
         color=COL_TEXT,
     )
@@ -761,43 +801,34 @@ def draw_row(ax, y_center, model):
         color=COL_FAINT,
         style="italic",
     )
+    # Code label used in the paper text/caption (monospace, target colour).
     ax.text(
         lx,
-        name_y - 0.060,
-        "Mechanism:",
+        name_y - 0.058,
+        model["code"],
         ha="left",
         va="top",
-        fontsize=8,
-        color=COL_TEXT,
+        fontsize=10,
         fontweight="bold",
+        color=COL_TARGET,
     )
     ax.text(
         lx,
-        name_y - 0.077,
-        model["mechanism"],
-        ha="left",
-        va="top",
-        fontsize=8,
-        color=COL_ACCENT,
-    )
-    ax.text(
-        lx,
-        name_y - 0.100,
-        "Target slice:",
-        ha="left",
-        va="top",
-        fontsize=8,
-        color=COL_TEXT,
-        fontweight="bold",
-    )
-    ax.text(
-        lx,
-        name_y - 0.117,
+        name_y - 0.083,
         model["target"],
         ha="left",
         va="top",
         fontsize=8,
         color=COL_TARGET,
+    )
+    ax.text(
+        lx,
+        name_y - 0.106,
+        model["mechanism"],
+        ha="left",
+        va="top",
+        fontsize=8,
+        color=COL_ACCENT,
     )
 
     # Big visualisation panel on the right
@@ -847,28 +878,9 @@ def main():
     for gy in np.linspace(0.05, 0.95, 19):
         ax.axhline(gy, color=COL_GRID, lw=0.4, alpha=0.25, zorder=0)
 
-    # Title
-    ax.text(
-        LEFT_COL_X,
-        0.985,
-        "Physics-inspired coarse-scale perturbation",
-        ha="left",
-        va="top",
-        fontsize=17,
-        fontweight="bold",
-        color=COL_TEXT,
-    )
-    ax.text(
-        LEFT_COL_X,
-        0.940,
-        r"Phase 3 ablation: target the parameters at wavelengths "
-        r"$\lambda \gtrsim 3000$ km (upper synoptic and above).  "
-        "A different mechanism per model, same physical objective.",
-        ha="left",
-        va="top",
-        fontsize=9.5,
-        color=COL_FAINT,
-    )
+    # No redundant overall figure title (AMS guidance): panel sub-labels
+    # (a)/(b)/(c) + backbone names carry the in-figure identification; the
+    # Phase 3 description lives in the LaTeX caption.
 
     for y, model in zip(ROW_CENTERS, MODELS):
         draw_row(ax, y, model)

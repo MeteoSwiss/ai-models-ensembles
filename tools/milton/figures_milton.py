@@ -111,11 +111,6 @@ def f1_track_spaghetti(master):
                     va="center",
                     fontsize=9,
                 )
-    fig.suptitle(
-        "Milton track spaghetti (10 members) per baseline x init  (black: IBTrACS truth)",
-        fontsize=12,
-        y=0.995,
-    )
     fig.tight_layout()
     for ext in ("png", "pdf"):
         out = FIGS / f"milton_F1_track_spaghetti.{ext}"
@@ -124,6 +119,20 @@ def f1_track_spaghetti(master):
 
 
 def f2_intensity_vs_lead(master):
+    import matplotlib.colors as mcolors
+    from matplotlib.cm import ScalarMappable
+
+    # Colour each member line by its initialisation time (earliest -> latest)
+    # using a perceptually-uniform colormap, so the reader can read init time
+    # straight off the colour.
+    init_tags = sorted(master["init_tag"].unique())
+    init_times = [
+        pd.Timestamp(f"{t[0:4]}-{t[4:6]}-{t[6:8]}T{t[9:11]}:{t[11:13]}") for t in init_tags
+    ]
+    cmap = plt.get_cmap("viridis")
+    norm = mcolors.Normalize(vmin=0, vmax=len(init_tags) - 1)
+    init_color = {t: cmap(norm(i)) for i, t in enumerate(init_tags)}
+
     fig, axes = plt.subplots(2, 4, figsize=(20, 9), sharex=True, sharey=True)
     for ax, b in zip(axes.flat, BASELINES):
         sub = master[master["baseline"] == b]
@@ -133,7 +142,7 @@ def f2_intensity_vs_lead(master):
                 f"{init_tag[0:4]}-{init_tag[4:6]}-{init_tag[6:8]}T{init_tag[9:11]}:{init_tag[11:13]}"
             )
             lead = [(t - init_t).total_seconds() / 3600 for t in grp["time"]]
-            ax.plot(lead, grp["psl_hpa"], color="steelblue", alpha=0.18, linewidth=0.6)
+            ax.plot(lead, grp["psl_hpa"], color=init_color[init_tag], alpha=0.55, linewidth=0.6)
         ax.set_title(b.replace("_", " "), fontsize=12)
         ax.set_xlabel("lead time (h)", fontsize=11)
         ax.set_ylabel("min MSL (hPa)", fontsize=11)
@@ -158,12 +167,16 @@ def f2_intensity_vs_lead(master):
         ax.grid(True, alpha=0.3)
         if b == BASELINES[0]:
             ax.legend(loc="lower right", fontsize=10)
-    fig.suptitle(
-        "Hurricane Milton MSL minimum vs lead time, per baseline (each line = one member from one init)",
-        fontsize=11,
-        y=0.995,
-    )
-    fig.tight_layout()
+    fig.tight_layout(rect=[0, 0, 0.92, 1])
+    # Init-time colourbar (one for the whole figure), keyed by init date.
+    sm = ScalarMappable(norm=norm, cmap=cmap)
+    sm.set_array([])
+    cbar_ax = fig.add_axes([0.94, 0.12, 0.015, 0.76])
+    tick_idx = list(range(len(init_tags)))
+    cbar = fig.colorbar(sm, cax=cbar_ax, ticks=tick_idx)
+    cbar.set_ticklabels([t.strftime("%m-%d %HZ") for t in init_times])
+    cbar.set_label("initialisation time", fontsize=11)
+    cbar.ax.tick_params(labelsize=8)
     for ext in ("png", "pdf"):
         out = FIGS / f"milton_F2_intensity_vs_lead.{ext}"
         fig.savefig(out, dpi=140, bbox_inches="tight")
@@ -207,13 +220,12 @@ def f5_track_intensity_err_vs_lead(verif):
     axes[0].axhline(0, color="gray", linewidth=0.5)
     axes[0].grid(True, alpha=0.3)
     axes[0].legend(fontsize=8)
+    axes[0].set_xlim(0, 240)
     axes[1].set_ylabel("MSL bias vs ERA5 (hPa)")
     axes[1].set_xlabel("Lead time (h)")
     axes[1].axhline(0, color="gray", linewidth=0.5)
     axes[1].grid(True, alpha=0.3)
-    fig.suptitle(
-        "Milton verification: track position error and MSL intensity bias vs lead time", fontsize=11
-    )
+    axes[1].set_xlim(0, 240)
     fig.tight_layout()
     for ext in ("png", "pdf"):
         out = FIGS / f"milton_F5_verification_vs_lead.{ext}"
@@ -374,12 +386,6 @@ def f3_cascading_detection(baseline: str = "aifsens"):
         lead = int((pd.Timestamp(VALID_TIME) - init_t).total_seconds() / 3600)
         ax.set_title(f"init {init_tag[6:8]}/10 {init_tag[9:11]}Z, lead {lead}h", fontsize=8)
 
-    fig.suptitle(
-        f"{baseline.replace('_', ' ')} ensemble-mean MSL at 2024-10-09 12 UTC (Milton landfall window) -- "
-        f"how 14 init times converge on the event (red star: IBTrACS truth position)",
-        fontsize=11,
-        y=0.995,
-    )
     cbar_ax = fig.add_axes([0.25, -0.03, 0.5, 0.02])
     fig.colorbar(cf, cax=cbar_ax, orientation="horizontal", label="MSL (hPa)")
     fig.tight_layout()
@@ -424,7 +430,7 @@ def _storm_relative_thickness(thick, center_field, rel_lat, rel_lon, box, center
 
 
 def f4_storm_relative_composite(
-    baselines: list[str] | None = None, init_tag: str = "20241004_0000"
+    baselines: list[str] | None = None, init_tag: str = "20241005_0000"
 ):
     """Storm-relative 500-850 hPa thickness anomaly composite, with ERA5 control.
 
@@ -551,12 +557,6 @@ def f4_storm_relative_composite(
         ax.axis("off")
     print(f"  ERA5 warm-core peak {era_peak:.1f} m")
 
-    fig.suptitle(
-        f"Storm-relative 500-850 hPa thickness anomaly at lead 120 h "
-        f"(init {init_tag}; valid {str(valid_t)[:13]} UTC)",
-        fontsize=11,
-        y=0.99,
-    )
     cbar_ax = fig.add_axes([0.25, 0.06, 0.5, 0.015])
     fig.colorbar(cf, cax=cbar_ax, orientation="horizontal", label="thickness anomaly (m)")
     fig.tight_layout(rect=[0, 0.08, 1, 0.98])
@@ -578,6 +578,7 @@ def main():
     f3_cascading_detection("aurora_encoder_ic")
     f3_cascading_detection("graphcast_all_ic")
     f3_cascading_detection("sfno_modes10_ic")
+    f3_cascading_detection("aifs_perturbed")
     f3_cascading_detection("aifs_perturbed_ic")
     f3_cascading_detection("ifs_ens")
     f4_storm_relative_composite()
