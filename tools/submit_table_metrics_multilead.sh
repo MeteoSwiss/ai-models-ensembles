@@ -57,28 +57,23 @@ sigk () {  # label  lead  zarr-glob
         --out-csv "$OUT/sigk_${lbl}_L${L}.csv" > "$OUT/sigk_${lbl}_L${L}.log" 2>&1
 }
 
-run_batch () {  # runs a list of "fn label lead glob" lines, max ~9 in parallel
-    local n=0
-    while IFS= read -r line; do
-        [ -z "$line" ] && continue
-        eval "$line" &
-        n=$((n+1))
-        if [ $((n % 9)) -eq 0 ]; then wait; fi
-    done
-    wait
-}
+# cap background concurrency at ~9 (bash wait -n); pass zarr lists as direct
+# word-split args (NOT via echo/read, which split the multi-line ls output and
+# silently scored only the first init - the 2026-06-19 n_inits=1 bug).
+throttle () { while [ "$(jobs -rp | wc -l)" -ge 9 ]; do wait -n; done; }
 
 PROD=(aifsens atlas aifs_perturbed fcn3 graphcast_all aurora_encoder sfno_modes10)
 
 # ---- production: ES/VS/SIGK at 24, 120, 240 ----
 for L in 24 120 240; do
-    {
-        for b in "${PROD[@]}"; do
-            Z=$(ls -d "$STORE"/baselines/"$b"/*/forecast.zarr)
-            echo "esvs $b $L $Z"
-            echo "sigk $b $L $Z"
-        done
-    } | run_batch
+    for b in "${PROD[@]}"; do
+        Z=$(ls -d "$STORE"/baselines/"$b"/*/forecast.zarr)
+        # shellcheck disable=SC2086
+        throttle; esvs "$b" "$L" $Z &
+        # shellcheck disable=SC2086
+        throttle; sigk "$b" "$L" $Z &
+    done
+    wait
     echo "=== production lead $L done ==="
 done
 
@@ -90,13 +85,14 @@ declare -A ABL=(
   [aifs_decoder]="$STORE/ablation/phase2/aifs/*/mag_0.027500_layer_decoder/forecast.zarr"
 )
 for L in 120 240; do
-    {
-        for lbl in "${!ABL[@]}"; do
-            Z=$(ls -d ${ABL[$lbl]})
-            echo "esvs abl_$lbl $L $Z"
-            echo "sigk abl_$lbl $L $Z"
-        done
-    } | run_batch
+    for lbl in "${!ABL[@]}"; do
+        Z=$(ls -d ${ABL[$lbl]})
+        # shellcheck disable=SC2086
+        throttle; esvs "abl_$lbl" "$L" $Z &
+        # shellcheck disable=SC2086
+        throttle; sigk "abl_$lbl" "$L" $Z &
+    done
+    wait
     echo "=== ablation lead $L done ==="
 done
 
