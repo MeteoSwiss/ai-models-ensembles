@@ -57,7 +57,7 @@
     & \mbadge{aifsensC}{AIFS-ENS}       & 229 M  & 0.9   & 75            & 0.05  & 18.3 & 52.7  & 87.8  \\
     \rowcolor{altRow}
     & \mbadge{fcn3C}{FCN3}               & 711 M  & 2.8   & 114           & 0.08  & 26.6 & 76.6  & 127.7 \\
-    & \mbadge{atlasC}{Atlas}             & 4.2 B  & 17    & \textbf{2280} & 1.58  & 43.5 & 125.3 & 208.8 \\
+    & \mbadge{atlasC}{Atlas}             & 4.2 B  & 17    & \textbf{2280} & 1.58  & 177.3 & 510.7 & 851.2 \\
     \hline
 
     \rowcolor{phaseBg}
@@ -86,11 +86,17 @@
   $^{\ddag}$\,Per production-baseline run (1120 forecasts). NH = node-hours;
   CHF at the Swiss academic tier-3 rate with the ETH discount
   (CHF 2.88 / node-hour); kWh at $\sim$4.8 kWh per node-hour delivered.
+  Atlas NH is its pure-inference estimate ($112 \times$ CS\,h); its
+  multi-step diffusion sampler dominates wall-clock, so data-fetch and
+  model-load overhead is negligible.
 
   $^{\star\star}$\,\textbf{aifs\_perturbed} is the deterministic AIFS
-  checkpoint with the Phase 2 decoder perturbation ($\sigma=0.028$); its
-  per-member time and memory match AIFS-ENS because it shares the identical
-  AIFS forward graph (weights perturbed, not retrained). The 255\,M
-  parameter count is from our checkpoint audit (not stated in the source
-  paper).
+  (\texttt{aifs-single-mse-1.1}; Phase 2 decoder perturbation
+  $\sigma=0.028$, weights perturbed not retrained); the 255\,M count is from
+  our checkpoint audit (not stated in the source paper). It shares the AIFS
+  encoder-processor-decoder graph-transformer backbone with the trained
+  AIFS-ENS (229\,M; AIFS-CRPS is built on the earlier AIFS v0.2.1, so the
+  v1.1 deterministic checkpoint we perturb is slightly larger), so the two
+  run the same forward graph at the same per-member cost - a matched
+  post-hoc-versus-trained pair on one architecture.
 \end{sidewaystable}
