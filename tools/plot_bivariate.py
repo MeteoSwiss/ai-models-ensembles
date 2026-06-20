@@ -47,16 +47,16 @@ PANELS = [
 ]
 
 
-def find(b: str, pattern: str) -> str:
-    g = glob.glob(f"{BASE}/{b}/eval/multivariate/*{pattern}*level500*.npz")
+def find(b: str, pattern: str, eval_dir: str = "eval") -> str:
+    g = glob.glob(f"{BASE}/{b}/{eval_dir}/multivariate/*{pattern}*level500*.npz")
     return g[0] if g else ""
 
 
-def make(pattern, out, xlabel, ylabel):
+def make(pattern, out, xlabel, ylabel, eval_dir="eval"):
     # Collect the available baselines and their cached histograms.
     entries = []
     for b, lab in PANELS:
-        f = find(b, pattern)
+        f = find(b, pattern, eval_dir)
         if not f:
             continue
         d = np.load(f, allow_pickle=True)
@@ -197,6 +197,7 @@ def main() -> None:
         "bivariate_geostrophic_500hPa",
         "Geopotential-height gradient",
         "Wind speed (m/s)",
+        eval_dir="eval_milton",
     )
 
 
