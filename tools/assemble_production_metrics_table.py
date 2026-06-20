@@ -298,7 +298,9 @@ def fss95(model, lead):
 def w1(model, lead):
     p = BASE / model / "eval" / "wd_kde" / "wd_kde_wasserstein_averaged_enspooled.csv"
     if not p.exists():
-        return "pending"
+        # IFS-ENS is not run through the wd_kde re-eval (its WB2 surface fields
+        # carry NaN gaps); report "-" like its multivariate scores.
+        return "omit" if model == "ifs_ens" else "pending"
     rows = list(csv.DictReader(open(p)))
 
     def get(var, level):
@@ -388,6 +390,8 @@ def main():
     def fw1(v):
         if v == "pending":
             return "(pending)"
+        if v == "omit":
+            return "-"
         return "-" if v is None else f"{v:.3f}"
 
     def fmv(v):  # ES / VS published
@@ -401,7 +405,7 @@ def main():
     L.append("% CRPSS reproduces figures/headline_8way_table.tex to <0.005 (per_variable_crpss_table.py")
     L.append("% logic). SSR = per-pixel Fortin (M+1)/M (per-baseline ssr_line CSVs). SSIM/LSD/FSS from")
     L.append("% the per-baseline by-lead CSVs (= intercomparison combined CSVs to machine precision).")
-    L.append("% W1 from per-baseline wd_kde wasserstein (global); cells without that CSV yet = (pending).")
+    L.append("% W1 from per-baseline wd_kde wasserstein (global). IFS-ENS W1 = - (not in the re-eval; NaN-gap surface fields).")
     L.append("% ES/VS/SIGK @240h are the published verified multivariate values (not recomputed here).")
     L.append("% 7-variable mean (3D vars averaged over 500/850 hPa first; LSD over the 3D vars).")
     L.append("")
@@ -419,8 +423,8 @@ def main():
     L.append("           LSD$\\downarrow$, FSS\\,95\\%$\\uparrow$, $W_1\\downarrow$. The three multivariate")
     L.append("           scores ES$\\downarrow$, VS$_{0.5}\\downarrow$ and SIGK (signature-kernel score,")
     L.append("           lower is better; native scale, ranking only) are shown at 240\\,h only, their")
-    L.append("           headline lead (appendix~\\ref{sec:results-multivar}). \\emph{(pending)} marks")
-    L.append("           a $W_1$ cell whose per-baseline Wasserstein CSV is not yet available.}")
+    L.append("           headline lead (appendix~\\ref{sec:results-multivar}). IFS-ENS is excluded from")
+    L.append("           ES/VS/SIGK and $W_1$ (its WeatherBench-2 surface fields carry NaN gaps).}")
     L.append("  \\label{tab:production-metrics}")
     L.append("  \\begin{tabular}{@{}l l rrrrrr rrrrrr rrr@{}}")
     L.append("    \\toprule")

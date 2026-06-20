@@ -5,7 +5,7 @@
 % CRPSS reproduces figures/headline_8way_table.tex to <0.005 (per_variable_crpss_table.py
 % logic). SSR = per-pixel Fortin (M+1)/M (per-baseline ssr_line CSVs). SSIM/LSD/FSS from
 % the per-baseline by-lead CSVs (= intercomparison combined CSVs to machine precision).
-% W1 from per-baseline wd_kde wasserstein (global); cells without that CSV yet = (pending).
+% W1 from per-baseline wd_kde wasserstein (global). IFS-ENS W1 = - (not in the re-eval; NaN-gap surface fields).
 % ES/VS/SIGK @240h are the published verified multivariate values (not recomputed here).
 % 7-variable mean (3D vars averaged over 500/850 hPa first; LSD over the 3D vars).
 
@@ -23,8 +23,8 @@
            LSD$\downarrow$, FSS\,95\%$\uparrow$, $W_1\downarrow$. The three multivariate
            scores ES$\downarrow$, VS$_{0.5}\downarrow$ and SIGK (signature-kernel score,
            lower is better; native scale, ranking only) are shown at 240\,h only, their
-           headline lead (appendix~\ref{sec:results-multivar}). \emph{(pending)} marks
-           a $W_1$ cell whose per-baseline Wasserstein CSV is not yet available.}
+           headline lead (appendix~\ref{sec:results-multivar}). IFS-ENS is excluded from
+           ES/VS/SIGK and $W_1$ (its WeatherBench-2 surface fields carry NaN gaps).}
   \label{tab:production-metrics}
   \begin{tabular}{@{}l l rrrrrr rrrrrr rrr@{}}
     \toprule
@@ -39,20 +39,20 @@
     \midrule
     \rowcolor{phaseBg}
     \multicolumn{17}{@{}l}{\textbf{Post-hoc weight perturbation (this work)}} \\
-    & aurora\_encoder & 0.471 & 0.76 & 0.876 & 1.201 & 0.735 & (pending) & 0.134 & 0.82 & 0.804 & 1.203 & 0.541 & (pending) & 1.117 & 0.0915 & -9.9 \\
-    & graphcast\_all & 0.489 & 0.76 & 0.878 & 1.267 & 0.767 & (pending) & 0.167 & 0.94 & 0.804 & 1.287 & 0.566 & (pending) & 1.111 & 0.0908 & 18.1 \\
-    & sfno\_modes10 & 0.388 & 0.73 & 0.853 & 1.134 & 0.729 & (pending) & 0.125 & 0.85 & 0.796 & 1.151 & 0.568 & (pending) & 1.156 & 0.0958 & 1.0 \\
+    & aurora\_encoder & 0.471 & 0.76 & 0.876 & 1.201 & 0.735 & 0.062 & 0.134 & 0.82 & 0.804 & 1.203 & 0.541 & 0.053 & 1.117 & 0.0915 & -9.9 \\
+    & graphcast\_all & 0.489 & 0.76 & 0.878 & 1.267 & 0.767 & 0.046 & 0.167 & 0.94 & 0.804 & 1.287 & 0.566 & 0.065 & 1.111 & 0.0908 & 18.1 \\
+    & sfno\_modes10 & 0.388 & 0.73 & 0.853 & 1.134 & 0.729 & 0.051 & 0.125 & 0.85 & 0.796 & 1.151 & 0.568 & 0.048 & 1.156 & 0.0958 & 1.0 \\
     & aifs\_perturbed & 0.542 & 0.85 & 0.882 & 1.160 & 0.782 & 0.046 & 0.221 & 0.96 & 0.809 & 1.179 & 0.586 & 0.067 & 1.050 & 0.0869 & -12.2 \\
     \hline
     \rowcolor{phaseBg}
     \multicolumn{17}{@{}l}{\textbf{Trained probabilistic}} \\
-    & AIFS-ENS & 0.580 & 0.82 & 0.887 & 1.167 & 0.822 & 0.040 & 0.256 & 0.84 & 0.815 & 1.166 & 0.638 & 0.036 & 1.018 & 0.0840 & -37.1 \\
-    & Atlas & 0.558 & 0.83 & 0.889 & 1.173 & 0.800 & (pending) & 0.238 & 0.86 & 0.818 & 1.338 & 0.624 & (pending) & 1.038 & 0.0858 & -33.1 \\
-    & FCN3 & 0.534 & 0.87 & 0.877 & 0.358 & 0.787 & (pending) & 0.218 & 0.90 & 0.806 & 0.363 & 0.610 & (pending) & 1.061 & 0.0880 & -29.4 \\
+    & AIFS-ENS & 0.580 & 0.82 & 0.887 & 1.167 & 0.822 & 0.043 & 0.256 & 0.84 & 0.815 & 1.166 & 0.638 & 0.063 & 1.018 & 0.0840 & -37.1 \\
+    & Atlas & 0.558 & 0.83 & 0.889 & 1.173 & 0.800 & 0.052 & 0.238 & 0.86 & 0.818 & 1.338 & 0.624 & 0.054 & 1.038 & 0.0858 & -33.1 \\
+    & FCN3 & 0.534 & 0.87 & 0.877 & 0.358 & 0.787 & 0.057 & 0.218 & 0.90 & 0.806 & 0.363 & 0.610 & 0.072 & 1.061 & 0.0880 & -29.4 \\
     \hline
     \rowcolor{phaseBg}
     \multicolumn{17}{@{}l}{\textbf{Classical reference}} \\
-    & IFS-ENS & 0.518 & 0.87 & 0.853 & 0.881 & 0.651 & (pending) & 0.207 & 0.88 & 0.786 & 0.885 & 0.527 & (pending) & - & - & - \\
+    & IFS-ENS & 0.518 & 0.87 & 0.853 & 0.881 & 0.651 & - & 0.207 & 0.88 & 0.786 & 0.885 & 0.527 & - & - & - & - \\
     \bottomrule
   \end{tabular}
 \end{sidewaystable*}
