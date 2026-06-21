@@ -204,24 +204,13 @@ lines.append("% averaging absorbs the reduced effective-n. CRPSS = 1 - CRPS/CRPS
 lines.append("% WB2 probabilistic climatology (1990-2019 years as members, fair CRPS vs eval")
 lines.append("% truth, lead-resolved) - tools/compute_climatology_crps_vs_eval.py.")
 lines.append("")
-lines.append("\\begin{table}[t]")
-lines.append("  \\centering")
-lines.append("  \\small")
-lines.append("  \\setlength{\\tabcolsep}{6pt}")
-lines.append("  \\caption{Headline CRPSS@(72,120,240,360)h on the production grid")
-lines.append("           (112 initialisations $\\times$ 10 members, 2023-2024)")
-lines.append("           across the three trained-probabilistic, the post-hoc, and one")
-lines.append("           classical baselines. Higher is better; 1 = perfect, 0 =")
-lines.append("           climatology, $<0$ = worse than climatology. \\textbf{Bold}")
-lines.append("           marks the per-lead optimum. Variable mean over T2m, MSL, $Z$, $T$,")
-lines.append("           $u$, $v$, $q$ (latter five at 500 and 850\\,hPa). IFS-ENS surface")
-lines.append("           fields have WB2-archive NaN gaps (T2m $\\sim20\\%$, MSL $\\sim30\\%$);")
-lines.append("           skipna averaging is applied. Derived variables (geopotential")
-lines.append("           height, wind speed,")
-lines.append("           gradient) excluded because no WB2 climatology reference is")
-lines.append("           available for them.}")
-lines.append("  \\label{tab:headline8way}")
-lines.append("  \\begin{tabular}{@{}l l rrrr@{}}")
+# Emitted as a FRAGMENT (panel a of the combined CRPSS table): main.tex wraps
+# this and per_variable_crpss_table.tex in one \begin{table} float that carries
+# the shared caption and \label{tab:headline8way}. No float/caption/label here.
+lines.append("{\\footnotesize")
+lines.append("\\setlength{\\tabcolsep}{5pt}")
+lines.append("\\textbf{(a) Headline CRPSS (variable mean).}\\par\\vspace{3pt}")
+lines.append("\\begin{tabular}{@{}l l rrrr@{}}")
 lines.append("    \\toprule")
 lines.append(
     "    \\textbf{Role} & \\textbf{Model} & \\textbf{72\\,h} & \\textbf{120\\,h} & \\textbf{240\\,h} & \\textbf{360\\,h} \\\\"
@@ -247,8 +236,7 @@ for role_g in group_order:
     if role_g != group_order[-1]:
         lines.append("    \\hline")
 lines.append("    \\bottomrule")
-lines.append("  \\end{tabular}")
-lines.append("\\end{table}")
+lines.append("  \\end{tabular}}")
 Path(OUT).write_text("\n".join(lines) + "\n")
 print(f"-> {OUT}")
 print("\nFinal table (sorted by CRPSS@240h descending):")

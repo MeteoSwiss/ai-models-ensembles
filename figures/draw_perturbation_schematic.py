@@ -328,9 +328,10 @@ if _n_models == 3:
     _LABEL_SCALE = 1.0
 else:
     # Available band is [_bot, _top]; rows are evenly spaced inside it.
-    # _top is below the figure's title+subtitle band (which ends ~0.92), so
-    # the top row's icon doesn't bump into the subtitle text.
-    _top, _bot = 0.78, 0.16
+    # _top sits just below the single title line (the two grey subtitle lines
+    # moved to the figure caption), so the top row's noise glyph clears the
+    # title without leaving a large empty band.
+    _top, _bot = 0.84, 0.16
     _span = _top - _bot
     _pitch = _span / (_n_models - 1)
     ROW_CENTERS = [_top - _pitch * i for i in range(_n_models)]
@@ -610,29 +611,6 @@ def main():
         fontsize=17,
         fontweight="bold",
         color=COL_TEXT,
-    )
-    ax.text(
-        LEFT_COL_X,
-        0.945,
-        r"Multiplicative weight noise  $\tilde W_m = W \odot (1 + \sigma\,\xi_m)$,  "
-        r"$\xi_m \sim \mathcal{N}(0, 1)$, independent across members.",
-        ha="left",
-        va="top",
-        fontsize=9.5,
-        color=COL_MUTED,
-    )
-    ax.text(
-        LEFT_COL_X,
-        0.910,
-        r"Phase 1: perturb all weights, sweep magnitude "
-        r"$\sigma \in \{0.001, 0.003, 0.01, 0.03, 0.1\}$.  "
-        r"Phase 2: one layer group, "
-        r"$\sigma_\mathrm{group} = \sigma_\mathrm{full}\,\sqrt{N_\mathrm{total}/N_\mathrm{group}}$ "
-        r"(shown here at $\sigma_\mathrm{full}=0.01$).",
-        ha="left",
-        va="top",
-        fontsize=9.0,
-        color=COL_MUTED,
     )
 
     # Three model rows

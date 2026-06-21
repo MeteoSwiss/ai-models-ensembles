@@ -52,7 +52,7 @@ def find(b: str, pattern: str, eval_dir: str = "eval") -> str:
     return g[0] if g else ""
 
 
-def make(pattern, out, xlabel, ylabel, eval_dir="eval", name_as_title=False):
+def make(pattern, out, xlabel, ylabel, eval_dir="eval", name_as_title=False, ylim_top=None):
     # Collect the available baselines and their cached histograms.
     entries = []
     for b, lab in PANELS:
@@ -86,22 +86,32 @@ def make(pattern, out, xlabel, ylabel, eval_dir="eval", name_as_title=False):
     x_center, y_center = (all_x_max + all_x_min) / 2.0, (all_y_max + all_y_min) / 2.0
     shared_xlim = (x_center - 0.625 * x_range, x_center + 0.625 * x_range)
     shared_ylim = (y_center - 0.625 * y_range, y_center + 0.625 * y_range)
-
-    # Global log-norm across all histograms so the shared colorbar is consistent.
-    all_vals = []
-    for e in entries:
-        for key in ("hist", "hist_target"):
-            pos = e[key][e[key] > 0]
-            if pos.size:
-                all_vals.append(pos)
-    combined = np.concatenate(all_vals) if all_vals else np.array([1e-10, 1.0])
-    global_vmin = max(float(combined.min()), 1e-10)
-    global_vmax = float(combined.max())
-    global_norm = LogNorm(vmin=global_vmin, vmax=global_vmax)
+    if ylim_top is not None:
+        shared_ylim = (shared_ylim[0], ylim_top)
 
     # Shared truth histogram (first model) so the truth contour lines are
     # byte-identical across panels, matching the intercomparison driver.
-    ref_target = entries[0]["hist_target"]
+    ref = entries[0]
+    ref_target = ref["hist_target"]
+
+    # Shared colorbar norm, in DENSITY units, derived from the shared truth
+    # histogram exactly as plot_bivariate_histogram derives its per-panel
+    # contour levels (counts -> density via sum * bin_area, target only).
+    # Building the norm from raw counts instead put the colorbar on a counts
+    # scale (~1..1e8) while the filled contours and the cbar.add_lines truth
+    # marks live on the density scale (~1e-6..1e2), so every level mark
+    # collapsed onto the low end of the bar.
+    dx = np.diff(ref["bins_x"]).mean()
+    dy = np.diff(ref["bins_y"]).mean()
+    bin_area = dx * dy
+    sum_t = ref_target.sum()
+    dens_target = ref_target / (sum_t * bin_area) if sum_t > 0 else ref_target.astype(float)
+    valid_t = dens_target[dens_target > 0]
+    global_vmin = float(valid_t.min()) if valid_t.size else 1e-10
+    global_vmax = float(valid_t.max()) if valid_t.size else 1.0
+    if global_vmin <= 0:
+        global_vmin = 1e-10
+    global_norm = LogNorm(vmin=global_vmin, vmax=global_vmax)
 
     fig, axs = plt.subplots(2, 4, figsize=(15, 7), sharex=True, sharey=True)
     axs_flat = axs.flatten()
@@ -194,6 +204,7 @@ def main() -> None:
         "Temperature (K)",
         "Specific humidity (kg/kg)",
         name_as_title=True,
+        ylim_top=0.010,
     )
     make(
         "geopotential_height_gradient_wind_speed",

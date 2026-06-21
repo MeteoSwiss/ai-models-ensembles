@@ -6,26 +6,12 @@
 % Same pipeline as tools/headline_8way_table.py; the variable mean of each row
 % reproduces that baseline's variable-mean CRPSS in figures/headline_8way_table.tex.
 
-\begin{table}[t]
-  \centering
-  \small
-  \setlength{\tabcolsep}{4.5pt}
-  \caption{Per-variable CRPSS at 240\,h on the 112-init production grid
-           (112 initialisations $\times$ 10 members, 2023-2024), broken out by
-           the seven paper variables (ECMWF short names; see
-           Tab.~\ref{tab:variables}). Three-dimensional variables (z, t,
-           u, v, q) are averaged over 500 and 850\,hPa first. Higher is
-           better; 1 = perfect, 0 = climatology, $<0$ = worse than climatology.
-           \textbf{Bold} marks the per-variable optimum. The mean of each row
-           reproduces that baseline's variable-mean CRPSS@240\,h in
-           Tab.~\ref{tab:headline8way}. CRPSS $= 1 - \mathrm{CRPS}/\mathrm{CRPS_{clim}}$
-           against the WB2 probabilistic climatology (1990-2019 years as members,
-           lead-resolved). IFS-ENS surface fields carry WB2-archive NaN gaps
-           (2t $\sim20\%$, MSL $\sim30\%$); skipna averaging is applied.}
-  \label{tab:per-variable-crpss}
-  \begin{tabular}{@{}l l rrrrrrr@{}}
+{\footnotesize
+\setlength{\tabcolsep}{3.5pt}
+\textbf{(b) Per-variable CRPSS at 240\,h.}\par\vspace{3pt}
+\begin{tabular}{@{}l l rrrrrrr@{}}
     \toprule
-    \textbf{Role} & \textbf{Model} & \textbf{2t} & \textbf{msl} & \textbf{z} & \textbf{t} & \textbf{u} & \textbf{v} & \textbf{q} \\
+    \textbf{Role} & \textbf{Model} & \textbf{2m\_t} & \textbf{MSL} & \textbf{$Z$} & \textbf{$T$} & \textbf{$u$} & \textbf{$v$} & \textbf{$q$} \\
     \midrule
     \rowcolor{phaseBg}
     \multicolumn{9}{@{}l}{\textbf{Trained probabilistic}} \\
@@ -44,5 +30,4 @@
     \multicolumn{9}{@{}l}{\textbf{Classical reference}} \\
     & IFS-ENS & 0.218 & 0.219 & 0.306 & 0.255 & 0.199 & 0.140 & 0.113 \\
     \bottomrule
-  \end{tabular}
-\end{table}
+  \end{tabular}}

@@ -189,7 +189,14 @@ def f2_intensity_vs_lead(master):
 
 
 def f5_track_intensity_err_vs_lead(verif):
-    """Track error + MSL error vs lead time, per baseline."""
+    """Track error + MSL error vs lead time, per baseline.
+
+    Each curve is binned over the storm-track detections that survive across the
+    ensemble; a curve terminates at the lead beyond which the storm is no longer
+    detected (or matched to the IBTrACS / ERA5 reference) in any member, so the
+    different baselines and the two metrics end at different leads. This is
+    explained in the caption rather than capped, to keep the full 240 h horizon.
+    """
     fig, axes = plt.subplots(2, 1, figsize=(10, 8), sharex=True)
     for b in BASELINES:
         sub = verif[verif["baseline"] == b].copy()
@@ -321,9 +328,16 @@ def _msl_ensmean_at(baseline: str, init_tag: str, valid_t: np.datetime64) -> xr.
         return None
 
 
+# Eight inits sub-sampled from the 14 (every other one plus the nearest), so
+# each model panel is a readable 2x4 grid instead of a cramped 2x7. The cascade
+# spans lead ~180 h down to 24 h at ~24 h steps; the full 14-init list still
+# drives every other figure.
+F3_INIT_PICKS = ALL_INITS[::2] + [ALL_INITS[-1]]
+
+
 def f3_cascading_detection(baseline: str = "aifsens"):
-    """14-panel grid of ensemble-mean MSL at VALID_TIME, one per init, lead time
-    decreasing top-left to bottom-right. Shows how the forecast converges as
+    """8-panel 2x4 grid of ensemble-mean MSL at VALID_TIME, one per init, lead
+    time decreasing top-left to bottom-right. Shows how the forecast converges as
     init approaches the event. Default baseline: AIFS-CRPS."""
     LON_MIN, LON_MAX, LAT_MIN, LAT_MAX = 260, 290, 18, 38
     ibt = xr.open_dataset(BASE / "milton_2024_ibtracs.nc")
@@ -336,9 +350,9 @@ def f3_cascading_detection(baseline: str = "aifsens"):
         truth_lat = truth_lon = None
 
     fig, axes = plt.subplots(
-        2, 7, figsize=(20, 6.5), subplot_kw={"projection": ccrs.PlateCarree(central_longitude=270)}
+        2, 4, figsize=(13, 6), subplot_kw={"projection": ccrs.PlateCarree(central_longitude=270)}
     )
-    for ax, init_tag in zip(axes.flat, ALL_INITS):
+    for ax, init_tag in zip(axes.flat, F3_INIT_PICKS):
         msl = _msl_ensmean_at(baseline, init_tag, VALID_TIME)
         ax.set_rasterization_zorder(0)
         ax.add_feature(cfeature.COASTLINE, linewidth=0.5, zorder=3)
@@ -399,6 +413,122 @@ def f3_cascading_detection(baseline: str = "aifsens"):
         out = FIGS / f"milton_F3_cascading_{baseline}.{ext}"
         fig.savefig(out, dpi=140, bbox_inches="tight")
     print(f"-> {out}")
+
+
+# The four baselines stacked in the paper's combined cascading figure (Fig. 9),
+# top to bottom, with the row label printed down the left margin.
+F3_COMBINED_BASELINES = [
+    ("aifs_perturbed", "AIFS\n(weight-only)"),
+    ("aifs_perturbed_ic", "AIFS\n(weight+IC)"),
+    ("aifsens", "AIFS-ENS"),
+    ("ifs_ens", "IFS-ENS"),
+]
+
+
+def f3_cascading_combined(baselines=F3_COMBINED_BASELINES, out="milton_F3_cascading_combined"):
+    """Single figure: one 2x4 block of ensemble-mean MSL panels per baseline
+    (lead decreasing left-to-right, top-to-bottom), the blocks stacked with a
+    single shared MSL colorbar at the bottom and the baseline name down the left
+    margin. Replaces the four separate per-model cascading PDFs in the paper, so
+    the panels can be larger and there is one colorbar instead of four."""
+    LON_MIN, LON_MAX, LAT_MIN, LAT_MAX = 260, 290, 18, 38
+    proj = ccrs.PlateCarree(central_longitude=270)
+    ibt = xr.open_dataset(BASE / "milton_2024_ibtracs.nc")
+    ibt_t = ibt["time"].values
+    if VALID_TIME in ibt_t:
+        idx = int(np.where(ibt_t == VALID_TIME)[0][0])
+        truth_lat = float(ibt["lat"].isel(record=idx).values)
+        truth_lon = float(ibt["lon"].isel(record=idx).values) % 360
+    else:
+        truth_lat = truth_lon = None
+
+    n = len(baselines)
+    nrow = 2 * n
+    fig, axes = plt.subplots(nrow, 4, figsize=(12, 2.2 * n + 0.6), subplot_kw={"projection": proj})
+    fig.subplots_adjust(left=0.07, right=0.995, top=0.97, bottom=0.07, hspace=0.42, wspace=0.05)
+    cf = None
+    for bi, (baseline, _label) in enumerate(baselines):
+        r0 = 2 * bi
+        for k, init_tag in enumerate(F3_INIT_PICKS):
+            ax = axes[r0 + k // 4, k % 4]
+            msl = _msl_ensmean_at(baseline, init_tag, VALID_TIME)
+            ax.set_rasterization_zorder(0)
+            ax.add_feature(cfeature.COASTLINE, linewidth=0.5, zorder=3)
+            ax.add_feature(cfeature.BORDERS, linewidth=0.3, linestyle=":", zorder=3)
+            ax.set_extent([LON_MIN - 360, LON_MAX - 360, LAT_MIN, LAT_MAX], crs=ccrs.PlateCarree())
+            if msl is None:
+                ax.text(
+                    0.5,
+                    0.5,
+                    "no forecast\nreaches\nvalid time",
+                    ha="center",
+                    va="center",
+                    transform=ax.transAxes,
+                    fontsize=7,
+                    color="gray",
+                )
+            else:
+                cf = ax.contourf(
+                    msl["longitude"],
+                    msl["latitude"],
+                    msl / 100,
+                    levels=np.arange(990, 1025, 2),
+                    cmap="RdYlBu_r",
+                    extend="both",
+                    transform=ccrs.PlateCarree(),
+                    zorder=-1,
+                )
+                ax.contour(
+                    msl["longitude"],
+                    msl["latitude"],
+                    msl / 100,
+                    levels=np.arange(990, 1025, 4),
+                    colors="black",
+                    linewidths=0.3,
+                    transform=ccrs.PlateCarree(),
+                    zorder=-1,
+                )
+            if truth_lat is not None:
+                ax.plot(
+                    truth_lon,
+                    truth_lat,
+                    marker="*",
+                    color="red",
+                    markersize=8,
+                    transform=ccrs.PlateCarree(),
+                    zorder=10,
+                )
+            init_t = pd.Timestamp(
+                f"{init_tag[0:4]}-{init_tag[4:6]}-{init_tag[6:8]}T{init_tag[9:11]}:{init_tag[11:13]}"
+            )
+            lead = int((pd.Timestamp(VALID_TIME) - init_t).total_seconds() / 3600)
+            ax.set_title(f"init {init_tag[6:8]}/10 {init_tag[9:11]}Z, lead {lead}h", fontsize=8)
+
+    # Baseline labels down the left margin, one per 2-row block (positions read
+    # after a draw so cartopy's aspect adjustment has settled the axes boxes).
+    fig.canvas.draw()
+    for bi, (_baseline, label) in enumerate(baselines):
+        r0 = 2 * bi
+        top = axes[r0, 0].get_position()
+        bot = axes[r0 + 1, 0].get_position()
+        fig.text(
+            0.025,
+            (top.y1 + bot.y0) / 2,
+            label,
+            rotation=90,
+            va="center",
+            ha="center",
+            fontsize=12,
+            fontweight="bold",
+        )
+
+    cbar_ax = fig.add_axes([0.30, 0.035, 0.40, 0.010])
+    fig.colorbar(cf, cax=cbar_ax, orientation="horizontal", label="MSL (hPa)")
+    for ext in ("png", "pdf"):
+        o = FIGS / f"{out}.{ext}"
+        fig.savefig(o, dpi=140, bbox_inches="tight")
+    print(f"-> {o}")
+    plt.close(fig)
 
 
 def _storm_relative_thickness(thick, center_field, rel_lat, rel_lon, box, center_on="min"):
@@ -587,6 +717,7 @@ def main():
     f3_cascading_detection("aifs_perturbed")
     f3_cascading_detection("aifs_perturbed_ic")
     f3_cascading_detection("ifs_ens")
+    f3_cascading_combined()  # paper Fig. 9 (the four stacked baselines, shared colorbar)
     f4_storm_relative_composite()
     f5_track_intensity_err_vs_lead(verif)
 
