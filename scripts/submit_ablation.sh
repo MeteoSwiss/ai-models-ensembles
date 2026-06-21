@@ -204,6 +204,9 @@ submit_job() {
         # GraphCast Phase 3: wmag is unused (weight perturbation disabled),
         # gc_sigma is the activation perturbation magnitude on first gc_nodes.
         run_tag="gcsigma_${gc_sigma}_gcnodes${gc_nodes}"
+        # GC_FROZEN=1 bakes the activation noise per member (frozen) instead of
+        # resampling it every step; tag the run so it sits beside the fresh sweep.
+        [[ "${GC_FROZEN:-0}" == "1" ]] && run_tag="${run_tag}_frozen"
     fi
     local out_dir="$STORE/ablation/${phase}/${model_id}/${init_tag}/${run_tag}"
     local out_zarr="$out_dir/forecast.zarr"
@@ -255,7 +258,7 @@ submit_job() {
         --container-mounts="$mounts" \
         --container-workdir="$WORKDIR" \
         --wrap="find /dev/shm -maxdepth 1 \( -name 'sem.mp-*' -o -name 'sem.pym-*' -o -name 'sem.tmp.*' \) -delete 2>/dev/null || true; \
-            python -m ai_models_ensembles.cli infer \
+            GC_FROZEN=${GC_FROZEN:-0} python -m ai_models_ensembles.cli infer \
             --model $model_id \
             --init '$init_time' \
             --lead-hours $LEAD_HOURS \
