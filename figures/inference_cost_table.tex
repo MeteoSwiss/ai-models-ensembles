@@ -22,7 +22,7 @@
            median pure-inference time per member; CS h is the single-node
            wall-clock for one 10-member case-study ensemble. Atlas is
            $\sim$18-40$\times$ slower per member than the other six, a
-           consequence of its multi-step diffusion sampler. \textbf{Bold}
+           consequence of its multi-step SDE sampler. \textbf{Bold}
            marks the fastest and slowest per-member time. Training cost is
            omitted and discussed in the text, since the reported figures
            are not comparable across the different hardware and accounting
@@ -83,12 +83,14 @@
   ensemble on a single Alps node (4 GH200 in parallel):
   $10 \times \text{s/mbr} / 4 / 3600$.
 
-  $^{\ddag}$\,Per production-baseline run (1120 forecasts). NH = node-hours;
-  CHF at the Swiss academic tier-3 rate with the ETH discount
-  (CHF 2.88 / node-hour); kWh at $\sim$4.8 kWh per node-hour delivered.
-  Atlas NH is its pure-inference estimate ($112 \times$ CS\,h); its
-  multi-step diffusion sampler dominates wall-clock, so data-fetch and
-  model-load overhead is negligible.
+  $^{\ddag}$\,Per production-baseline run (1120 forecasts). NH = node-hours:
+  for all rows except Atlas these are sacct-measured wall-clock and so
+  include data-fetch, model-load, and zarr-write overhead, exceeding the
+  pure-inference $112 \times$ CS\,h. CHF at the Swiss academic tier-3 rate
+  with the ETH discount (CHF 2.88 / node-hour); kWh at $\sim$4.8 kWh per
+  node-hour delivered. Atlas NH is its pure-inference estimate
+  ($112 \times$ CS\,h); its multi-step SDE sampler dominates wall-clock, so
+  data-fetch and model-load overhead is negligible.
 
   $^{\star\star}$\,\textbf{aifs\_perturbed} is the deterministic AIFS
   (\texttt{aifs-single-mse-1.1}; Phase 2 decoder perturbation
