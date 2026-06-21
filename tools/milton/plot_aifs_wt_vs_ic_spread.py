@@ -2,9 +2,9 @@
 
 Two panels vs lead time, averaged over the 14 Milton initialisations:
 (a) track-cone width = mean great-circle distance of member cyclone centres
-    to the ensemble-mean centre; (b) MSLP intensity spread = cross-member
+    to the ensemble-mean centre; (b) MSL intensity spread = cross-member
 std of central pressure. Both quantify the under-dispersion of weight-only
-AIFS that IC perturbation (Phase 5) restores.
+AIFS that IC perturbation restores.
 
 Source: milton_master_tracks.csv (tools/milton/aggregate_tracks.py).
 Output: figures/milton_F9_aifs_wt_vs_ic_spread.{pdf,png}
@@ -26,7 +26,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # tools/
-from model_colors import AIFS_IC_CONTRAST, color_for
+from model_colors import AIFS_IC_CONTRAST, color_for, marker_for, style_for
 
 BASE = Path("/iopsstor/scratch/cscs/sadamov/milton_case_study")
 MASTER = BASE / "milton_master_tracks.csv"
@@ -36,8 +36,18 @@ OUT = Path(
 
 # Match the headline figure: weight-only purple, weight+IC pink (the one figure
 # where the AIFS variants are deliberately drawn apart, see model_colors.py).
-COLOUR = {"aifs_perturbed": color_for("aifs_perturbed"), "aifs_perturbed_ic": AIFS_IC_CONTRAST}
-PRETTY = {"aifs_perturbed": "weight-only", "aifs_perturbed_ic": "weight + IC (Phase 5)"}
+COLOUR = {
+    "aifs_perturbed": color_for("aifs_perturbed"),
+    "aifs_perturbed_ic": AIFS_IC_CONTRAST,
+    "ifs_ens": color_for("ifs_ens"),
+    "aifsens": color_for("aifsens"),
+}
+PRETTY = {
+    "aifs_perturbed": "weight-only",
+    "aifs_perturbed_ic": "weight + IC",
+    "ifs_ens": "IFS-ENS",
+    "aifsens": "AIFS-ENS",
+}
 BINS = [(0, 24), (24, 48), (48, 72), (72, 96), (96, 120), (120, 144)]
 
 
@@ -94,23 +104,41 @@ def series(d, b):
 
 
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(7.2, 3.1))
-for b in ("aifs_perturbed", "aifs_perturbed_ic"):
-    ax1.plot(x, series(cone, b), "-o", color=COLOUR[b], label=PRETTY[b], ms=4, lw=1.6)
-    ax2.plot(x, series(psl, b), "-o", color=COLOUR[b], label=PRETTY[b], ms=4, lw=1.6)
+for b in ("aifs_perturbed", "aifs_perturbed_ic", "ifs_ens", "aifsens"):
+    ax1.plot(
+        x,
+        series(cone, b),
+        color=COLOUR[b],
+        label=PRETTY[b],
+        ms=4,
+        lw=1.6,
+        linestyle=style_for(b),
+        marker=marker_for(b),
+    )
+    ax2.plot(
+        x,
+        series(psl, b),
+        color=COLOUR[b],
+        label=PRETTY[b],
+        ms=4,
+        lw=1.6,
+        linestyle=style_for(b),
+        marker=marker_for(b),
+    )
 ax1.set_ylabel("Track-cone width (km)")
-ax2.set_ylabel("MSLP spread (hPa)")
+ax2.set_ylabel("MSL spread (hPa)")
 for ax in (ax1, ax2):
     ax.set_xlabel("Lead time (h)")
     ax.set_xticks([0, 24, 48, 72, 96, 120, 144])
     ax.grid(True, lw=0.4, alpha=0.5)
 ax1.set_title("(a) Track-cone width", fontsize=9)
 ax2.set_title("(b) Intensity spread", fontsize=9)
-ax1.legend(fontsize=7, frameon=False, loc="upper left")
+ax1.legend(fontsize=7, frameon=False, loc="upper left", ncol=2)
 plt.tight_layout()
 OUT.parent.mkdir(parents=True, exist_ok=True)
 plt.savefig(OUT, dpi=300, bbox_inches="tight")
 plt.savefig(str(OUT).replace(".pdf", ".png"), dpi=160, bbox_inches="tight")
 print(f"-> {OUT}")
-for b in ("aifs_perturbed", "aifs_perturbed_ic"):
+for b in ("aifs_perturbed", "aifs_perturbed_ic", "ifs_ens", "aifsens"):
     print(f"{PRETTY[b]:22s} cone {series(cone, b)}")
     print(f"{'':22s} psl  {series(psl, b)}")

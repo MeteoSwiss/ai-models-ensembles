@@ -6,7 +6,8 @@
 % logic). SSR = per-pixel Fortin (M+1)/M (per-baseline ssr_line CSVs). SSIM/LSD/FSS from
 % the per-baseline by-lead CSVs (= intercomparison combined CSVs to machine precision).
 % W1 from per-baseline wd_kde wasserstein (global). IFS-ENS W1 = - (not in the re-eval; NaN-gap surface fields).
-% ES/VS/SIGK @240h are the published verified multivariate values (not recomputed here).
+% ES/VS/SIGK at 120+240h from tools/submit_table_metrics_multilead.sh (job 2579121, 2026-06-21);
+% bold = per-metric per-lead optimum over the eight rows.
 % 7-variable mean (3D vars averaged over 500/850 hPa first; LSD over the 3D vars).
 
 \begin{sidewaystable*}[p]
@@ -20,39 +21,39 @@
            Tab.~\ref{tab:calibration}. Two lead blocks (120, 240\,h); 7-variable
            mean (3D variables averaged over $\ell\in\{500,850\}$\,hPa first; LSD over
            the five 3D variables). CRPSS$\uparrow$, SSR ($\to$1), SSIM$\uparrow$,
-           LSD$\downarrow$, FSS\,95\%$\uparrow$, $W_1\downarrow$. The three multivariate
-           scores ES$\downarrow$, VS$_{0.5}\downarrow$ and SIGK (signature-kernel score,
-           lower is better; native scale, ranking only) are shown at 240\,h only, their
-           headline lead (appendix~\ref{sec:results-multivar}). IFS-ENS is excluded from
-           ES/VS/SIGK and $W_1$ (its WeatherBench-2 surface fields carry NaN gaps).}
+           LSD$\downarrow$, FSS\,95\%$\uparrow$, $W_1\downarrow$, and the multivariate
+           ES$\downarrow$, VS$_{0.5}\downarrow$ and SIGK (signature-kernel score,
+           lower is better; native scale, ranking only), all at both leads.
+           \textbf{Bold}: per-metric per-lead optimum across the eight rows (argmax
+           CRPSS/SSIM/FSS; argmin $|x-1|$ SSR; argmin LSD/$W_1$/ES/VS/SIGK). IFS-ENS
+           is excluded from ES/VS/SIGK and $W_1$ (its WeatherBench-2 surface fields
+           carry NaN gaps, leaving too few jointly-complete initialisations).}
   \label{tab:production-metrics}
-  \begin{tabular}{@{}l l rrrrrr rrrrrr rrr@{}}
+  \begin{tabular}{@{}l l rrrrrrrrr rrrrrrrrr@{}}
     \toprule
     \multirow{2}{*}{\textbf{Role}} & \multirow{2}{*}{\textbf{Model}}
-        & \multicolumn{6}{c}{\textbf{120\,h}}
-        & \multicolumn{6}{c}{\textbf{240\,h}}
-        & \multicolumn{3}{c}{\textbf{240\,h mvar}} \\
-    \cmidrule(lr){3-8} \cmidrule(lr){9-14} \cmidrule(lr){15-17}
-     &  & CRPSS$\uparrow$ & SSR & SSIM$\uparrow$ & LSD$\downarrow$ & FSS$\uparrow$ & $W_1\downarrow$
-        & CRPSS$\uparrow$ & SSR & SSIM$\uparrow$ & LSD$\downarrow$ & FSS$\uparrow$ & $W_1\downarrow$
-        & ES$\downarrow$ & VS$\downarrow$ & SIGK \\
+        & \multicolumn{9}{c}{\textbf{120\,h}}
+        & \multicolumn{9}{c}{\textbf{240\,h}} \\
+    \cmidrule(lr){3-11} \cmidrule(lr){12-20}
+     &  & CRPSS$\uparrow$ & SSR & SSIM$\uparrow$ & LSD$\downarrow$ & FSS$\uparrow$ & $W_1\downarrow$ & ES$\downarrow$ & VS$\downarrow$ & SIGK
+        & CRPSS$\uparrow$ & SSR & SSIM$\uparrow$ & LSD$\downarrow$ & FSS$\uparrow$ & $W_1\downarrow$ & ES$\downarrow$ & VS$\downarrow$ & SIGK \\
     \midrule
     \rowcolor{phaseBg}
-    \multicolumn{17}{@{}l}{\textbf{Post-hoc weight perturbation (this work)}} \\
-    & aurora\_encoder & 0.471 & 0.76 & 0.876 & 1.201 & 0.735 & 0.062 & 0.134 & 0.82 & 0.804 & 1.203 & 0.541 & 0.053 & 1.117 & 0.0915 & -9.9 \\
-    & graphcast\_all & 0.489 & 0.76 & 0.878 & 1.267 & 0.767 & 0.046 & 0.167 & 0.94 & 0.804 & 1.287 & 0.566 & 0.065 & 1.111 & 0.0908 & 18.1 \\
-    & sfno\_modes10 & 0.388 & 0.73 & 0.853 & 1.134 & 0.729 & 0.051 & 0.125 & 0.85 & 0.796 & 1.151 & 0.568 & 0.048 & 1.156 & 0.0958 & 1.0 \\
-    & aifs\_perturbed & 0.542 & 0.85 & 0.882 & 1.160 & 0.782 & 0.046 & 0.221 & 0.96 & 0.809 & 1.179 & 0.586 & 0.067 & 1.050 & 0.0869 & -12.2 \\
+    \multicolumn{20}{@{}l}{\textbf{Post-hoc weight perturbation (this work)}} \\
+    & aurora\_encoder & 0.471 & 0.76 & 0.876 & 1.201 & 0.735 & 0.062 & 0.730 & 0.0511 & -13.9 & 0.134 & 0.82 & 0.804 & 1.203 & 0.541 & 0.053 & 1.117 & 0.0915 & -9.9 \\
+    & graphcast\_all & 0.489 & 0.76 & 0.878 & 1.267 & 0.767 & 0.046 & 0.735 & 0.0500 & -6.9 & 0.167 & 0.94 & 0.804 & 1.287 & 0.566 & 0.065 & 1.111 & 0.0908 & 18.1 \\
+    & sfno\_modes10 & 0.388 & 0.73 & 0.853 & 1.134 & 0.729 & 0.051 & 0.850 & 0.0646 & -4.1 & 0.125 & 0.85 & 0.796 & 1.151 & 0.568 & \textbf{0.048} & 1.156 & 0.0958 & 1.0 \\
+    & aifs\_perturbed & 0.542 & 0.85 & 0.882 & 1.160 & 0.782 & 0.046 & 0.669 & 0.0470 & -16.2 & 0.221 & \textbf{0.96} & 0.809 & 1.179 & 0.586 & 0.067 & 1.054 & 0.0869 & -12.2 \\
     \hline
     \rowcolor{phaseBg}
-    \multicolumn{17}{@{}l}{\textbf{Trained probabilistic}} \\
-    & AIFS-ENS & 0.580 & 0.82 & 0.887 & 1.167 & 0.822 & 0.043 & 0.256 & 0.84 & 0.815 & 1.166 & 0.638 & 0.063 & 1.018 & 0.0840 & -37.1 \\
-    & Atlas & 0.558 & 0.83 & 0.889 & 1.173 & 0.800 & 0.052 & 0.238 & 0.86 & 0.818 & 1.338 & 0.624 & 0.054 & 1.038 & 0.0858 & -33.1 \\
-    & FCN3 & 0.534 & 0.87 & 0.877 & 0.358 & 0.787 & 0.057 & 0.218 & 0.90 & 0.806 & 0.363 & 0.610 & 0.072 & 1.061 & 0.0880 & -29.4 \\
+    \multicolumn{20}{@{}l}{\textbf{Trained probabilistic}} \\
+    & AIFS-ENS & \textbf{0.580} & 0.82 & 0.887 & 1.167 & \textbf{0.822} & \textbf{0.043} & \textbf{0.623} & \textbf{0.0426} & \textbf{-26.2} & \textbf{0.256} & 0.84 & 0.815 & 1.166 & \textbf{0.638} & 0.063 & \textbf{1.018} & \textbf{0.0840} & \textbf{-37.1} \\
+    & Atlas & 0.558 & 0.83 & \textbf{0.889} & 1.173 & 0.800 & 0.052 & 0.651 & 0.0462 & -24.2 & 0.238 & 0.86 & \textbf{0.818} & 1.338 & 0.624 & 0.054 & 1.038 & 0.0858 & -33.1 \\
+    & FCN3 & 0.534 & 0.87 & 0.877 & \textbf{0.358} & 0.787 & 0.057 & 0.675 & 0.0479 & -22.1 & 0.218 & 0.90 & 0.806 & \textbf{0.363} & 0.610 & 0.072 & 1.061 & 0.0880 & -29.4 \\
     \hline
     \rowcolor{phaseBg}
-    \multicolumn{17}{@{}l}{\textbf{Classical reference}} \\
-    & IFS-ENS & 0.518 & 0.87 & 0.853 & 0.881 & 0.651 & - & 0.207 & 0.88 & 0.786 & 0.885 & 0.527 & - & - & - & - \\
+    \multicolumn{20}{@{}l}{\textbf{Classical reference}} \\
+    & IFS-ENS & 0.518 & \textbf{0.87} & 0.853 & 0.881 & 0.651 & - & - & - & - & 0.207 & 0.88 & 0.786 & 0.885 & 0.527 & - & - & - & - \\
     \bottomrule
   \end{tabular}
 \end{sidewaystable*}

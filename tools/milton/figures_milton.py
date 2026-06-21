@@ -58,7 +58,7 @@ def f1_track_spaghetti(master):
     fig, axes = plt.subplots(
         nrows,
         ncols,
-        figsize=(ncols * 3.2, nrows * 3.0),
+        figsize=(ncols * 3.2, nrows * 2.6),
         subplot_kw={"projection": ccrs.PlateCarree(central_longitude=270)},
     )
     # IBTrACS truth track
@@ -111,7 +111,8 @@ def f1_track_spaghetti(master):
                     va="center",
                     fontsize=9,
                 )
-    fig.tight_layout()
+    fig.tight_layout(h_pad=0.2)
+    fig.subplots_adjust(hspace=0.05)
     for ext in ("png", "pdf"):
         out = FIGS / f"milton_F1_track_spaghetti.{ext}"
         fig.savefig(out, dpi=140, bbox_inches="tight")
@@ -120,6 +121,7 @@ def f1_track_spaghetti(master):
 
 def f2_intensity_vs_lead(master):
     import matplotlib.colors as mcolors
+    from matplotlib.ticker import MultipleLocator
     from matplotlib.cm import ScalarMappable
 
     # Colour each member line by its initialisation time (earliest -> latest)
@@ -143,10 +145,12 @@ def f2_intensity_vs_lead(master):
             )
             lead = [(t - init_t).total_seconds() / 3600 for t in grp["time"]]
             ax.plot(lead, grp["psl_hpa"], color=init_color[init_tag], alpha=0.55, linewidth=0.6)
-        ax.set_title(b.replace("_", " "), fontsize=12)
-        ax.set_xlabel("lead time (h)", fontsize=11)
-        ax.set_ylabel("min MSL (hPa)", fontsize=11)
-        ax.tick_params(axis="both", labelsize=10)
+        ax.set_title(b.replace("_", " "), fontsize=14)
+        ax.set_xlabel("lead time (h)", fontsize=13)
+        ax.set_ylabel("min MSL (hPa)", fontsize=13)
+        ax.tick_params(axis="both", labelsize=12)
+        ax.xaxis.set_major_locator(MultipleLocator(48))
+        ax.set_xlim(0, 240)
         ax.axhline(
             895,
             color="red",
@@ -166,17 +170,18 @@ def f2_intensity_vs_lead(master):
         ax.set_ylim(890, 1015)
         ax.grid(True, alpha=0.3)
         if b == BASELINES[0]:
-            ax.legend(loc="lower right", fontsize=10)
-    fig.tight_layout(rect=[0, 0, 0.92, 1])
+            ax.legend(loc="lower right", fontsize=12)
+    fig.tight_layout(rect=[0, 0.08, 1, 1])
     # Init-time colourbar (one for the whole figure), keyed by init date.
     sm = ScalarMappable(norm=norm, cmap=cmap)
     sm.set_array([])
-    cbar_ax = fig.add_axes([0.94, 0.12, 0.015, 0.76])
+    cbar_ax = fig.add_axes([0.25, 0.03, 0.5, 0.02])
     tick_idx = list(range(len(init_tags)))
-    cbar = fig.colorbar(sm, cax=cbar_ax, ticks=tick_idx)
+    cbar = fig.colorbar(sm, cax=cbar_ax, ticks=tick_idx, orientation="horizontal")
     cbar.set_ticklabels([t.strftime("%m-%d %HZ") for t in init_times])
-    cbar.set_label("initialisation time", fontsize=11)
-    cbar.ax.tick_params(labelsize=8)
+    cbar.ax.set_xticklabels(cbar.ax.get_xticklabels(), rotation=45, ha="right")
+    cbar.set_label("initialisation time", fontsize=13)
+    cbar.ax.tick_params(labelsize=10)
     for ext in ("png", "pdf"):
         out = FIGS / f"milton_F2_intensity_vs_lead.{ext}"
         fig.savefig(out, dpi=140, bbox_inches="tight")
@@ -191,7 +196,7 @@ def f5_track_intensity_err_vs_lead(verif):
         if sub.empty:
             continue
         sub = sub.sort_values("lead_h")
-        agg = sub.groupby(pd.cut(sub["lead_h"], bins=np.arange(0, 252, 24))).agg(
+        agg = sub.groupby(pd.cut(sub["lead_h"], bins=np.arange(-12, 253, 24))).agg(
             pos_err_ibt_km=("pos_err_ibt_km", "mean"),
             psl_err_ibt=("psl_err_ibt", "mean"),
             psl_err_era5=("psl_err_era5", "mean"),
@@ -226,6 +231,7 @@ def f5_track_intensity_err_vs_lead(verif):
     axes[1].axhline(0, color="gray", linewidth=0.5)
     axes[1].grid(True, alpha=0.3)
     axes[1].set_xlim(0, 240)
+    axes[1].set_xticks(np.arange(0, 241, 48))
     fig.tight_layout()
     for ext in ("png", "pdf"):
         out = FIGS / f"milton_F5_verification_vs_lead.{ext}"

@@ -15,6 +15,7 @@ import sys
 
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.ticker import MultipleLocator
 from scipy.ndimage import gaussian_filter
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # tools/
@@ -72,6 +73,7 @@ def main() -> None:
         )
         ax.set_yscale("log")
         ax.set_title(lab, fontsize=11)
+        ax.xaxis.set_major_locator(MultipleLocator(96))
     for ax in axs[1]:
         ax.set_xlabel("Lead time (h)")
     for ax in axs[:, 0]:

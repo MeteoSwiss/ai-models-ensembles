@@ -126,11 +126,7 @@ def draw_sfno_spectral_lattice(ax, x, y, w, h):
     ax.text(
         x_cut + 0.008,
         y + h - pad_top - 0.005,
-        rf"$\mathtt{{Lcut\_{n_modes}}}$"
-        "\n"
-        rf"$\ell \in [0, {l_top}]$"
-        "\n"
-        r"$\lambda \gtrsim 3000$ km",
+        rf"$\mathtt{{Lcut\_{n_modes}}}$" "\n" rf"$\ell \in [0, {l_top}]$",
         ha="left",
         va="top",
         fontsize=9,
@@ -741,7 +737,7 @@ MODELS = [
         "mechanism": "spectral weight sub-slice",
         "code": r"$\mathtt{Lcut\_10}$",
         "target": r"lowest ten modes $\ell \in [0, 9]$",
-        "scale": r"$\lambda \gtrsim 3000$ km",
+        "scale": r"$\lambda \gtrsim 4000$ km",
         "viz": draw_sfno_spectral_lattice,
     },
     {
@@ -751,7 +747,7 @@ MODELS = [
         "mechanism": "U-net encoder bottleneck",
         "code": r"$\mathtt{enc\_2}$",
         "target": r"$\mathtt{encoder\_layers.2}$ only",
-        "scale": r"$\lambda \gtrsim 3000$ km",
+        "scale": r"$\lambda \gtrsim 5000$ km",
         "viz": draw_aurora_unet_bottleneck,
     },
     {
@@ -761,7 +757,7 @@ MODELS = [
         "mechanism": "coarse-mesh activation hook",
         "code": r"$\mathtt{n\_coarse\_42}$",
         "target": "first 42 nodes (levels 0-1)",
-        "scale": r"$\lambda \gtrsim 3000$ km",
+        "scale": r"$\lambda \gtrsim 3300$ km",
         "viz": draw_graphcast_multimesh,
     },
 ]

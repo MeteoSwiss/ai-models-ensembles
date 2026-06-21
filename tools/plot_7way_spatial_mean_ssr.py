@@ -22,9 +22,22 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import pandas as pd
+from matplotlib.ticker import MultipleLocator
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # tools/
 from model_colors import color_for, marker_for, style_for
+
+plt.rcParams.update(
+    {
+        "font.size": 14,
+        "axes.titlesize": 14,
+        "axes.labelsize": 14,
+        "xtick.labelsize": 13,
+        "ytick.labelsize": 13,
+        "legend.fontsize": 13,
+        "figure.titlesize": 16,
+    }
+)
 
 BASE = "/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles/baselines"
 OUT_ROOT = "/users/sadamov/pyprojects/ai-models-ensembles/figures/tier1b_7way_spatial_mean_ssr"
@@ -95,14 +108,15 @@ def main() -> None:
             ax.axhline(1.0, color="black", lw=0.7, ls=":", alpha=0.6)
         if args.persistence_json is not None:
             ax.axhline(0.0, color="black", lw=1.0, ls=":", alpha=0.7, label="Persistence SSR=0")
-        ax.set_title(var, fontsize=10)
+        ax.set_title(var, fontsize=13)
         ax.grid(alpha=0.3)
+        ax.xaxis.set_major_locator(MultipleLocator(48))
 
     # 8th panel becomes the legend
     for ax in axs.flat[len(VARS_PLOT) :]:
         ax.axis("off")
     handles, labels = axs[0, 0].get_legend_handles_labels()
-    axs.flat[len(VARS_PLOT)].legend(handles, labels, fontsize=10, loc="center", frameon=False)
+    axs.flat[len(VARS_PLOT)].legend(handles, labels, fontsize=13, loc="center", frameon=False)
     for ax in axs[1]:
         ax.set_xlabel("Lead time (h)")
     for ax in axs[:, 0]:

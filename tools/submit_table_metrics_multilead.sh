@@ -9,7 +9,7 @@
 #
 #SBATCH --account=a122
 #SBATCH --partition=normal
-#SBATCH --time=06:00:00
+#SBATCH --time=12:00:00
 #SBATCH --mem=320G
 #SBATCH --cpus-per-task=128
 #SBATCH --nodes=1
@@ -64,8 +64,8 @@ throttle () { while [ "$(jobs -rp | wc -l)" -ge 9 ]; do wait -n; done; }
 
 PROD=(aifsens atlas aifs_perturbed fcn3 graphcast_all aurora_encoder sfno_modes10)
 
-# ---- production: ES/VS/SIGK at 24, 120, 240 ----
-for L in 24 120 240; do
+# ---- production: ES/VS/SIGK at 120, 240 ----
+for L in 120 240; do
     for b in "${PROD[@]}"; do
         Z=$(ls -d "$STORE"/baselines/"$b"/*/forecast.zarr)
         # shellcheck disable=SC2086
@@ -83,6 +83,20 @@ declare -A ABL=(
   [graphcast_all]="$STORE/ablation/phase1/graphcast_operational/*/mag_0.01_layer_all/forecast.zarr"
   [sfno_modes10]="$STORE/ablation/phase3/sfno/*/mag_0.25_modes10/forecast.zarr"
   [aifs_decoder]="$STORE/ablation/phase2/aifs/*/mag_0.027500_layer_decoder/forecast.zarr"
+  # --- Phase 1-3b NON-WINNERS (one per model x phase = 13 rows of Tab. calibration) ---
+  [aurora_p1]="$STORE/ablation/phase1/aurora/*/mag_0.03_layer_all/forecast.zarr"
+  [aurora_p2]="$STORE/ablation/phase2/aurora/*/mag_0.044176_layer_encoder/forecast.zarr"
+  [aurora_p3]="$STORE/ablation/phase3/aurora/*/mag_0.40_layer_unet_bottom/forecast.zarr"
+  [aurora_p3b]="$STORE/ablation/phase3b/aurora/*/mag_0.015_layer_enc_012/forecast.zarr"
+  [graphcast_p2]="$STORE/ablation/phase2/graphcast_operational/*/mag_0.029665_layer_m2g/forecast.zarr"
+  [graphcast_p2b]="$STORE/ablation/phase2b/graphcast_operational/*/mag_0.014_layer_g2m/forecast.zarr"
+  [graphcast_p3]="$STORE/ablation/phase3/graphcast_operational/*/gcsigma_1.80_gcnodes42/forecast.zarr"
+  [graphcast_p3b]="$STORE/ablation/phase3b/graphcast_operational/*/gcsigma_0.159_gcnodes162/forecast.zarr"
+  [sfno_p1]="$STORE/ablation/phase1/sfno/*/mag_0.03_layer_all/forecast.zarr"
+  [sfno_p2]="$STORE/ablation/phase2/sfno/*/mag_0.053852_layer_encoder/forecast.zarr"
+  [sfno_p2b]="$STORE/ablation/phase2b/sfno/*/mag_0.035_layer_encoder/forecast.zarr"
+  [sfno_p3b]="$STORE/ablation/phase3b/sfno/*/mag_0.035_modes20/forecast.zarr"
+  [aifs_p1]="$STORE/ablation/phase1/aifs/*/mag_0.01_layer_all/forecast.zarr"
 )
 for L in 120 240; do
     for lbl in "${!ABL[@]}"; do

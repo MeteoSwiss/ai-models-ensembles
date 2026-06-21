@@ -385,7 +385,7 @@ def draw_icon_sphere_spectrum(ax, x, y, w, h):
     """SFNO -- circle with horizontal arcs suggesting spherical harmonics."""
     cx = x + w / 2
     cy = y + h / 2
-    r = min(w, h) / 2 - 0.003
+    r = min(w * 0.62, h / 2 + 0.006)
     # Outline circle
     circ = plt.Circle((cx, cy), r, facecolor="white", edgecolor=COL_TEXT, linewidth=1.0)
     ax.add_patch(circ)
@@ -409,7 +409,7 @@ def draw_icon_mesh(ax, x, y, w, h):
     """GraphCast -- circle with a few connected nodes (icosahedron-ish patch)."""
     cx = x + w / 2
     cy = y + h / 2
-    r = min(w, h) / 2 - 0.003
+    r = min(w * 0.62, h / 2 + 0.006)
     circ = plt.Circle((cx, cy), r, facecolor="white", edgecolor=COL_TEXT, linewidth=1.0)
     ax.add_patch(circ)
     # Vertices of a small triangulated patch
@@ -452,7 +452,7 @@ def draw_icon_mesh(ax, x, y, w, h):
             alpha=0.7,
         )
     # Dots at vertices
-    ax.scatter(px, py, s=6, color=COL_PROC, edgecolor=COL_TEXT, linewidth=0.4, zorder=3)
+    ax.scatter(px, py, s=8, color=COL_PROC, edgecolor=COL_TEXT, linewidth=0.4, zorder=3)
 
 
 def draw_icon_latitude_bands(ax, x, y, w, h):

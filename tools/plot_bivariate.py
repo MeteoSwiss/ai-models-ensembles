@@ -52,7 +52,7 @@ def find(b: str, pattern: str, eval_dir: str = "eval") -> str:
     return g[0] if g else ""
 
 
-def make(pattern, out, xlabel, ylabel, eval_dir="eval"):
+def make(pattern, out, xlabel, ylabel, eval_dir="eval", name_as_title=False):
     # Collect the available baselines and their cached histograms.
     entries = []
     for b, lab in PANELS:
@@ -129,22 +129,24 @@ def make(pattern, out, xlabel, ylabel, eval_dir="eval"):
             coriolis_parameter=e["coriolis_parameter"],
             return_contour_sets=True,
         )
-        # Drop the per-panel matplotlib title bar; keep the baseline name as a
-        # small corner annotation instead (AMS: no redundant titles). Pin it to
-        # the top-right corner: the renderer's per-panel legend (drawn on idx==0)
-        # sits upper-left for T-q and lower-right for the geostrophic pair, so
-        # top-right is clear of the legend in both figures.
+        # Drop the renderer's variable-pair title bar. For the T-q figure the
+        # baseline name goes as a right-aligned title just above the panel; for
+        # the geostrophic figure it stays as a small in-panel corner annotation
+        # (the dense fill leaves the top-right corner clear there).
         ax.set_title("")
-        ax.text(
-            0.97,
-            0.97,
-            e["label"],
-            transform=ax.transAxes,
-            ha="right",
-            va="top",
-            fontsize=10,
-            bbox=dict(boxstyle="round,pad=0.2", fc="white", ec="none", alpha=0.8),
-        )
+        if name_as_title:
+            ax.set_title(e["label"], loc="right", fontsize=10)
+        else:
+            ax.text(
+                0.97,
+                0.97,
+                e["label"],
+                transform=ax.transAxes,
+                ha="right",
+                va="top",
+                fontsize=10,
+                bbox=dict(boxstyle="round,pad=0.2", fc="white", ec="none", alpha=0.8),
+            )
         if not is_bottom:
             ax.set_xlabel("")
             ax.tick_params(axis="x", labelbottom=False)
@@ -168,8 +170,8 @@ def make(pattern, out, xlabel, ylabel, eval_dir="eval"):
         ax=axs_flat[:n].tolist(),
         orientation="horizontal",
         location="bottom",
-        pad=0.08,
-        fraction=0.06,
+        pad=0.16,
+        fraction=0.05,
         shrink=0.6,
     )
     cbar.ax.xaxis.set_major_locator(mticker.LogLocator())
@@ -191,6 +193,7 @@ def main() -> None:
         "bivariate_Tq_500hPa_7way",
         "Temperature (K)",
         "Specific humidity (kg/kg)",
+        name_as_title=True,
     )
     make(
         "geopotential_height_gradient_wind_speed",
