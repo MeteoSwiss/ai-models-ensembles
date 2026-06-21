@@ -59,10 +59,9 @@
            over-coherence of the frozen coarse-scale perturbation.
            \textbf{Bold}: within-model column optimum (argmax for CRPSS,
            SSIM, FSS\,95\%; argmin $|x-1|$ for SSR; argmin for LSD, $W_1$,
-           ES, VS and SIGK). The selection rule is CRPSS@240\,h primary, SSR
-           closest to 1 at 120-240\,h for calibration, and the remaining
-           metrics checked so the pick does not deteriorate; each
-           production pick is the within-model argmax CRPSS at 240\,h.}
+           ES, VS and SIGK). The selection rule (Sec.~\ref{sec:methods-phases})
+           is CRPSS@240\,h primary, then SSR closest to 1 at 120-240\,h,
+           with the remaining metrics checked against deterioration.}
   \label{tab:calibration}
   \begin{tabular}{@{}l l rr rr rr rr rr rr rr rr rr@{}}
     \toprule

@@ -415,22 +415,39 @@ def f3_cascading_detection(baseline: str = "aifsens"):
     print(f"-> {out}")
 
 
-# The four baselines stacked in the paper's combined cascading figure (Fig. 9),
-# top to bottom, with the row label printed down the left margin.
+# Six representative inits spanning the cascade at 36 h lead steps (every third
+# of the 14-init set), from the longest lead that still reaches the valid time
+# (180 h) down to 24 h. These are the rows of the combined cascading figure.
+F3_CASCADE_INITS = [
+    "20241002_0000",  # lead 180 h
+    "20241003_1200",  # lead 144 h
+    "20241005_0000",  # lead 108 h
+    "20241006_1200",  # lead  72 h
+    "20241007_1200",  # lead  48 h
+    "20241008_1200",  # lead  24 h
+]
+
+# The three baselines shown side by side as columns of the combined cascading
+# figure (Fig. 9): the weight-only post-hoc AIFS, the trained-probabilistic
+# AIFS-ENS, and the classical IFS-ENS.
 F3_COMBINED_BASELINES = [
-    ("aifs_perturbed", "AIFS\n(weight-only)"),
-    ("aifs_perturbed_ic", "AIFS\n(weight+IC)"),
+    ("aifs_perturbed", "AIFS (weight-only)"),
     ("aifsens", "AIFS-ENS"),
     ("ifs_ens", "IFS-ENS"),
 ]
 
 
-def f3_cascading_combined(baselines=F3_COMBINED_BASELINES, out="milton_F3_cascading_combined"):
-    """Single figure: one 2x4 block of ensemble-mean MSL panels per baseline
-    (lead decreasing left-to-right, top-to-bottom), the blocks stacked with a
-    single shared MSL colorbar at the bottom and the baseline name down the left
-    margin. Replaces the four separate per-model cascading PDFs in the paper, so
-    the panels can be larger and there is one colorbar instead of four."""
+def f3_cascading_combined(
+    baselines=F3_COMBINED_BASELINES,
+    inits=F3_CASCADE_INITS,
+    out="milton_F3_cascading_combined",
+):
+    """Full-page cascading-detection figure: ensemble-mean MSL at the
+    near-landfall valid time, one column per baseline and one row per
+    representative init (lead decreasing top to bottom). A single shared MSL
+    colorbar sits at the bottom; the red star marks the IBTrACS position. The
+    column titles name the baselines, the left margin labels each row by lead
+    time and init."""
     LON_MIN, LON_MAX, LAT_MIN, LAT_MAX = 260, 290, 18, 38
     proj = ccrs.PlateCarree(central_longitude=270)
     ibt = xr.open_dataset(BASE / "milton_2024_ibtracs.nc")
@@ -442,15 +459,16 @@ def f3_cascading_combined(baselines=F3_COMBINED_BASELINES, out="milton_F3_cascad
     else:
         truth_lat = truth_lon = None
 
-    n = len(baselines)
-    nrow = 2 * n
-    fig, axes = plt.subplots(nrow, 4, figsize=(12, 2.2 * n + 0.6), subplot_kw={"projection": proj})
-    fig.subplots_adjust(left=0.07, right=0.995, top=0.97, bottom=0.07, hspace=0.42, wspace=0.05)
+    nrow, ncol = len(inits), len(baselines)
+    fig, axes = plt.subplots(
+        nrow, ncol, figsize=(2.6 * ncol, 1.62 * nrow + 0.7), subplot_kw={"projection": proj}
+    )
+    axes = np.atleast_2d(axes)
+    fig.subplots_adjust(left=0.11, right=0.99, top=0.95, bottom=0.07, hspace=0.08, wspace=0.06)
     cf = None
-    for bi, (baseline, _label) in enumerate(baselines):
-        r0 = 2 * bi
-        for k, init_tag in enumerate(F3_INIT_PICKS):
-            ax = axes[r0 + k // 4, k % 4]
+    for ci, (baseline, label) in enumerate(baselines):
+        for ri, init_tag in enumerate(inits):
+            ax = axes[ri, ci]
             msl = _msl_ensmean_at(baseline, init_tag, VALID_TIME)
             ax.set_rasterization_zorder(0)
             ax.add_feature(cfeature.COASTLINE, linewidth=0.5, zorder=3)
@@ -498,32 +516,33 @@ def f3_cascading_combined(baselines=F3_COMBINED_BASELINES, out="milton_F3_cascad
                     transform=ccrs.PlateCarree(),
                     zorder=10,
                 )
-            init_t = pd.Timestamp(
-                f"{init_tag[0:4]}-{init_tag[4:6]}-{init_tag[6:8]}T{init_tag[9:11]}:{init_tag[11:13]}"
-            )
-            lead = int((pd.Timestamp(VALID_TIME) - init_t).total_seconds() / 3600)
-            ax.set_title(f"init {init_tag[6:8]}/10 {init_tag[9:11]}Z, lead {lead}h", fontsize=8)
+            if ri == 0:
+                ax.set_title(label, fontsize=12, fontweight="bold")
 
-    # Baseline labels down the left margin, one per 2-row block (positions read
-    # after a draw so cartopy's aspect adjustment has settled the axes boxes).
+    # Row labels (lead time + init) down the left margin, one per init row
+    # (positions read after a draw so cartopy's aspect adjustment has settled
+    # the axes boxes).
     fig.canvas.draw()
-    for bi, (_baseline, label) in enumerate(baselines):
-        r0 = 2 * bi
-        top = axes[r0, 0].get_position()
-        bot = axes[r0 + 1, 0].get_position()
+    for ri, init_tag in enumerate(inits):
+        init_t = pd.Timestamp(
+            f"{init_tag[0:4]}-{init_tag[4:6]}-{init_tag[6:8]}T{init_tag[9:11]}:{init_tag[11:13]}"
+        )
+        lead = int((pd.Timestamp(VALID_TIME) - init_t).total_seconds() / 3600)
+        pos = axes[ri, 0].get_position()
         fig.text(
-            0.025,
-            (top.y1 + bot.y0) / 2,
-            label,
+            0.03,
+            (pos.y0 + pos.y1) / 2,
+            f"lead {lead} h\ninit {init_tag[6:8]}/10 {init_tag[9:11]}Z",
             rotation=90,
             va="center",
             ha="center",
-            fontsize=12,
+            fontsize=10,
             fontweight="bold",
         )
 
     cbar_ax = fig.add_axes([0.30, 0.035, 0.40, 0.010])
-    fig.colorbar(cf, cax=cbar_ax, orientation="horizontal", label="MSL (hPa)")
+    cbar = fig.colorbar(cf, cax=cbar_ax, orientation="horizontal", label="MSL (hPa)")
+    cbar.set_ticks(np.arange(990, 1025, 10))
     for ext in ("png", "pdf"):
         o = FIGS / f"{out}.{ext}"
         fig.savefig(o, dpi=140, bbox_inches="tight")
@@ -717,7 +736,7 @@ def main():
     f3_cascading_detection("aifs_perturbed")
     f3_cascading_detection("aifs_perturbed_ic")
     f3_cascading_detection("ifs_ens")
-    f3_cascading_combined()  # paper Fig. 9 (the four stacked baselines, shared colorbar)
+    f3_cascading_combined()  # paper Fig. 9 (three baselines as columns, shared colorbar)
     f4_storm_relative_composite()
     f5_track_intensity_err_vs_lead(verif)
 
