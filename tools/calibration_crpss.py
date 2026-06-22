@@ -1,6 +1,12 @@
 """Recompute the CRPSS columns of the calibration table (Tab. calibration) with
 the exact-WB2 ablation-grid climatology denominator.
 
+NOTE (2026-06-22): the full calibration table is now regenerated end-to-end by
+tools/assemble_calibration_table.py (all 9 metrics, single current vintage, frozen
+GraphCast Phase 3/3b). This script remains a CRPSS-only diagnostic over the
+allphases tree; its GraphCast Phase 3/3b rows are the historical FRESH sweep
+(the frozen run_tags live under phase3/phase3b, not allphases).
+
 The calibration table is hand-maintained (figures/calibration_basis_table.tex);
 this prints the variable-mean CRPSS at 24/72/120/240 h for every (model, phase)
 row so the CRPSS cells can be updated, with the within-model per-lead argmax
