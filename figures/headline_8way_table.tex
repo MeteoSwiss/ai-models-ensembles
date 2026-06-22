@@ -4,7 +4,7 @@
 %   /capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles/baselines/aifs_perturbed/eval/probabilistic
 % via tools/headline_8way_table.py.
 % 112 inits x 10 members, 7 paper vars (T2m + MSL + Z/T/u/v/q at 500+850 hPa).
-% IFS-ENS has WB2-archive NaN gaps in surface fields (T2m ~20%, MSL ~30%); skipna
+% IFS-ENS has WB2-archive NaN gaps in all 7 variables (MSL ~30%, others ~18-20%); skipna
 % averaging absorbs the reduced effective-n. CRPSS = 1 - CRPS/CRPS_clim against the
 % WB2 probabilistic climatology (1990-2019 years as members, fair CRPS vs eval
 % truth, lead-resolved) - tools/compute_climatology_crps_vs_eval.py.

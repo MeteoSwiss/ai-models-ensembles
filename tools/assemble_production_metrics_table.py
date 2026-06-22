@@ -500,16 +500,15 @@ def main():
     L.append(
         "           mean (3D variables averaged over $\\ell\\in\\{500,850\\}$\\,hPa first; LSD over"
     )
-    L.append("           the five 3D variables). CRPSS$\\uparrow$, SSR ($\\to$1), SSIM$\\uparrow$,")
+    L.append("           the five 3D variables). Column arrows give each metric's optimum")
+    L.append("           direction (SSR targets 1; SIGK on its native scale, ranking only).")
     L.append(
-        "           LSD$\\downarrow$, FSS\\,95\\%$\\uparrow$, $W_1\\downarrow$, and the multivariate"
+        "           \\textbf{Bold}: per-metric per-lead optimum across the eight rows. IFS-ENS"
     )
-    L.append("           ES$\\downarrow$, VS$_{0.5}\\downarrow$ and SIGK (signature-kernel score,")
-    L.append("           lower is better; native scale, ranking only), all at both leads.")
-    L.append("           \\textbf{Bold}: per-metric per-lead optimum across the eight rows (argmax")
-    L.append("           CRPSS/SSIM/FSS; argmin $|x-1|$ SSR; argmin LSD/$W_1$/ES/VS/SIGK). IFS-ENS")
-    L.append("           is excluded from ES/VS/SIGK and $W_1$ (its WeatherBench-2 surface fields")
-    L.append("           carry NaN gaps, leaving too few jointly-complete initialisations).}")
+    L.append("           is excluded from ES/VS/SIGK and $W_1$ (its WeatherBench-2 forecasts carry")
+    L.append(
+        "           archive NaN gaps in every variable, leaving too few jointly-complete initialisations).}"
+    )
     L.append("  \\label{tab:production-metrics}")
     L.append("  \\begin{tabular}{@{}l l rrrrrrrrr rrrrrrrrr@{}}")
     L.append("    \\toprule")

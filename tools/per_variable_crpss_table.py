@@ -42,13 +42,13 @@ VAR_ORDER = [
     "specific_humidity",
 ]
 VAR_HEADER = {
-    "2m_temperature": "2m\\_t",
-    "mean_sea_level_pressure": "MSL",
-    "geopotential": "$Z$",
-    "temperature": "$T$",
-    "u_component_of_wind": "$u$",
-    "v_component_of_wind": "$v$",
-    "specific_humidity": "$q$",
+    "2m_temperature": "2t",
+    "mean_sea_level_pressure": "msl",
+    "geopotential": "z",
+    "temperature": "t",
+    "u_component_of_wind": "u",
+    "v_component_of_wind": "v",
+    "specific_humidity": "q",
 }
 LEADS = [120, 240]
 

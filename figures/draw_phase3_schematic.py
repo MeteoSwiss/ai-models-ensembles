@@ -577,7 +577,9 @@ def draw_graphcast_multimesh(ax, x, y, w, h):
             edge_col, edge_lw, node_col, node_sz = COL_TARGET, 2.4, COL_TARGET, 22
             alpha = 0.95
         elif lvl["k"] == 1:
-            edge_col, edge_lw, node_col, node_sz = COL_GLOW, 1.7, COL_GLOW, 12
+            # Level 1 is part of n_coarse_42 (levels 0-1 = 42 nodes), so it is
+            # targeted/perturbed just like level 0, not a separate scale tier.
+            edge_col, edge_lw, node_col, node_sz = COL_TARGET, 1.7, COL_TARGET, 12
             alpha = 0.95
         else:
             edge_col, edge_lw, node_col, node_sz = COL_MUTED_REG, 0.45, COL_MUTED_REG, 2
@@ -605,7 +607,7 @@ def draw_graphcast_multimesh(ax, x, y, w, h):
             va="top",
             fontsize=8.0,
             fontweight="bold" if target else "normal",
-            color=COL_TARGET if lvl["k"] == 0 else (COL_GLOW if lvl["k"] == 1 else COL_TEXT),
+            color=COL_TARGET if lvl["k"] in (0, 1) else COL_TEXT,
         )
         ax.text(
             cx,
@@ -885,7 +887,6 @@ def main():
     foot_y = 0.012
     swatches = [
         ("targeted (perturbed)", COL_TARGET),
-        ("intermediate scale", COL_GLOW),
         ("untouched (small-scale)", COL_MUTED_REG),
     ]
     lx = VIZ_AREA_X
