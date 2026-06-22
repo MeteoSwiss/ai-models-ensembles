@@ -334,8 +334,9 @@ def fss95(model, lead):
 def w1(model, lead):
     p = BASE / model / "eval" / "wd_kde" / "wd_kde_wasserstein_averaged_enspooled.csv"
     if not p.exists():
-        # IFS-ENS is not run through the wd_kde re-eval (its WB2 surface fields
-        # carry NaN gaps); report "-" like its multivariate scores.
+        # IFS-ENS is not run through the wd_kde re-eval (its WB2 forecasts
+        # carry archive NaN gaps in every variable); report "-" like its
+        # multivariate scores.
         return "omit" if model == "ifs_ens" else "pending"
     rows = list(csv.DictReader(open(p)))
 
@@ -480,7 +481,7 @@ def main():
         "% the per-baseline by-lead CSVs (= intercomparison combined CSVs to machine precision)."
     )
     L.append(
-        "% W1 from per-baseline wd_kde wasserstein (global). IFS-ENS W1 = - (not in the re-eval; NaN-gap surface fields)."
+        "% W1 from per-baseline wd_kde wasserstein (global). IFS-ENS W1 = - (not in the re-eval; archive NaN gaps in every variable)."
     )
     L.append(
         "% ES/VS/SIGK at 120+240h from tools/submit_table_metrics_multilead.sh (job 2579121, 2026-06-21);"

@@ -199,7 +199,9 @@ lines.append("% plus per-baseline aifs_perturbed probabilistic CSVs at")
 lines.append(f"%   {AIFS_PERT_PROB}")
 lines.append("% via tools/headline_8way_table.py.")
 lines.append("% 112 inits x 10 members, 7 paper vars (T2m + MSL + Z/T/u/v/q at 500+850 hPa).")
-lines.append("% IFS-ENS has WB2-archive NaN gaps in surface fields (T2m ~20%, MSL ~30%); skipna")
+lines.append(
+    "% IFS-ENS has WB2-archive NaN gaps in all 7 variables (MSL ~30%, others ~18-20%); skipna"
+)
 lines.append("% averaging absorbs the reduced effective-n. CRPSS = 1 - CRPS/CRPS_clim against the")
 lines.append("% WB2 probabilistic climatology (1990-2019 years as members, fair CRPS vs eval")
 lines.append("% truth, lead-resolved) - tools/compute_climatology_crps_vs_eval.py.")
