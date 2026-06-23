@@ -26,7 +26,12 @@
            marks the fastest and slowest per-member time. Training cost is
            omitted and discussed in the text, since the reported figures
            are not comparable across the different hardware and accounting
-           of each source.}
+           of each source. SFNO and FCN3 parameter counts are
+           loaded-checkpoint totals from our state-dict dumps (no total is
+           stated in the source papers); Atlas's 4.2\,B is the sum of its
+           2.4\,B stochastic-interpolant predictive network and 1.8\,B
+           decoder DiT (Kossaifi et al. 2026, arXiv:2601.18111, Sec.~3.1),
+           which reports no single combined total.}
   \label{tab:inference-cost}
   \begin{tabular}{@{}l l r r r r r r r@{}}
     \toprule
