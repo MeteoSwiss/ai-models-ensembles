@@ -98,7 +98,7 @@ def f1_track_spaghetti(master):
             ax.set_title(
                 f"{b.replace('_', ' ')}  ({n_det}/10)"
                 if r == 0
-                else f"{init_tag[6:8]} {init_tag[9:11]}Z  {b.replace('_', ' ')}  ({n_det}/10)",
+                else f"{init_tag[6:8]} {init_tag[9:11]} UTC  {b.replace('_', ' ')}  ({n_det}/10)",
                 fontsize=8,
             )
             if c == 0:
@@ -145,10 +145,10 @@ def f2_intensity_vs_lead(master):
             )
             lead = [(t - init_t).total_seconds() / 3600 for t in grp["time"]]
             ax.plot(lead, grp["psl_hpa"], color=init_color[init_tag], alpha=0.55, linewidth=0.6)
-        ax.set_title(b.replace("_", " "), fontsize=14)
-        ax.set_xlabel("lead time (h)", fontsize=13)
-        ax.set_ylabel("min MSL (hPa)", fontsize=13)
-        ax.tick_params(axis="both", labelsize=12)
+        ax.set_title(b.replace("_", " "), fontsize=20)
+        ax.set_xlabel("lead time (h)", fontsize=18)
+        ax.set_ylabel("min MSL (hPa)", fontsize=18)
+        ax.tick_params(axis="both", labelsize=16)
         ax.xaxis.set_major_locator(MultipleLocator(48))
         ax.set_xlim(0, 240)
         ax.axhline(
@@ -170,7 +170,7 @@ def f2_intensity_vs_lead(master):
         ax.set_ylim(890, 1015)
         ax.grid(True, alpha=0.3)
         if b == BASELINES[0]:
-            ax.legend(loc="lower right", fontsize=12)
+            ax.legend(loc="lower right", fontsize=15)
     fig.tight_layout(rect=[0, 0.08, 1, 1])
     # Init-time colourbar (one for the whole figure), keyed by init date.
     sm = ScalarMappable(norm=norm, cmap=cmap)
@@ -178,10 +178,10 @@ def f2_intensity_vs_lead(master):
     cbar_ax = fig.add_axes([0.25, 0.03, 0.5, 0.02])
     tick_idx = list(range(len(init_tags)))
     cbar = fig.colorbar(sm, cax=cbar_ax, ticks=tick_idx, orientation="horizontal")
-    cbar.set_ticklabels([t.strftime("%m-%d %HZ") for t in init_times])
+    cbar.set_ticklabels([t.strftime("%m-%d %H UTC") for t in init_times])
     cbar.ax.set_xticklabels(cbar.ax.get_xticklabels(), rotation=45, ha="right")
-    cbar.set_label("initialisation time", fontsize=13)
-    cbar.ax.tick_params(labelsize=10)
+    cbar.set_label("initialisation time", fontsize=18)
+    cbar.ax.tick_params(labelsize=14)
     for ext in ("png", "pdf"):
         out = FIGS / f"milton_F2_intensity_vs_lead.{ext}"
         fig.savefig(out, dpi=140, bbox_inches="tight")
@@ -404,7 +404,7 @@ def f3_cascading_detection(baseline: str = "aifsens"):
             f"{init_tag[0:4]}-{init_tag[4:6]}-{init_tag[6:8]}T{init_tag[9:11]}:{init_tag[11:13]}"
         )
         lead = int((pd.Timestamp(VALID_TIME) - init_t).total_seconds() / 3600)
-        ax.set_title(f"init {init_tag[6:8]}/10 {init_tag[9:11]}Z, lead {lead}h", fontsize=8)
+        ax.set_title(f"init {init_tag[6:8]}/10 {init_tag[9:11]} UTC, lead {lead}h", fontsize=8)
 
     cbar_ax = fig.add_axes([0.25, -0.03, 0.5, 0.02])
     fig.colorbar(cf, cax=cbar_ax, orientation="horizontal", label="MSL (hPa)")
@@ -427,11 +427,14 @@ F3_CASCADE_INITS = [
     "20241008_1200",  # lead  24 h
 ]
 
-# The three baselines shown side by side as columns of the combined cascading
-# figure (Fig. 9): the weight-only post-hoc AIFS, the trained-probabilistic
-# AIFS-ENS, and the classical IFS-ENS.
+# The four baselines shown side by side as columns of the combined cascading
+# figure: the weight-only post-hoc AIFS, the IC-augmented post-hoc AIFS
+# (weight+IC), the trained-probabilistic AIFS-ENS, and the classical IFS-ENS.
+# The two AIFS post-hoc columns are nearly identical because IC augmentation
+# barely moves the ensemble mean (it acts on the spread, not the mean).
 F3_COMBINED_BASELINES = [
     ("aifs_perturbed", "AIFS (weight-only)"),
+    ("aifs_perturbed_ic", "AIFS (weight+IC)"),
     ("aifsens", "AIFS-ENS"),
     ("ifs_ens", "IFS-ENS"),
 ]
@@ -464,7 +467,7 @@ def f3_cascading_combined(
         nrow, ncol, figsize=(2.6 * ncol, 1.62 * nrow + 0.7), subplot_kw={"projection": proj}
     )
     axes = np.atleast_2d(axes)
-    fig.subplots_adjust(left=0.11, right=0.99, top=0.95, bottom=0.07, hspace=0.08, wspace=0.06)
+    fig.subplots_adjust(left=0.075, right=0.99, top=0.95, bottom=0.07, hspace=0.08, wspace=0.06)
     cf = None
     for ci, (baseline, label) in enumerate(baselines):
         for ri, init_tag in enumerate(inits):
@@ -517,7 +520,7 @@ def f3_cascading_combined(
                     zorder=10,
                 )
             if ri == 0:
-                ax.set_title(label, fontsize=12, fontweight="bold")
+                ax.set_title(label, fontsize=11, fontweight="bold")
 
     # Row labels (lead time + init) down the left margin, one per init row
     # (positions read after a draw so cartopy's aspect adjustment has settled
@@ -530,14 +533,14 @@ def f3_cascading_combined(
         lead = int((pd.Timestamp(VALID_TIME) - init_t).total_seconds() / 3600)
         pos = axes[ri, 0].get_position()
         fig.text(
-            0.03,
+            pos.x0 - 0.018,
             (pos.y0 + pos.y1) / 2,
-            f"lead {lead} h\ninit {init_tag[6:8]}/10 {init_tag[9:11]}Z",
+            f"lead {lead} h\ninit {init_tag[6:8]}/10 {init_tag[9:11]} UTC",
             rotation=90,
             va="center",
             ha="center",
             fontsize=10,
-            fontweight="bold",
+            fontweight="normal",
         )
 
     cbar_ax = fig.add_axes([0.30, 0.035, 0.40, 0.010])

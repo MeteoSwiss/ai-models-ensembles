@@ -244,55 +244,52 @@ def draw_box(ax, x, y, w, h, colour, label, n, sigma, detail, highlight=None):
     #   title (label) / N = ... / sigma = ... / detail (italic)
     ax.text(
         x + w / 2,
-        y + h * 0.86,
+        y + h * 0.89,
         label,
         ha="center",
         va="center",
-        fontsize=11,
+        fontsize=18,
         fontweight="bold",
         color="white",
         zorder=5,
     )
     ax.text(
         x + w / 2,
-        y + h * 0.68,
+        y + h * 0.70,
         rf"$N_\mathrm{{group}} = {n}$",
         ha="center",
         va="center",
-        fontsize=9.0,
+        fontsize=15,
         color="white",
         alpha=0.97,
         zorder=5,
     )
     ax.text(
         x + w / 2,
-        y + h * 0.52,
+        y + h * 0.54,
         rf"$\sigma_\mathrm{{group}} = {sigma:.4f}$",
         ha="center",
         va="center",
-        fontsize=8.5,
+        fontsize=14,
         color="white",
         alpha=0.97,
         zorder=5,
     )
 
-    # Detail (italic, multi-line, smaller) at the bottom of the box
+    # Detail (italic, multi-line) at the bottom of the box
     ax.text(
         x + w / 2,
         y + h * 0.06,
         detail,
         ha="center",
         va="bottom",
-        fontsize=6.5,
+        fontsize=9.5,
         color="white",
         alpha=0.92,
         style="italic",
         zorder=5,
-        linespacing=1.15,
+        linespacing=1.2,
     )
-
-    # Noise glyph hovering above the box centre
-    draw_gaussian_glyph(ax, x + w / 2, y + h + 0.028, w=min(w * 0.5, 0.16), h=0.022)
 
 
 def draw_arrow(ax, x1, x2, y, colour=COL_MUTED):
@@ -323,25 +320,26 @@ BOX_AREA_W = 1.0 - BOX_AREA_X - 0.02
 # legend (bottom edge ~0.03).
 _n_models = len(MODELS)
 if _n_models == 3:
-    ROW_HEIGHT = 0.19
-    ROW_CENTERS = [0.74, 0.46, 0.18]
+    ROW_HEIGHT = 0.23
+    ROW_CENTERS = [0.75, 0.46, 0.17]
     _LABEL_SCALE = 1.0
 else:
     # Available band is [_bot, _top]; rows are evenly spaced inside it.
-    # _top sits just below the single title line (the two grey subtitle lines
-    # moved to the figure caption), so the top row's noise glyph clears the
-    # title without leaving a large empty band.
-    _top, _bot = 0.84, 0.16
+    # The band is kept compact and centred so the top row clears the title
+    # and the bottom row clears the footer legend (the boxes had been
+    # overlapping both). Boxes take a large share of the pitch so the rows
+    # sit close together.
+    _top, _bot = 0.80, 0.20
     _span = _top - _bot
     _pitch = _span / (_n_models - 1)
     ROW_CENTERS = [_top - _pitch * i for i in range(_n_models)]
-    # Boxes occupy ~60% of the row pitch -> ~40% inter-row gap. Label-column
+    # Boxes occupy ~80% of the row pitch -> ~20% inter-row gap. Label-column
     # offsets scale to the row pitch so icon, name, subtitle, N_total fit.
-    ROW_HEIGHT = 0.60 * _pitch
+    ROW_HEIGHT = 0.80 * _pitch
     _LABEL_SCALE = min(1.0, _pitch / 0.28)  # original 3-row pitch was 0.28
 
 
-def width_for_n(n: int, n_max: int, w_min=0.13, w_max=0.30) -> float:
+def width_for_n(n: int, n_max: int, w_min=0.12, w_max=0.27) -> float:
     """Log-scale box width by tensor count, bounded."""
     if n <= 1:
         return w_min
@@ -633,24 +631,11 @@ def main():
             label,
             ha="left",
             va="bottom",
-            fontsize=10,
+            fontsize=11,
             fontweight="bold",
             color=colour,
         )
-        lx += 0.11
-
-    # Gaussian noise glyph + caption to the right of the colour swatches
-    glyph_cx = lx + 0.025
-    draw_gaussian_glyph(ax, glyph_cx, foot_y + 0.013, w=0.045, h=0.020)
-    ax.text(
-        glyph_cx + 0.030,
-        foot_y,
-        "= Gaussian noise injection on every learnable tensor in the group",
-        ha="left",
-        va="bottom",
-        fontsize=9,
-        color=COL_TEXT,
-    )
+        lx += 0.12
 
     out_dir = Path(__file__).parent
     fig.savefig(out_dir / "perturbation_schematic.svg", bbox_inches="tight", pad_inches=0.15)
