@@ -6,11 +6,10 @@ AIFS, both pulled DOWN toward 1) alongside the mildly under-dispersed SFNO
 7-variable mean per lead from the cached spatial_mean_ssr CSVs. Replaces the
 SFNO-only Phase-6 sweep figure as the headline refresh figure (Fig. fig:phase6).
 
-Grid caveat: Aurora/AIFS frozen+refresh are on the 112-init production grid
-($STORE/baselines/<b>/spatial_mean_ssr/spatial_ssr.csv). SFNO frozen+refresh are
-the apples-to-apples 4-init ABLATION pair (sigma=0.25 frozen, sigma_N=0.35
-refresh-20) from $STORE/diagnostics/sfno_phase6_ssr/, the only grid on which both
-SFNO members exist.
+All three frozen+refresh pairs are now on the 112-init production grid
+($STORE/baselines/<b>/spatial_mean_ssr/spatial_ssr.csv). SFNO refresh is
+sfno_p6c (refresh-every-20, sigma_N = 0.25*sqrt(2) ~ 0.35), run on the
+production grid to match Aurora/AIFS (tools/submit_sfno_p6c_production.sh).
 """
 
 from __future__ import annotations
@@ -27,12 +26,10 @@ from model_colors import color_for
 
 STORE = "/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles"
 BASE = f"{STORE}/baselines"
-SFNO_DIAG = f"{STORE}/diagnostics/sfno_phase6_ssr"
 OUT = "/users/sadamov/pyprojects/ai-models-ensembles/figures/refresh_frozen_vs_refresh_ssr"
 
 # (frozen CSV path, refresh CSV path, label, colour-key)
-# Aurora/AIFS: 112-init production grid. SFNO: 4-init ablation grid (the only
-# grid carrying both a frozen and a refresh-20 SFNO run).
+# All three on the 112-init production grid.
 PAIRS = [
     (
         f"{BASE}/aurora_encoder/spatial_mean_ssr/spatial_ssr.csv",
@@ -47,8 +44,8 @@ PAIRS = [
         "aifs_perturbed",
     ),
     (
-        f"{SFNO_DIAG}/frozen_0.25.csv",
-        f"{SFNO_DIAG}/refresh20_0.35.csv",
+        f"{BASE}/sfno_modes10/spatial_mean_ssr/spatial_ssr.csv",
+        f"{BASE}/sfno_p6c/spatial_mean_ssr/spatial_ssr.csv",
         "SFNO",
         "sfno_modes10",
     ),
