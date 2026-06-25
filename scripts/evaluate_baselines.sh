@@ -437,6 +437,7 @@ _submit_module_sbatch() {
 
 submit_per_module_eval() {
     local filter_model="${1:-}"
+    local filter_module="${2:-}"   # optional: run only this module (e.g. probabilistic)
     echo "=== per-module eval (baselines) ==="
     # Ensure template YAMLs exist for every model we're about to evaluate
     for model in $MODELS; do
@@ -451,6 +452,7 @@ submit_per_module_eval() {
     # pattern OOM'd at 800G when >=2 models ran concurrently (e.g. aurora +
     # graphcast 2026-05-28). Each module now runs as its own per-model sbatch.
     for module in maps wd_kde energy_spectra multivariate probabilistic deterministic ssim; do
+        [[ -n "$filter_module" && "$module" != "$filter_module" ]] && continue
         echo "  -- ${module} (per model) --"
         for model in $MODELS; do
             [[ -n "$filter_model" && "$model" != "$filter_model" ]] && continue
@@ -461,13 +463,15 @@ submit_per_module_eval() {
     done
 
     # FSS (members mode, stride 24h, etsfss template)
-    echo "  -- fss (members mode, per model) --"
-    for model in $MODELS; do
-        [[ -n "$filter_model" && "$model" != "$filter_model" ]] && continue
-        local cfg
-        cfg=$(_gen_module_subset_config "$model" "fss" "etsfss")
-        _submit_module_sbatch "eval_baseline_${model}_fss" "$cfg"
-    done
+    if [[ -z "$filter_module" || "$filter_module" == "fss" ]]; then
+        echo "  -- fss (members mode, per model) --"
+        for model in $MODELS; do
+            [[ -n "$filter_model" && "$model" != "$filter_model" ]] && continue
+            local cfg
+            cfg=$(_gen_module_subset_config "$model" "fss" "etsfss")
+            _submit_module_sbatch "eval_baseline_${model}_fss" "$cfg"
+        done
+    fi
 }
 
 run_intercompare() {
@@ -532,8 +536,8 @@ ACTION="${1:-all}"
 shift || true
 
 case "$ACTION" in
-    all)           submit_per_module_eval "${1:-}" ;;
-    atlas|fcn3|aifsens|ifs_ens|sfno_modes10|aurora_encoder|graphcast_all|aifs_perturbed|aifs_perturbed_ic|aurora_encoder_ic|graphcast_all_ic|sfno_modes10_ic|aurora_p6c|aifs_p6c) submit_per_module_eval "$ACTION" ;;
+    all)           submit_per_module_eval "${1:-}" "${2:-}" ;;
+    atlas|fcn3|aifsens|ifs_ens|sfno_modes10|aurora_encoder|graphcast_all|aifs_perturbed|aifs_perturbed_ic|aurora_encoder_ic|graphcast_all_ic|sfno_modes10_ic|aurora_p6c|aifs_p6c) submit_per_module_eval "$ACTION" "${1:-}" ;;
     intercompare)  run_intercompare ;;
     gen-configs)
         target_model="${1:-}"
