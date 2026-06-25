@@ -1,6 +1,6 @@
 % Calibration basis table - multi-metric, multi-lead view across the per-phase
 % argmin-CRPS winners, showing how the production perturbation baseline
-% (Tab.~\ref{tab:baselines}) was selected.
+% (the production picks) was selected.
 %
 % Required packages (already in main preamble per figures/experiments_tables.tex):
 %   amsmath, amssymb, booktabs, xcolor[table], array
@@ -55,8 +55,9 @@
            $\ell \in \{500, 850\}$ hPa first). The last six columns are the
            multivariate Energy, Variogram and signature-kernel scores (ES,
            VS$_{0.5}$, SIGK) at 120 and 240\,h (lower is better;
-           appendix~\ref{sec:results-multivar}); SIGK is on its native scale
-           and used for ranking only. The temporal-path SIGK optimum often
+           appendix~\ref{sec:results-multivar}); SIGK is on its native
+           (unbounded) scale, lower is better and comparable within a table.
+           The temporal-path SIGK optimum often
            falls on an all-weight or full-layer-group phase rather than the
            coarse-scale production pick, reflecting the temporal
            over-coherence of the frozen coarse-scale perturbation.
