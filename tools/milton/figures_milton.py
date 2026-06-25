@@ -157,7 +157,7 @@ def f2_intensity_vs_lead(master):
             linestyle="--",
             linewidth=0.8,
             alpha=0.7,
-            label="IBTrACS peak (895 hPa)",
+            label="IBTrACS peak",
         )
         ax.axhline(
             976,
@@ -165,12 +165,12 @@ def f2_intensity_vs_lead(master):
             linestyle="--",
             linewidth=0.8,
             alpha=0.7,
-            label="0.25deg ERA5 control min (976 hPa)",
+            label="0.25deg ERA5 control min",
         )
         ax.set_ylim(890, 1015)
         ax.grid(True, alpha=0.3)
         if b == BASELINES[0]:
-            ax.legend(loc="lower right", fontsize=15)
+            ax.legend(loc="lower right", bbox_to_anchor=(1.0, 0.08), fontsize=15)
     fig.tight_layout(rect=[0, 0.08, 1, 1])
     # Init-time colourbar (one for the whole figure), keyed by init date.
     sm = ScalarMappable(norm=norm, cmap=cmap)

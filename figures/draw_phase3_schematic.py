@@ -129,7 +129,7 @@ def draw_sfno_spectral_lattice(ax, x, y, w, h):
         rf"$\mathtt{{Lcut\_{n_modes}}}$" "\n" rf"$\ell \in [0, {l_top}]$",
         ha="left",
         va="top",
-        fontsize=9,
+        fontsize=11,
         fontweight="bold",
         color=COL_TARGET,
         zorder=5,
@@ -142,7 +142,7 @@ def draw_sfno_spectral_lattice(ax, x, y, w, h):
         r"total wavenumber  $\ell$  $\rightarrow$",
         ha="center",
         va="bottom",
-        fontsize=7.5,
+        fontsize=9,
         color=COL_FAINT,
         style="italic",
     )
@@ -152,7 +152,7 @@ def draw_sfno_spectral_lattice(ax, x, y, w, h):
         r"# modes per $\ell$  $(= 2\ell+1)$",
         ha="center",
         va="center",
-        fontsize=7.5,
+        fontsize=9,
         color=COL_FAINT,
         style="italic",
         rotation=90,
@@ -165,7 +165,7 @@ def draw_sfno_spectral_lattice(ax, x, y, w, h):
         r"modes per block $\times$ 8 blocks  ·  bar height $= 2\ell+1$ modes per $\ell$",
         ha="center",
         va="top",
-        fontsize=8.5,
+        fontsize=10,
         color=COL_TEXT,
         style="italic",
     )
@@ -244,17 +244,17 @@ def draw_aurora_unet_bottleneck(ax, x, y, w, h):
             name_txt,
             ha="center",
             va="top",
-            fontsize=7.5,
+            fontsize=9,
             color=COL_TARGET if targ else COL_TEXT,
             fontweight="bold" if targ else "normal",
         )
         ax.text(
             rx + col_w / 2,
-            y + pad_bot - 0.020,
+            y + pad_bot - 0.028,
             rf"{blk['ch']}c · {blk['res_deg']}$^\circ$",
             ha="center",
             va="top",
-            fontsize=6.8,
+            fontsize=8,
             color=COL_FAINT,
         )
 
@@ -278,7 +278,7 @@ def draw_aurora_unet_bottleneck(ax, x, y, w, h):
         r"$\mathtt{enc\_2}$ attn window $\approx 5000$ km",
         ha="center",
         va="top",
-        fontsize=8.0,
+        fontsize=9.5,
         color=COL_TEXT,
         style="italic",
     )
@@ -605,7 +605,7 @@ def draw_graphcast_multimesh(ax, x, y, w, h):
             f"level {lvl['k']}",
             ha="center",
             va="top",
-            fontsize=8.0,
+            fontsize=9.5,
             fontweight="bold" if target else "normal",
             color=COL_TARGET if lvl["k"] in (0, 1) else COL_TEXT,
         )
@@ -615,7 +615,7 @@ def draw_graphcast_multimesh(ax, x, y, w, h):
             rf"{lvl['n_actual']} nodes" "\n" rf"$\lambda$ {lvl['edge_km']} km",
             ha="center",
             va="top",
-            fontsize=7,
+            fontsize=8.5,
             color=COL_FAINT,
             linespacing=1.2,
         )
@@ -638,7 +638,7 @@ def draw_graphcast_multimesh(ax, x, y, w, h):
         r"$\mathtt{n\_coarse\_42}$  (levels 0-1)",
         ha="center",
         va="bottom",
-        fontsize=8.5,
+        fontsize=10,
         fontweight="bold",
         color=COL_TARGET,
         zorder=5,
@@ -785,7 +785,7 @@ def draw_row(ax, y_center, model):
         f"{model['panel']} {model['name']}",
         ha="left",
         va="top",
-        fontsize=13,
+        fontsize=15,
         fontweight="bold",
         color=COL_TEXT,
     )
@@ -795,7 +795,7 @@ def draw_row(ax, y_center, model):
         model["subtitle"],
         ha="left",
         va="top",
-        fontsize=8,
+        fontsize=9.5,
         color=COL_FAINT,
         style="italic",
     )
@@ -806,7 +806,7 @@ def draw_row(ax, y_center, model):
         model["code"],
         ha="left",
         va="top",
-        fontsize=10,
+        fontsize=12,
         fontweight="bold",
         color=COL_TARGET,
     )
@@ -816,7 +816,7 @@ def draw_row(ax, y_center, model):
         model["target"],
         ha="left",
         va="top",
-        fontsize=8,
+        fontsize=9.5,
         color=COL_TARGET,
     )
     ax.text(
@@ -825,7 +825,7 @@ def draw_row(ax, y_center, model):
         model["mechanism"],
         ha="left",
         va="top",
-        fontsize=8,
+        fontsize=9.5,
         color=COL_ACCENT,
     )
 
@@ -857,7 +857,7 @@ def draw_row(ax, y_center, model):
         model["scale"],
         ha="right",
         va="bottom",
-        fontsize=9,
+        fontsize=11,
         fontweight="bold",
         color=COL_TARGET,
     )
@@ -883,27 +883,42 @@ def main():
     for y, model in zip(ROW_CENTERS, MODELS):
         draw_row(ax, y, model)
 
-    # Bottom legend -- left-aligned with the viz panels, not the figure edge
+    # Bottom legend, right-aligned so its right edge meets the panel right edge.
     foot_y = 0.012
     swatches = [
         ("targeted (perturbed)", COL_TARGET),
         ("untouched (small-scale)", COL_MUTED_REG),
     ]
-    lx = VIZ_AREA_X
-    for label, col in swatches:
-        # Color dot
+    panel_right = VIZ_AREA_X + VIZ_AREA_W
+    dot_off = 0.015
+    item_gap = 0.05
+    fig.canvas.draw()
+    _rend = fig.canvas.get_renderer()
+    _inv = ax.transData.inverted()
+
+    def _text_w(s):
+        t = ax.text(0, 0, s, fontsize=11, fontweight="bold")
+        bb = t.get_window_extent(renderer=_rend)
+        x0 = _inv.transform((bb.x0, bb.y0))[0]
+        x1 = _inv.transform((bb.x1, bb.y0))[0]
+        t.remove()
+        return x1 - x0
+
+    widths = [dot_off + _text_w(lbl) for lbl, _ in swatches]
+    lx = panel_right - (sum(widths) + item_gap * (len(swatches) - 1))
+    for (label, col), w_item in zip(swatches, widths):
         ax.scatter(lx, foot_y + 0.012, s=80, color=col, edgecolor="white", linewidth=0.5, zorder=5)
         ax.text(
-            lx + 0.015,
+            lx + dot_off,
             foot_y,
             label,
             ha="left",
             va="bottom",
-            fontsize=9,
+            fontsize=11,
             fontweight="bold",
             color=COL_TEXT,
         )
-        lx += 0.20
+        lx += w_item + item_gap
 
     out_dir = Path(__file__).parent
     fig.savefig(out_dir / "phase3_schematic.svg", bbox_inches="tight", pad_inches=0.15)

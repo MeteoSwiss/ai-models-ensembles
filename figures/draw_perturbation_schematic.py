@@ -244,33 +244,33 @@ def draw_box(ax, x, y, w, h, colour, label, n, sigma, detail, highlight=None):
     #   title (label) / N = ... / sigma = ... / detail (italic)
     ax.text(
         x + w / 2,
-        y + h * 0.89,
+        y + h * 0.84,
         label,
         ha="center",
         va="center",
-        fontsize=18,
+        fontsize=13,
         fontweight="bold",
         color="white",
         zorder=5,
     )
     ax.text(
         x + w / 2,
-        y + h * 0.70,
+        y + h * 0.65,
         rf"$N_\mathrm{{group}} = {n}$",
         ha="center",
         va="center",
-        fontsize=15,
+        fontsize=11,
         color="white",
         alpha=0.97,
         zorder=5,
     )
     ax.text(
         x + w / 2,
-        y + h * 0.54,
+        y + h * 0.49,
         rf"$\sigma_\mathrm{{group}} = {sigma:.4f}$",
         ha="center",
         va="center",
-        fontsize=14,
+        fontsize=11,
         color="white",
         alpha=0.97,
         zorder=5,
@@ -283,7 +283,7 @@ def draw_box(ax, x, y, w, h, colour, label, n, sigma, detail, highlight=None):
         detail,
         ha="center",
         va="bottom",
-        fontsize=9.5,
+        fontsize=8.5,
         color="white",
         alpha=0.92,
         style="italic",
@@ -329,7 +329,7 @@ else:
     # and the bottom row clears the footer legend (the boxes had been
     # overlapping both). Boxes take a large share of the pitch so the rows
     # sit close together.
-    _top, _bot = 0.80, 0.20
+    _top, _bot = 0.82, 0.15
     _span = _top - _bot
     _pitch = _span / (_n_models - 1)
     ROW_CENTERS = [_top - _pitch * i for i in range(_n_models)]
@@ -518,29 +518,29 @@ def draw_model_row(ax, y_center, model, n_max_global):
         model["name"],
         ha="left",
         va="top",
-        fontsize=14,
+        fontsize=17,
         fontweight="bold",
         color=COL_TEXT,
     )
     # Subtitle (italic, muted)
     ax.text(
         lx,
-        y_center - 0.040 * s + LEFT_COL_OFFSET,
+        y_center - 0.052 * s + LEFT_COL_OFFSET,
         model["subtitle"],
         ha="left",
         va="top",
-        fontsize=8,
+        fontsize=10,
         color=COL_MUTED,
         style="italic",
     )
     # Total parameter count
     ax.text(
         lx,
-        y_center - 0.075 * s + LEFT_COL_OFFSET,
+        y_center - 0.100 * s + LEFT_COL_OFFSET,
         rf"$N_\mathrm{{total}} = {model['n_total']}$",
         ha="left",
         va="top",
-        fontsize=8,
+        fontsize=10,
         color=COL_TEXT,
     )
 
@@ -602,7 +602,7 @@ def main():
     _num = {3: "three", 4: "four", 5: "five", 6: "six"}.get(_n_models, str(_n_models))
     ax.text(
         LEFT_COL_X,
-        0.985,
+        0.995,
         f"Weight perturbation across {_num} AI weather models",
         ha="left",
         va="top",
@@ -623,19 +623,24 @@ def main():
         ("decoder", COL_DEC),
         ("aux / residual", COL_AUX),
     ]
-    lx = LEFT_COL_X
-    for label, colour in legend_items:
+    # Right-align the legend to the bottom model row's rightmost box edge (the
+    # row sitting directly above the footer; boxes are centred per row).
+    _gap = 0.018
+    _bot_groups = MODELS[-1]["groups"]
+    _bot_used = sum(width_for_n(g["n"], n_max) for g in _bot_groups) + _gap * (len(_bot_groups) - 1)
+    rx = BOX_AREA_X + (BOX_AREA_W + _bot_used) / 2 - 0.015
+    for label, colour in reversed(legend_items):
         ax.text(
-            lx,
+            rx,
             foot_y,
             label,
-            ha="left",
+            ha="right",
             va="bottom",
             fontsize=11,
             fontweight="bold",
             color=colour,
         )
-        lx += 0.12
+        rx -= 0.13
 
     out_dir = Path(__file__).parent
     fig.savefig(out_dir / "perturbation_schematic.svg", bbox_inches="tight", pad_inches=0.15)
