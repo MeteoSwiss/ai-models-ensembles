@@ -179,8 +179,7 @@ order = sorted(MODELS, key=lambda m: -(rows[m][240] or -99))
 def fmt(v: float | None) -> str:
     if v is None:
         return "-"
-    s = f"{v:.3f}" if v >= 0 else f"$-${abs(v):.3f}"
-    return s
+    return f"{v:.3f}"
 
 
 def fmt_bold(v: float | None, lead: int) -> str:
