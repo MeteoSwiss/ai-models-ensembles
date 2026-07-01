@@ -34,16 +34,6 @@ Verify CUDA / GPU visibility from inside a container.
 srun --container-image=$STORE/aurora.sqsh python tools/check_gpu.py
 ```
 
-## test_basic_functionality.py
-
-Smoke test for imports + CLI loadability. Must be run inside a model
-container, since it imports `earth2studio` and `swissclim_evaluations`.
-
-```bash
-srun --container-image=$STORE/aurora.sqsh \
-  python tools/test_basic_functionality.py
-```
-
 ## inspect_weights.py
 
 Walks a model checkpoint and reports tensor shapes / dtypes. Used to derive
