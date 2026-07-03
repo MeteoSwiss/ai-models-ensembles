@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import csv
 import json
+import sys
 from pathlib import Path
 
 # Exact-WB2 ablation-grid CRPS_clim denominator (4 mid-season inits, lead-resolved).
@@ -29,8 +30,9 @@ PICKS = {
     "aurora": ("mag_0.025_layer_encoder", "Aurora (aurora_encoder)"),
     "graphcast_operational": ("mag_0.01_layer_all", "GraphCast (graphcast_all)"),
     "sfno": ("mag_0.25_modes10", "SFNO (sfno_modes10)"),
+    "aifs": ("mag_0.027500_layer_decoder", "AIFS (aifs_perturbed)"),
 }
-LEAD = 240
+LEAD = int(sys.argv[1]) if len(sys.argv) > 1 else 240
 
 clim = json.load(open(CRPS_CLIM))
 
@@ -94,13 +96,15 @@ for model_dir, (key_perturbed, pretty) in PICKS.items():
     mag0 = load_metric(model_dir, "mag_0_layer_all", "MAE")
     crpss_pert = crpss_var_mean(perturbed)
     crpss_mag0 = crpss_var_mean(mag0)
-    delta = crpss_pert - crpss_mag0
+    delta = crpss_pert - crpss_mag0 if crpss_mag0 is not None else None
     rows.append((pretty, crpss_pert, crpss_mag0, delta))
 
 print(f"{'Model':35s} {'CRPSS(pert)':>12s} {'CRPSS(mag_0)':>13s} {'Delta':>10s}")
 print("-" * 75)
 for pretty, p, m, d in rows:
-    print(f"{pretty:35s} {p:>12.4f} {m:>13.4f} {d:>+10.4f}")
+    m_s = f"{m:>13.4f}" if m is not None else f"{'n/a':>13s}"
+    d_s = f"{d:>+10.4f}" if d is not None else f"{'n/a':>10s}"
+    print(f"{pretty:35s} {p:>12.4f} {m_s} {d_s}")
 print()
 print("Note: mag_0 CRPSS uses MAE (fair-CRPS reduces to MAE when M=1 effectively).")
 print(f"      Lead = {LEAD} h, 7 paper variables, 3D averaged over 500+850 first.")

@@ -499,10 +499,12 @@ def main():
     L.append("           classical IFS-ENS reference, the deployment-scale pendant to")
     L.append("           Tab.~\\ref{tab:calibration}. Two lead blocks (120, 240\\,h); 7-variable")
     L.append(
-        "           mean (3D variables averaged over $\\ell\\in\\{500,850\\}$\\,hPa first; LSD over"
+        "           mean (3D variables averaged over $p\\in\\{500,850\\}$\\,hPa first; LSD over"
     )
     L.append("           the five 3D variables). Column arrows give each metric's optimum")
-    L.append("           direction (SSR targets 1; SIGK on its native scale, ranking only).")
+    L.append(
+        "           direction (SSR$^{\\mathrm{pix}}$ targets 1; SIGK on its native unbounded scale, lower is better)."
+    )
     L.append(
         "           \\textbf{Bold}: per-metric per-lead optimum across the eight rows. IFS-ENS"
     )
@@ -518,10 +520,10 @@ def main():
     L.append("        & \\multicolumn{9}{c}{\\textbf{240\\,h}} \\\\")
     L.append("    \\cmidrule(lr){3-11} \\cmidrule(lr){12-20}")
     L.append(
-        "     &  & CRPSS$\\uparrow$ & SSR & SSIM$\\uparrow$ & LSD$\\downarrow$ & FSS$\\uparrow$ & $W_1\\downarrow$ & ES$\\downarrow$ & VS$\\downarrow$ & SIGK"
+        "     &  & CRPSS$\\uparrow$ & SSR$^{\\mathrm{pix}}$ & SSIM$\\uparrow$ & LSD$\\downarrow$ & FSS$\\uparrow$ & $W_1\\downarrow$ & ES$\\downarrow$ & VS$\\downarrow$ & SIGK"
     )
     L.append(
-        "        & CRPSS$\\uparrow$ & SSR & SSIM$\\uparrow$ & LSD$\\downarrow$ & FSS$\\uparrow$ & $W_1\\downarrow$ & ES$\\downarrow$ & VS$\\downarrow$ & SIGK \\\\"
+        "        & CRPSS$\\uparrow$ & SSR$^{\\mathrm{pix}}$ & SSIM$\\uparrow$ & LSD$\\downarrow$ & FSS$\\uparrow$ & $W_1\\downarrow$ & ES$\\downarrow$ & VS$\\downarrow$ & SIGK \\\\"
     )
     L.append("    \\midrule")
 

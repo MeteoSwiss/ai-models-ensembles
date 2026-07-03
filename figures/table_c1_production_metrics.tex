@@ -19,9 +19,9 @@
            multi-metric calibration for the seven production baselines plus the
            classical IFS-ENS reference, the deployment-scale pendant to
            Tab.~\ref{tab:calibration}. Two lead blocks (120, 240\,h); 7-variable
-           mean (3D variables averaged over $\ell\in\{500,850\}$\,hPa first; LSD over
+           mean (3D variables averaged over $p\in\{500,850\}$\,hPa first; LSD over
            the five 3D variables). Column arrows give each metric's optimum
-           direction (SSR targets 1; SIGK on its native unbounded scale, lower is better).
+           direction (SSR$^{\mathrm{pix}}$ targets 1; SIGK on its native unbounded scale, lower is better).
            \textbf{Bold}: per-metric per-lead optimum across the eight rows. IFS-ENS
            is excluded from ES/VS/SIGK and $W_1$ (its WeatherBench-2 forecasts carry
            archive NaN gaps in every variable, leaving too few jointly-complete initialisations).}
@@ -32,8 +32,8 @@
         & \multicolumn{9}{c}{\textbf{120\,h}}
         & \multicolumn{9}{c}{\textbf{240\,h}} \\
     \cmidrule(lr){3-11} \cmidrule(lr){12-20}
-     &  & CRPSS$\uparrow$ & SSR & SSIM$\uparrow$ & LSD$\downarrow$ & FSS$\uparrow$ & $W_1\downarrow$ & ES$\downarrow$ & VS$\downarrow$ & SIGK
-        & CRPSS$\uparrow$ & SSR & SSIM$\uparrow$ & LSD$\downarrow$ & FSS$\uparrow$ & $W_1\downarrow$ & ES$\downarrow$ & VS$\downarrow$ & SIGK \\
+     &  & CRPSS$\uparrow$ & SSR$^{\mathrm{pix}}$ & SSIM$\uparrow$ & LSD$\downarrow$ & FSS$\uparrow$ & $W_1\downarrow$ & ES$\downarrow$ & VS$\downarrow$ & SIGK
+        & CRPSS$\uparrow$ & SSR$^{\mathrm{pix}}$ & SSIM$\uparrow$ & LSD$\downarrow$ & FSS$\uparrow$ & $W_1\downarrow$ & ES$\downarrow$ & VS$\downarrow$ & SIGK \\
     \midrule
     \rowcolor{phaseBg}
     \multicolumn{20}{@{}l}{\textbf{Post-hoc weight perturbation (this work)}} \\

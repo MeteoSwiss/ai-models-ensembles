@@ -42,11 +42,11 @@
            at 10-day lead. \textbf{Bold} marks the within-phase per-model
            winner; \winner\ marks the per-model production baseline
            carried into the intercomparison; $^{\dagger}$ marks the two Phase 2b
-           refinements that beat the $\sqrt{N}$ anchor. Phase 3 hooks
+           refinements that beat the variance-budget anchor. Phase 3 hooks
            target the synoptic-and-larger scale with a model-dependent
-           cut ($\lambda \gtrsim 3300$ to 5000~km; see
+           cut (horizontal wavelength $\lambda \gtrsim 3300$ to 5000~km; see
            Fig.~\ref{fig:phase3-schematic}); Phase 3b broadens this reach at the per-row
-           $\sqrt{N}$ $\sigma$. Configuration tags and the $\sigma$
+           variance-budget $\sigma$. Configuration tags and the $\sigma$
            encoding are documented in
            appendix~\ref{appendix:reproducibility}.}
   \label{tab:ablation}
@@ -66,7 +66,7 @@
     \hline
 
     \rowcolor{phaseBg}
-    \multicolumn{4}{@{}l}{\textbf{Phase 2} \ \  layer-group sweep ($\sqrt{N}$ anchor) and Phase 2b finer-grid refinement on the top two groups} \\
+    \multicolumn{4}{@{}l}{\textbf{Phase 2} \ \  layer-group sweep (variance-budget anchor) and Phase 2b finer-grid refinement on the top two groups} \\
     & \mbadge{auroraC}{aurora}     & \textbf{encoder}$^{\dagger}$ / backbone / decoder & \textbf{0.025}$^{\dagger}$ \,\winner, 0.044, 0.060 / 0.010 / 0.040, 0.062, 0.085 \\
     \rowcolor{altRow}
     & \mbadge{graphcastC}{graphcast} & g2m$^{\dagger}$ / m2m / \textbf{m2g}            & 0.014$^{\dagger}$, 0.027, 0.045 / 0.012 / 0.018, \textbf{0.030}, 0.050 \\

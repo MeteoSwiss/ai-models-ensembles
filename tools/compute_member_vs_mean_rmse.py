@@ -39,6 +39,7 @@ PICKS = {
     "Aurora encoder": ("aurora", "phase2b", "mag_0.025_layer_encoder"),
     "GraphCast all": ("graphcast_operational", "phase1", "mag_0.01_layer_all"),
     "SFNO modes10": ("sfno", "phase3", "mag_0.25_modes10"),
+    "AIFS perturbed": ("aifs", "phase2", "mag_0.027500_layer_decoder"),
 }
 CONTROL = ("phase1", "mag_0_layer_all")
 
