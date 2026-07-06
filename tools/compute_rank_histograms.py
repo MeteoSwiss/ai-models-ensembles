@@ -46,7 +46,15 @@ BASELINES = {
     "aifsens": f"{STORE}/baselines/aifsens",
     "atlas": f"{STORE}/baselines/atlas",
     "fcn3": f"{STORE}/baselines/fcn3",
+    "ifs_ens": "/capstor/store/cscs/swissai/a122/IFS/ifs_ens.zarr",
 }
+# IFS-ENS is a single WeatherBench-2 consolidated zarr (init_time dim, 50 members)
+# rather than the per-init forecast.zarr tree, and carries archive NaN gaps in the
+# upper-air fields. Subsample its 50 members to a fixed 10 so its Talagrand
+# histogram shares the M+1=11 bin grid of the 10-member baselines (the pooled
+# per-pixel shape is insensitive to which 10).
+IFS_ENS_MEMBERS = 10
+IFS_ENS_SEED = 0
 VARS = [
     ("2m_temperature", None),
     ("mean_sea_level_pressure", None),
@@ -105,29 +113,47 @@ def main():
     cache: dict = {}
 
     for name in names:
-        base = Path(BASELINES[name])
+        is_ifs = name == "ifs_ens"
+        base = None if is_ifs else Path(BASELINES[name])
+        ifs_ds = ifs_sel = None
+        if is_ifs:
+            ifs_ds = xr.open_zarr(BASELINES[name], consolidated=True, chunks={})
+            rng = np.random.default_rng(IFS_ENS_SEED)
+            ifs_sel = np.sort(rng.choice(ifs_ds.sizes["ensemble"], IFS_ENS_MEMBERS, replace=False))
         t0 = time.time()
         M_ref = 10
         pp = np.zeros((len(VARS), M_ref + 1), dtype=np.int64)
         sm = [[] for _ in VARS]
         for init in inits:
-            zp = base / f"{init:%Y%m%d_%H%M}" / "forecast.zarr"
-            if not zp.is_dir():
-                continue
-            fc = xr.open_zarr(zp, consolidated=True, chunks={})
-            flat, flon = fc["latitude"].values, fc["longitude"].values
+            if is_ifs:
+                try:
+                    sub = ifs_ds.sel(
+                        init_time=np.datetime64(init, "ns"),
+                        lead_time=np.timedelta64(args.lead, "h"),
+                    ).isel(ensemble=ifs_sel)
+                except Exception:
+                    continue
+                flat, flon = ifs_ds["latitude"].values, ifs_ds["longitude"].values
+            else:
+                zp = base / f"{init:%Y%m%d_%H%M}" / "forecast.zarr"
+                if not zp.is_dir():
+                    continue
+                fc = xr.open_zarr(zp, consolidated=True, chunks={})
+                flat, flon = fc["latitude"].values, fc["longitude"].values
+                try:
+                    sub = fc.sel(lead_time=np.timedelta64(args.lead, "h"))
+                except Exception:
+                    continue
+                if "init_time" in sub.dims:
+                    sub = sub.isel(init_time=0)
             wlat = cos_lat_weights(flat)
-            try:
-                sub = fc.sel(lead_time=np.timedelta64(args.lead, "h"))
-            except Exception:
-                continue
-            if "init_time" in sub.dims:
-                sub = sub.isel(init_time=0)
             valid = init + timedelta(hours=args.lead)
             for vi, (var, level) in enumerate(VARS):
                 da = sub[var]
                 if level is not None:
                     da = da.sel(level=level)
+                if is_ifs:
+                    da = da.transpose("ensemble", "latitude", "longitude")
                 members = da.values  # (M, lat, lon)
                 if members.ndim != 3:
                     continue

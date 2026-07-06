@@ -1,13 +1,15 @@
-"""Rank-histogram figure at 240h (reviewer M6/M5).
+"""Per-pixel rank-histogram figure at 240h (appendix C4).
 
 Consumes tools/compute_rank_histograms.py output (rank_hist_<baseline>.npz) and
-draws, one row per baseline, the per-pixel and spatial-mean rank (Talagrand)
-histograms pooled over the seven paper variables. Flat = calibrated; U =
-under-dispersed; dome = over-dispersed. Expectation: the frozen post-hoc
-spatial mean is domed for the over-dispersed backbones (graphcast_all,
-aifs_perturbed, aurora_encoder) and flatter for sfno_modes10 and the trained
-baselines, confirming the near-constant whole-field offset of
-sec. results-spatial.
+draws the per-pixel verification-rank (Talagrand) histogram for each baseline,
+pooled over the seven paper variables (3D at 500+850 hPa) on the 112-init
+production grid. Flat (dashed) = calibrated; U = under-, dome = over-dispersed.
+
+Left column: the four post-hoc weight-perturbation ensembles (this work); right
+column: the trained-probabilistic baselines and the IFS-ENS classical reference
+(50 members subsampled to 10). Every panel shares the same y-limits. The
+domain-mean (spatial-mean) calibration story is carried by the spatial-mean SSR
+(Fig. tier1b), not by a rank histogram of a single aggregated scalar.
 
 Usage:  python tools/plot_rank_histograms.py
 """
@@ -26,51 +28,64 @@ from model_colors import color_for  # noqa: E402
 INDIR = Path("/iopsstor/scratch/cscs/sadamov")
 OUT = "/users/sadamov/pyprojects/ai-models-ensembles/figures/rank_histograms_240h"
 
-ORDER = [
+# Column-grouped: post-hoc perturbation (this work) left, trained-probabilistic
+# baselines + the IFS-ENS classical reference right.
+LEFT = [
     ("aurora_encoder", "Aurora encoder"),
     ("graphcast_all", "GraphCast all"),
     ("sfno_modes10", "SFNO modes10"),
     ("aifs_perturbed", "AIFS decoder"),
+]
+RIGHT = [
     ("aifsens", "AIFS-ENS"),
     ("atlas", "Atlas"),
     ("fcn3", "FCN3"),
+    ("ifs_ens", "IFS-ENS"),
 ]
 
 
+def perpixel(key):
+    f = INDIR / f"rank_hist_{key}.npz"
+    if not f.is_file():
+        return None, None
+    d = np.load(f)
+    h = d["perpixel_counts"].sum(axis=0).astype(float)
+    s = h.sum()
+    return (h / s if s else h), int(d["M"])
+
+
 def main():
-    rows = [(k, lab) for k, lab in ORDER if (INDIR / f"rank_hist_{k}.npz").is_file()]
-    if not rows:
+    cols = [LEFT, RIGHT]
+    nrow = max(len(LEFT), len(RIGHT))
+    hs, M = {}, None
+    for col in cols:
+        for key, _ in col:
+            h, m = perpixel(key)
+            if h is not None:
+                hs[key], M = h, m
+    if not hs:
         print("no rank_hist_*.npz found yet (job pending)")
         return
-    M = int(np.load(INDIR / f"rank_hist_{rows[0][0]}.npz")["M"])
     nb = M + 1
     flat = 1.0 / nb
+    ymax = max(max(h.max() for h in hs.values()), flat) * 1.12
 
-    fig, axs = plt.subplots(
-        len(rows), 2, figsize=(6.8, 0.82 * len(rows)), sharex=True, squeeze=False
-    )
-    for r, (key, lab) in enumerate(rows):
-        d = np.load(INDIR / f"rank_hist_{key}.npz")
-        pp = d["perpixel_counts"].sum(axis=0).astype(float)
-        pp = pp / pp.sum()
-        sm_raw = d["spatialmean_ranks"]
-        sm_vals = sm_raw[sm_raw >= 0]
-        sm = np.bincount(sm_vals, minlength=nb)[:nb].astype(float)
-        sm = sm / sm.sum() if sm.sum() else sm
-        col = color_for(key)
-        for c, (h, title) in enumerate([(pp, "per-pixel"), (sm, "spatial-mean")]):
+    fig, axs = plt.subplots(nrow, 2, figsize=(6.6, 1.2 * nrow + 0.5), sharex=True, sharey=True)
+    for c, col in enumerate(cols):
+        for r, (key, lab) in enumerate(col):
             ax = axs[r, c]
-            ax.bar(np.arange(nb), h, color=col, alpha=0.85, width=0.9)
+            h = hs.get(key)
+            if h is None:
+                ax.axis("off")
+                continue
+            ax.bar(np.arange(nb), h, color=color_for(key), alpha=0.85, width=0.9)
             ax.axhline(flat, color="black", lw=0.8, ls="--", alpha=0.6)
-            ax.set_ylim(0, max(h.max(), flat) * 1.35)
+            ax.set_ylim(0, ymax)
             ax.set_yticks([])
-            if r == 0:
-                ax.set_title(title, fontsize=12)
-            if c == 0:
-                ax.set_ylabel(lab, fontsize=10, rotation=0, ha="right", va="center")
-    for c in range(2):
-        axs[-1, c].set_xlabel("truth rank among members", fontsize=10)
-        axs[-1, c].set_xticks([0, M // 2, M])
+            ax.set_xlim(-0.6, M + 0.6)
+            ax.set_xticks([0, M // 2, M])
+            ax.set_xlabel(lab, fontsize=11)
+    fig.supxlabel("rank of truth among the 10 members", fontsize=10)
     fig.tight_layout()
     for ext in ("pdf", "png"):
         fig.savefig(f"{OUT}.{ext}", dpi=150, bbox_inches="tight")
