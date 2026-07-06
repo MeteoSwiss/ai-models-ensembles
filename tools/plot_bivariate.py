@@ -48,8 +48,13 @@ PANELS = [
 
 
 def find(b: str, pattern: str, eval_dir: str = "eval") -> str:
-    g = glob.glob(f"{BASE}/{b}/{eval_dir}/multivariate/*{pattern}*level500*.npz")
-    return g[0] if g else ""
+    # Prefer the pooled-members histograms (enspooled, 2026-07-06 review fix);
+    # fall back to the older ensemble-mean artifacts where not yet regenerated.
+    for token in ("enspooled", "ensmean"):
+        g = glob.glob(f"{BASE}/{b}/{eval_dir}/multivariate/*{pattern}*level500*_{token}.npz")
+        if g:
+            return g[0]
+    return ""
 
 
 def make(pattern, out, xlabel, ylabel, eval_dir="eval", name_as_title=False, ylim_top=None):

@@ -21,9 +21,10 @@
            workload (112 inits $\times$ 10 members, 360\,h). s/mbr is the
            median pure-inference time per member; CS h is the single-node
            wall-clock for one 10-member case-study ensemble. Atlas is
-           $\sim$18-40$\times$ slower per member than the other six, a
+           $\sim$18-39$\times$ slower per member than the other six, a
            consequence of its multi-step SDE sampler. \textbf{Bold}
-           marks the fastest and slowest per-member time. Training cost is
+           marks the fastest per-member time (Atlas's 38\,min is the slowest
+           by a wide margin, see text). Training cost is
            omitted and discussed in the text, since the reported figures
            are not comparable across the different hardware and accounting
            of each source. SFNO and FCN3 parameter counts are
@@ -61,7 +62,7 @@
     & \mbadge{aifsensC}{AIFS-ENS}       & 229 M  & 0.9   & 75            & 0.05  & 18.3 & 52.7  & 87.8  \\
     \rowcolor{altRow}
     & \mbadge{fcn3C}{FCN3}               & 711 M  & 2.8   & 114           & 0.08  & 26.6 & 76.6  & 127.7 \\
-    & \mbadge{atlasC}{Atlas}             & 4.2 B  & 17    & \textbf{2280} & 1.58  & 177.3 & 510.7 & 851.2 \\
+    & \mbadge{atlasC}{Atlas}             & 4.2 B  & 17    & 2280 & 1.58  & 177.3 & 510.7 & 851.2 \\
     \hline
 
     \rowcolor{phaseBg}

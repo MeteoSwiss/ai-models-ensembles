@@ -40,6 +40,24 @@ BASELINES = [
 ]
 BASELINE_COLORS = {b: color_for(b) for b in BASELINES}
 
+# Journal-style panel labels (match the Fig. 7 cascading columns) instead of the
+# raw underscored internal run names.
+DISPLAY = {
+    "aurora_encoder_ic": "Aurora (weight+IC)",
+    "graphcast_all_ic": "GraphCast (weight+IC)",
+    "sfno_modes10_ic": "SFNO (weight+IC)",
+    "aifs_perturbed_ic": "AIFS (weight+IC)",
+    "aifs_perturbed": "AIFS (weight-only)",
+    "aifsens": "AIFS-ENS",
+    "fcn3": "FCN3",
+    "atlas": "Atlas",
+    "ifs_ens": "IFS-ENS",
+}
+
+
+def disp(b: str) -> str:
+    return DISPLAY.get(b, b.replace("_", " "))
+
 
 def load():
     master = pd.read_csv(BASE / "milton_master_tracks.csv", parse_dates=["time"])
@@ -96,10 +114,10 @@ def f1_track_spaghetti(master):
                 )
             n_det = sub["member"].nunique()
             ax.set_title(
-                f"{b.replace('_', ' ')}  ({n_det}/10)"
+                f"{disp(b)}  ({n_det}/10)"
                 if r == 0
-                else f"{init_tag[6:8]} {init_tag[9:11]} UTC  {b.replace('_', ' ')}  ({n_det}/10)",
-                fontsize=8,
+                else f"{init_tag[6:8]} {init_tag[9:11]} UTC  {disp(b)}  ({n_det}/10)",
+                fontsize=9,
             )
             if c == 0:
                 ax.text(
@@ -145,7 +163,7 @@ def f2_intensity_vs_lead(master):
             )
             lead = [(t - init_t).total_seconds() / 3600 for t in grp["time"]]
             ax.plot(lead, grp["psl_hpa"], color=init_color[init_tag], alpha=0.55, linewidth=0.6)
-        ax.set_title(b.replace("_", " "), fontsize=20)
+        ax.set_title(disp(b), fontsize=16)
         ax.set_xlabel("lead time (h)", fontsize=18)
         ax.set_ylabel("min MSL (hPa)", fontsize=18)
         ax.tick_params(axis="both", labelsize=16)

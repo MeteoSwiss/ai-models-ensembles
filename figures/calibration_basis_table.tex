@@ -56,16 +56,19 @@
            multivariate Energy, Variogram and signature-kernel scores (ES,
            VS$_{0.5}$, SIGK) at 120 and 240\,h (lower is better;
            appendix~\ref{sec:results-multivar}); SIGK is on its native
-           (unbounded) scale, lower is better and comparable within a table.
+           (unbounded) scale, lower is better and comparable only within this
+           table, not against the production-grid SIGK of
+           Tab.~\ref{tab:production-metrics} (different init count and pixel
+           sample).
            The temporal-path SIGK optimum often
-           falls on an all-weight or full-layer-group phase rather than the
+           falls on an all-weight or full-tensor-group phase rather than the
            coarse-scale production pick, reflecting the temporal
            over-coherence of the frozen coarse-scale perturbation.
            \textbf{Bold}: within-model column optimum (argmax for CRPSS,
            SSIM, FSS\,95\%; value closest to 1 for SSR$^{\mathrm{pix}}$; argmin for LSD, $W_1$,
            ES, VS and SIGK). The selection rule (sec.~\ref{sec:methods-phases})
-           is CRPSS@240\,h primary, then SSR$^{\mathrm{pix}}$ closest to 1 at 120-240\,h,
-           with the remaining metrics checked against deterioration.}
+           is CRPSS@240\,h primary; a rival within $\pm$0.02 displaces the
+           winner only by improving the full metric bundle, which none did.}
   \label{tab:calibration}
   \begin{tabular}{@{}l l rr rr rr rr rr rr rr rr rr@{}}
     \toprule

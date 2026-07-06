@@ -43,10 +43,10 @@ BASE = "/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles/baselines"
 OUT_ROOT = "/users/sadamov/pyprojects/ai-models-ensembles/figures/tier1b_7way_spatial_mean_ssr"
 
 PERTURBED = {
-    "aurora_encoder": "Aurora encoder s=0.025",
-    "graphcast_all": "GraphCast all s=0.01",
-    "sfno_modes10": "SFNO modes10 s=0.25",
-    "aifs_perturbed": "AIFS decoder s=0.028",
+    "aurora_encoder": r"Aurora encoder $\sigma$=0.025",
+    "graphcast_all": r"GraphCast all $\sigma$=0.01",
+    "sfno_modes10": r"SFNO modes10 $\sigma$=0.25",
+    "aifs_perturbed": r"AIFS decoder $\sigma$=0.028",
 }
 TRAINED = {
     "aifsens": "AIFS-ENS",
@@ -63,6 +63,18 @@ VARS_PLOT = [
     "v_component_of_wind",
     "specific_humidity",
 ]
+
+# Journal-style panel titles (ECMWF short name in parentheses) instead of the
+# raw internal variable keys.
+VAR_LABELS = {
+    "2m_temperature": "2 m temperature (2t)",
+    "mean_sea_level_pressure": "MSL pressure (msl)",
+    "geopotential": "Geopotential (z)",
+    "temperature": "Temperature (t)",
+    "u_component_of_wind": "Zonal wind (u)",
+    "v_component_of_wind": "Meridional wind (v)",
+    "specific_humidity": "Specific humidity (q)",
+}
 
 
 def load_all() -> pd.DataFrame:
@@ -108,7 +120,7 @@ def main() -> None:
             ax.axhline(1.0, color="black", lw=0.7, ls=":", alpha=0.6)
         if args.persistence_json is not None:
             ax.axhline(0.0, color="black", lw=1.0, ls=":", alpha=0.7, label="Persistence SSR=0")
-        ax.set_title(var, fontsize=13)
+        ax.set_title(VAR_LABELS.get(var, var), fontsize=13)
         ax.grid(alpha=0.3)
         ax.xaxis.set_major_locator(MultipleLocator(48))
 

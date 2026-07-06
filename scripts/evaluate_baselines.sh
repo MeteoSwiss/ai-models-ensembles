@@ -160,7 +160,7 @@ selection:
     energy_spectra: pooled
     probabilistic: prob
     deterministic: mean
-    multivariate: mean
+    multivariate: pooled
     wd_kde: pooled
 
   check_missing: false

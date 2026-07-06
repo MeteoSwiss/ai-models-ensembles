@@ -60,7 +60,7 @@ selection:
     ets: mean
     probabilistic: prob
     ssim: mean
-    multivariate: mean
+    multivariate: pooled
 
   check_missing: false
 
