@@ -46,7 +46,9 @@ def main():
     nb = M + 1
     flat = 1.0 / nb
 
-    fig, axs = plt.subplots(len(rows), 2, figsize=(8, 2.0 * len(rows)), sharex=True, squeeze=False)
+    fig, axs = plt.subplots(
+        len(rows), 2, figsize=(6.8, 0.82 * len(rows)), sharex=True, squeeze=False
+    )
     for r, (key, lab) in enumerate(rows):
         d = np.load(INDIR / f"rank_hist_{key}.npz")
         pp = d["perpixel_counts"].sum(axis=0).astype(float)
@@ -69,8 +71,7 @@ def main():
     for c in range(2):
         axs[-1, c].set_xlabel("truth rank among members", fontsize=10)
         axs[-1, c].set_xticks([0, M // 2, M])
-    fig.suptitle("Rank histograms at 240h (7-variable pool)", fontsize=13)
-    fig.tight_layout(rect=[0, 0, 1, 0.98])
+    fig.tight_layout()
     for ext in ("pdf", "png"):
         fig.savefig(f"{OUT}.{ext}", dpi=150, bbox_inches="tight")
         print(f"Wrote {OUT}.{ext}")
