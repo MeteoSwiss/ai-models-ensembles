@@ -224,6 +224,7 @@ metrics:
       - ["geopotential_height_gradient", "wind_speed"]
     coriolis_parameter: 1.0e-4
     bins: 100
+    bivariate_max_samples: auto   # auto -> 1e6 paired subsample (avoids the full-pool P2P shuffle); null=full
 
 performance:
   dask_scheduler: distributed
