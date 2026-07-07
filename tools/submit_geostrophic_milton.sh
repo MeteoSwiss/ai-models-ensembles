@@ -25,10 +25,14 @@
 #     bivariate_geopotential_height_gradient_wind_speed_level500_enspooled.npz
 #
 # Pooled members (2026-07-07): ensemble mode is "pooled" with the 1e6 paired
-# subsample (bivariate_max_samples: auto), matching Fig C2's caption, and the
-# geostrophic reference line uses f at the box-centre latitude 22.5N
-# (f = 2*Omega*sin(22.5) = 5.58e-5 s^-1), NOT the earlier 1.0e-4 (=f at 43N,
-# wrong for a 5-40N subtropical box).
+# subsample (bivariate_max_samples: auto), matching Fig C2's caption. The
+# geostrophic reference line uses f = 2*Omega*sin(35) = 8.37e-5 s^-1, the
+# in-box extratropical latitude (~35N) where the 500 hPa geostrophic balance
+# is realised (the density-weighted effective f of the |grad Z|-wind cloud is
+# ~8.5-9e-5). NOT the earlier 1.0e-4 (=f at 43N, outside the box) nor the box
+# geometric centre 22.5N (5.58e-5, too low: line sits above the data cloud).
+# f is display-only (the histogram is f-independent), so a value change needs
+# no re-run - patch the coriolis_parameter scalar in the cached NPZs instead.
 #
 # All 8 baselines used by the figure run inside ONE sbatch (the box is tiny:
 # 240x140 grid pts, so each model is cheap).
@@ -202,7 +206,7 @@ metrics:
   multivariate:
     bivariate_pairs:
       - ["geopotential_height_gradient", "wind_speed"]
-    coriolis_parameter: 5.58e-5
+    coriolis_parameter: 8.37e-5
     bivariate_max_samples: auto
     bins: 100
 
