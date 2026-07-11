@@ -33,19 +33,19 @@ OUT = "/users/sadamov/pyprojects/ai-models-ensembles/figures/refresh_frozen_vs_r
 PAIRS = [
     (
         f"{BASE}/aurora_encoder/spatial_mean_ssr/spatial_ssr.csv",
-        f"{BASE}/aurora_p6c/spatial_mean_ssr/spatial_ssr.csv",
+        f"{BASE}/aurora_p6c_reseed/spatial_mean_ssr/spatial_ssr.csv",
         "Aurora",
         "aurora_encoder",
     ),
     (
         f"{BASE}/aifs_perturbed/spatial_mean_ssr/spatial_ssr.csv",
-        f"{BASE}/aifs_p6c/spatial_mean_ssr/spatial_ssr.csv",
+        f"{BASE}/aifs_p6c_reseed/spatial_mean_ssr/spatial_ssr.csv",
         "AIFS",
         "aifs_perturbed",
     ),
     (
         f"{BASE}/sfno_modes10/spatial_mean_ssr/spatial_ssr.csv",
-        f"{BASE}/sfno_p6c/spatial_mean_ssr/spatial_ssr.csv",
+        f"{BASE}/sfno_p6c_reseed/spatial_mean_ssr/spatial_ssr.csv",
         "SFNO",
         "sfno_modes10",
     ),

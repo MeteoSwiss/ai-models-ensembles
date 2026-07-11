@@ -27,21 +27,42 @@ import os
 import torch
 
 
+def _mix_seed(base_seed: int, unit_idx: int, step: int) -> int:
+    """Avalanche-mix (member, module, epoch) into an independent 63-bit seed.
+
+    base_seed carries the member (seed + member_id); unit_idx separates the
+    per-spectral-module draws; step is the refresh epoch. A plain ``seed + step``
+    made member m at epoch e collide with member m+1 at epoch e-1, and reused one
+    seed across every spectral module in a step; the splitmix64 finaliser with
+    distinct odd multipliers per axis removes both.
+    """
+    z = (
+        int(base_seed) * 0x9E3779B97F4A7C15
+        + int(unit_idx) * 0xD1B54A32D192ED03
+        + int(step) * 0xF1357AEA2E62A9C5
+    ) & 0xFFFFFFFFFFFFFFFF
+    z = ((z ^ (z >> 30)) * 0xBF58476D1CE4E5B9) & 0xFFFFFFFFFFFFFFFF
+    z = ((z ^ (z >> 27)) * 0x94D049BB133111EB) & 0xFFFFFFFFFFFFFFFF
+    return (z ^ (z >> 31)) & 0x7FFFFFFFFFFFFFFF
+
+
 def _seeded_complex_noise(
     weight: torch.Tensor,
     mode_cut: int,
     seed: int,
+    unit_idx: int,
     step: int,
 ) -> torch.Tensor:
     """Draw fresh complex64 noise of shape weight[..., :mode_cut].
 
-    Each (member, step) pair gets a unique RNG seed derived from
-    ``seed + step``, so noise is reproducible per (member, step) and
-    completely decorrelated across steps within a member -- the
-    random-walk property the spatial-mean-spread theory needs.
+    Each (member, module, step) triple gets a unique RNG seed via ``_mix_seed``,
+    so noise is reproducible per (member, module, step), independent across
+    spectral modules within a step, and completely decorrelated across steps
+    within a member -- the random-walk property the spatial-mean-spread theory
+    needs.
     """
     gen = torch.Generator(device=weight.device)
-    gen.manual_seed(int(seed + step))
+    gen.manual_seed(_mix_seed(seed, unit_idx, step))
     shape = (*weight.shape[:-1], mode_cut)
     real = torch.randn(*shape, generator=gen, device=weight.device, dtype=torch.float32)
     imag = torch.randn(*shape, generator=gen, device=weight.device, dtype=torch.float32)
@@ -82,7 +103,7 @@ def install_fresh_modes_hooks(
     step_per_module: dict[int, int] = {}
     handles: list = []
 
-    def _make_pre(weight: torch.Tensor, mod_name: str):
+    def _make_pre(weight: torch.Tensor, mod_name: str, unit_idx: int):
         mod_id = id(weight)
         step_per_module[mod_id] = 0
 
@@ -93,7 +114,7 @@ def install_fresh_modes_hooks(
             noise_step = ((step - 1) // refresh_every) + 1
             # Slice perturbation to l in [mode_skip, mode_cut).
             active_width = mode_cut - mode_skip
-            noise = _seeded_complex_noise(weight, active_width, base_seed, noise_step)
+            noise = _seeded_complex_noise(weight, active_width, base_seed, unit_idx, noise_step)
             sl = slice(mode_skip, mode_cut)
             pre_slice = weight.data[..., sl].clone()
             weight.data[..., sl] = weight.data[..., sl] * (1.0 + sigma * noise.to(weight.dtype))
@@ -126,9 +147,9 @@ def install_fresh_modes_hooks(
         w = module.weight
         if w.shape[-1] < mode_cut:
             raise ValueError(f"{name}.weight last axis = {w.shape[-1]} < mode_cut = {mode_cut}")
-        matched.append((name, tuple(w.shape), w.dtype))
-        handles.append(module.register_forward_pre_hook(_make_pre(w, name)))
+        handles.append(module.register_forward_pre_hook(_make_pre(w, name, len(matched))))
         handles.append(module.register_forward_hook(_make_post(w)))
+        matched.append((name, tuple(w.shape), w.dtype))
 
     if not handles:
         # Diagnostic: list every module name so we can see what the SFNO graph

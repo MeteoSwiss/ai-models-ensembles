@@ -2,8 +2,8 @@
 
 Two independent layers:
 
-* `perturb_initial_conditions(ds, magnitude, seed)` - additive Gaussian noise
-  scaled by each variable's spatial std. Operates on an in-memory dataset
+* `perturb_initial_conditions(ds, magnitude, seed)` - multiplicative Gaussian
+  noise, `var * (1 + N(0, magnitude))` per grid point. Operates on an in-memory dataset
   (e2s lexicon) so callers can wrap the result in `XarrayDataSource`.
 
 * `materialise_perturbed_package(model_name, magnitude, layer, seed, out_dir)`

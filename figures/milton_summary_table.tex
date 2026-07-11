@@ -31,7 +31,10 @@
            evaluate on the same stratified 10-member ensemble (140 cells
            per baseline); the tracker bridges the WeatherBench-2 IFS-ENS
            archive gaps (sec.~\ref{sec:methods-metrics}) with an 18\,h
-           maximum-gap setting. \textbf{Bold} marks the best value in each
+           maximum-gap setting, chosen to match the longest contiguous
+           archive gap; a tighter limit would break IFS-ENS tracks at
+           those gaps (an archive artefact, not forecast skill), while
+           the ML tracker inputs carry no such gaps. \textbf{Bold} marks the best value in each
            scored column (highest detection rate, lowest position error); the
            MSL-bias column is not bolded, being resolution-limited rather than a
            baseline-quality discriminator (see text).}

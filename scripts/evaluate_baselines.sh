@@ -49,19 +49,20 @@ WEEK_STARTS=(
 INIT_TIMES=()
 for ws in "${WEEK_STARTS[@]}"; do
     for day_offset in 0 1 2 3 4 5 6; do
-        d=$(python3 -c "from datetime import datetime,timedelta; print((datetime.fromisoformat('${ws}') + timedelta(days=${day_offset})).strftime('%Y-%m-%d'))")
+        d=$(date -d "${ws} + ${day_offset} days" +%Y-%m-%d)
         INIT_TIMES+=("${d}T00:00")
         INIT_TIMES+=("${d}T12:00")
     done
 done
 
-MODELS="atlas fcn3 aifsens ifs_ens sfno_modes10 aurora_encoder graphcast_all aifs_perturbed aifs_perturbed_ic aurora_encoder_ic graphcast_all_ic sfno_modes10_ic aurora_p6c aifs_p6c"
+MODELS="atlas fcn3 aifsens ifs_ens sfno_modes10 aurora_encoder graphcast_all aifs_perturbed aifs_perturbed_ic aurora_encoder_ic graphcast_all_ic sfno_modes10_ic aurora_p6c aifs_p6c aurora_p6c_reseed aifs_p6c_reseed sfno_p6c_reseed"
 declare -A MODEL_KIND=(
     [atlas]=ai [fcn3]=ai [aifsens]=ai [ifs_ens]=ref
     [sfno_modes10]=ai [aurora_encoder]=ai [graphcast_all]=ai
     [aifs_perturbed]=ai [aifs_perturbed_ic]=ai
     [aurora_encoder_ic]=ai [graphcast_all_ic]=ai [sfno_modes10_ic]=ai
     [aurora_p6c]=ai [aifs_p6c]=ai
+    [aurora_p6c_reseed]=ai [aifs_p6c_reseed]=ai [sfno_p6c_reseed]=ai
 )
 
 IFS_ENS_ZARR="/capstor/store/cscs/swissai/a122/IFS/ifs_ens.zarr"
@@ -107,7 +108,7 @@ _dt_yaml() {
         local init_date="${it%%T*}"
         local hh="${it##*T}"
         local end_date
-        end_date=$(python3 -c "from datetime import datetime,timedelta; print((datetime.fromisoformat('${init_date}T${hh}') + timedelta(hours=360)).strftime('%Y-%m-%dT%H'))")
+        end_date=$(date -d "${init_date} ${hh} + 360 hours" +%Y-%m-%dT%H)
         [[ $first -eq 0 ]] && out+=", "
         out+="\"${it}:${end_date}\""
         first=0
@@ -538,7 +539,7 @@ shift || true
 
 case "$ACTION" in
     all)           submit_per_module_eval "${1:-}" "${2:-}" ;;
-    atlas|fcn3|aifsens|ifs_ens|sfno_modes10|aurora_encoder|graphcast_all|aifs_perturbed|aifs_perturbed_ic|aurora_encoder_ic|graphcast_all_ic|sfno_modes10_ic|aurora_p6c|aifs_p6c) submit_per_module_eval "$ACTION" "${1:-}" ;;
+    atlas|fcn3|aifsens|ifs_ens|sfno_modes10|aurora_encoder|graphcast_all|aifs_perturbed|aifs_perturbed_ic|aurora_encoder_ic|graphcast_all_ic|sfno_modes10_ic|aurora_p6c|aifs_p6c|aurora_p6c_reseed|aifs_p6c_reseed|sfno_p6c_reseed) submit_per_module_eval "$ACTION" "${1:-}" ;;
     intercompare)  run_intercompare ;;
     gen-configs)
         target_model="${1:-}"

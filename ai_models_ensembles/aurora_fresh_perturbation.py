@@ -20,18 +20,38 @@ import os
 import torch
 
 
+def _mix_seed(base_seed: int, unit_idx: int, step: int) -> int:
+    """Avalanche-mix (member, tensor, epoch) into an independent 63-bit seed.
+
+    base_seed carries the member (seed + member_id); unit_idx separates the
+    per-tensor draws; step is the refresh epoch. A plain ``seed + step`` made
+    member m at epoch e collide with member m+1 at epoch e-1, and reused one
+    seed across every tensor in a step; the splitmix64 finaliser with distinct
+    odd multipliers per axis removes both.
+    """
+    z = (
+        int(base_seed) * 0x9E3779B97F4A7C15
+        + int(unit_idx) * 0xD1B54A32D192ED03
+        + int(step) * 0xF1357AEA2E62A9C5
+    ) & 0xFFFFFFFFFFFFFFFF
+    z = ((z ^ (z >> 30)) * 0xBF58476D1CE4E5B9) & 0xFFFFFFFFFFFFFFFF
+    z = ((z ^ (z >> 27)) * 0x94D049BB133111EB) & 0xFFFFFFFFFFFFFFFF
+    return (z ^ (z >> 31)) & 0x7FFFFFFFFFFFFFFF
+
+
 def _seeded_noise_like(
     p: torch.Tensor,
     seed: int,
+    unit_idx: int,
     step: int,
 ) -> torch.Tensor:
-    """Draw a noise tensor matching ``p`` deterministically per (seed, step).
+    """Draw a noise tensor matching ``p`` deterministically per (seed, tensor, step).
 
     Step indexing collapses every ``refresh_every`` AR steps into one noise
     epoch upstream, so this function only sees the per-epoch index.
     """
     gen = torch.Generator(device=p.device)
-    gen.manual_seed(int(seed + step) & 0x7FFFFFFF)
+    gen.manual_seed(_mix_seed(seed, unit_idx, step))
     return torch.randn(p.shape, generator=gen, device=p.device, dtype=p.dtype)
 
 
@@ -99,9 +119,9 @@ def install_fresh_encoder_hooks(
         step = step_counter["i"]
         noise_step = ((step - 1) // refresh_every) + 1
         saved.clear()
-        for name, p in params:
+        for unit_idx, (name, p) in enumerate(params):
             saved[id(p)] = p.data.clone()
-            noise = _seeded_noise_like(p, base_seed, noise_step)
+            noise = _seeded_noise_like(p, base_seed, unit_idx, noise_step)
             p.data.mul_(1.0 + sigma * noise)
         if step == 1:
             sample = params[0][1]
@@ -109,7 +129,7 @@ def install_fresh_encoder_hooks(
                 f"[AURORA_FRESH] PRE_HOOK fired step={step} "
                 f"refresh_every={refresh_every} sigma={sigma:.4g} "
                 f"n_params={len(params)} "
-                f"|delta|mean(first)={sigma * float(_seeded_noise_like(sample, base_seed, noise_step).abs().mean()):.4g}",
+                f"|delta|mean(first)={sigma * float(_seeded_noise_like(sample, base_seed, 0, noise_step).abs().mean()):.4g}",
                 flush=True,
             )
 

@@ -506,7 +506,7 @@ def main():
         "           direction (SSR$^{\\mathrm{pix}}$ targets 1; SIGK on its native unbounded scale, lower is better)."
     )
     L.append(
-        "           \\textbf{Bold}: per-metric per-lead optimum across the eight rows. IFS-ENS"
+        "           \\textbf{Bold}: per-metric per-lead optimum across the eight rows, decided before rounding. IFS-ENS"
     )
     L.append("           is excluded from ES/VS/SIGK and $W_1$ (its WeatherBench-2 forecasts carry")
     L.append(
