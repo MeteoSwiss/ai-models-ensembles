@@ -12,7 +12,7 @@ This repo is a thin orchestration layer over [NVIDIA earth2studio](https://githu
 - **earth2studio** handles model loading, IC fetching, and rollout.
 - **swissclim-evaluations** handles deterministic + probabilistic
   verification, plotting, and intercomparison.
-- This repo wires them together: a curated 5-model registry, IC + weight
+- This repo wires them together: a curated 7-model registry, IC + weight
   perturbation helpers, Slurm scripts, and a GH200 container build.
 
 ## Model registry
@@ -119,49 +119,27 @@ layout were verified empirically from checkpoint dumps + a runtime
 diagnostic ([tools/dump_*_keys.py](tools/),
 [tools/diagnose_sfno_modes.py](tools/diagnose_sfno_modes.py)).
 
-### Per-model winners (argmin CRPS, 4-init ablation grid, lead 240h)
+### Production baselines (per-model picks, carried to the 112-init grid)
 
-| Model | Mechanism | Layer/scale | σ | CRPS | SSR | Source |
-|---|---|---|---|---|---|---|
-| Aurora | layer_group | `encoder` (input projection) | 0.025 | 46.4 | 1.05 | Phase 2b |
-| GraphCast | layer_group | `g2m` (grid-to-mesh encoder) | 0.014 | 44.4 | 1.27 | Phase 2b |
-| SFNO | coarse_modes | spectral degree `l < 10` | 0.25 | 46.8 | 1.09 | Phase 3 |
+| Model | Mechanism | Layer/scale | σ | Run tag |
+|---|---|---|---|---|
+| Aurora | layer_group | `encoder` (input projection) | 0.025 | `aurora_encoder` |
+| GraphCast | layer_group | all weights | 0.01 | `graphcast_all` |
+| SFNO | coarse_modes | spectral degree `l < 10` | 0.25 | `sfno_modes10` |
+| AIFS | layer_group | `decoder` | 0.0275 | `aifs_perturbed` |
 
-Two of three models reward architectural targeting of the input
-projection / message-passing layer; only SFNO benefits from the
-physics-motivated low-frequency-modes story.
+### Baseline intercomparison (112-init grid)
 
-### Headline 5-way baseline comparison (112-init grid)
-
-All three per-model winners are run as full 112-init baselines that
-match `atlas` / `fcn3` / `aifsens` / `ifs_ens`:
-
-- `aurora_encoder` (`$STORE/baselines/aurora_encoder/`)
-- `graphcast_all` (`$STORE/baselines/graphcast_all/`)
-- `sfno_modes10` (`$STORE/baselines/sfno_modes10/`)
-
-First complete 5-way intercomp (with sfno_modes10 alone) 2026-05-27:
-
-| Lead | aifsens | atlas | fcn3 | **sfno_modes10** | gap to best |
-|---|---|---|---|---|---|
-| 120h | 15.4 | 16.8 | 17.8 | **25.2** | +63% |
-| 240h | 36.0 | 36.9 | 38.0 | **43.3** | +20% |
-| 360h | 47.7 | 48.4 | 47.4 | **50.0** | +5% |
-
-CRPS gap to the best trained baseline shrinks monotonically with lead --
-at day 15 the post-hoc approach is within ~5% of trained probabilistic
-CRPS. SSR is mildly underdispersive (0.72-0.86) and converges with the
-trained baselines (0.84-0.90) by day 10-15.
-
-Note: the 4-init ablation predicted CRPS=46.8 at 240h for `sfno_modes10`;
-the full 112-init grid shows 43.3. Use full-grid numbers for any
-paper-ready quotation -- the 4-init grid is statistically thin.
+The four production baselines run against the trained-probabilistic
+`atlas` / `fcn3` / `aifsens` and the physical `ifs_ens` on the full
+112-init grid (`$STORE/baselines/<id>/`). See the paper for the headline
+numbers; earlier interim tables predated the full grid and are dropped.
 
 ## Initial conditions
 
-All five AI models start from **ARCO ERA5** by default. Reasons:
+All AI models start from **ARCO ERA5** by default. Reasons:
 
-- All five were trained on ERA5; ERA5 ICs are in-distribution.
+- All were trained on ERA5; ERA5 ICs are in-distribution.
 - The on-disk IFS download ([sadamov/ifs_download](https://github.com/sadamov/ifs_download))
   doesn't include the t+0 analysis or the full variable list any of these
   models need (missing `u100m`, `v100m`, `sp`, `tcwv`, `w`, `sst`,
@@ -335,6 +313,7 @@ groups are model-specific (defined in `_MODEL_LAYER_GROUPS` in
 | `aurora` | `encoder`, `backbone`, `decoder` |
 | `graphcast_operational` | `g2m`, `m2m`, `m2g` |
 | `sfno` | `encoder`, `processor`, `decoder`, `residual` |
+| `aifs` | `encoder`, `processor`, `decoder` |
 
 The slurm submitters in `scripts/` hard-code their per-experiment defaults
 and pass them through `ai-ens infer ...`.
