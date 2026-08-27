@@ -10,7 +10,7 @@
 #
 # Output: /iopsstor/scratch/cscs/sadamov/rank_hist_<baseline>.npz
 #
-#SBATCH --account=a122
+#SBATCH --account=ab016
 #SBATCH --partition=normal
 #SBATCH --time=02:00:00
 #SBATCH --mem=128G

@@ -13,7 +13,7 @@
 #   e.g. sbatch tools/submit_perpixel_ssr.sh aifs_perturbed_ic
 #        sbatch tools/submit_perpixel_ssr.sh aifs_perturbed
 #
-#SBATCH --account=a122
+#SBATCH --account=ab016
 #SBATCH --partition=normal
 #SBATCH --time=06:00:00
 #SBATCH --mem=256G

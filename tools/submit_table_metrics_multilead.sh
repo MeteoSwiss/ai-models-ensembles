@@ -7,7 +7,7 @@
 #
 # Usage: sbatch tools/submit_table_metrics_multilead.sh
 #
-#SBATCH --account=a122
+#SBATCH --account=ab016
 #SBATCH --partition=normal
 #SBATCH --time=12:00:00
 #SBATCH --mem=320G

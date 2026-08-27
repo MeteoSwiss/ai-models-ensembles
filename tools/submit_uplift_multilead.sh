@@ -10,7 +10,7 @@
 #
 # Usage: sbatch tools/submit_uplift_multilead.sh
 #
-#SBATCH --account=a122
+#SBATCH --account=ab016
 #SBATCH --partition=normal
 #SBATCH --time=02:00:00
 #SBATCH --mem=200G

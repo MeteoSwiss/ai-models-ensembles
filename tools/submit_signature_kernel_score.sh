@@ -11,7 +11,7 @@
 # Outputs in /iopsstor/scratch/cscs/sadamov/ai-models-ensembles/scratch/sigk/:
 #   <baseline>.csv  (one row each) + sigk_combined.csv after aggregation.
 #
-#SBATCH --account=a122
+#SBATCH --account=ab016
 #SBATCH --partition=normal
 #SBATCH --time=03:00:00
 #SBATCH --mem=120G

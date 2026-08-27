@@ -71,7 +71,7 @@ for week_start in "${WEEK_STARTS[@]}"; do
             jobid=$(sbatch --parsable \
                 --begin="now+${delay}minutes" \
                 --job-name="$job_tag" \
-                --partition="$PARTITION" --account=a122 \
+                --partition="$PARTITION" --account=ab016 \
                 --nodes=1 --ntasks=1 --cpus-per-task=32 --mem=444G --gres=gpu:4 \
                 --time=02:00:00 \
                 --output="$LOG_DIR/${job_tag}_%j.out" \

@@ -13,7 +13,7 @@
 # Usage: sbatch tools/submit_ic_ssr.sh <model_label>
 #   e.g. sbatch tools/submit_ic_ssr.sh aurora_encoder_ic
 #
-#SBATCH --account=a122
+#SBATCH --account=ab016
 #SBATCH --partition=normal
 #SBATCH --time=04:00:00
 #SBATCH --mem=128G

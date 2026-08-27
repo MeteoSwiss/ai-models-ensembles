@@ -47,7 +47,7 @@ SCRIPT
 chmod +x "$HELPER"
 
 sbatch --parsable \
-    --account=a122 \
+    --account=ab016 \
     --partition="$PARTITION" \
     --job-name="reshard_${TARGET}" \
     --time=12:00:00 \

@@ -142,7 +142,7 @@ for run in $REQUESTED; do
             sbatch --parsable \
                 --begin="now+${delay}minutes" \
                 --job-name="$job_tag" \
-                --partition="$PARTITION" --account=a122 \
+                --partition="$PARTITION" --account=ab016 \
                 --nodes=1 --ntasks=1 --cpus-per-task=32 --mem=800G --gres=gpu:4 \
                 --time="$TIME_LIMIT" \
                 --output="$LOG_DIR/${job_tag}_%j.out" \

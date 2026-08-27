@@ -172,7 +172,9 @@ ai-ens infer --model graphcast_operational --init 2024-02-15T00:00 \
 
 `--ic-zarr` selects `ensemble=member_id` from the store and serves it as the
 IC (overriding `--data-source` and `--ic-magnitude`); combine it with
-`--weight-magnitude` for the hybrid. The store carries 224 6-hourly init times
+`--weight-magnitude` for the hybrid, or **omit `--weight-magnitude` for an
+IC-only control** that isolates how much of the spread the initial conditions
+contribute (the `*_ic_only` baselines). The store carries 224 6-hourly init times
 (8 weeks × 28 samples, including the `t-6h` slot autoregressive models need)
 and 50 members. Two PL levels (150, 600 hPa) are not archived for `type=pf
 step=0`, so they are filled by log-pressure interpolation
@@ -386,7 +388,13 @@ uses the image's installed package).
 - **`config/`** - SwissClim YAML template + intercomparison config
 - **`scripts/`** - Slurm submitters for inference and SwissClim eval
 - **`containers/`** - per-model Dockerfiles and `submit_build.sh`
-- **`tools/`** - host venv helpers, weight inspection, zarr resharding; `tools/milton/` holds the Hurricane Milton case-study pipeline (TC tracking + figures)
+- **`tools/`** - host venv helpers, weight inspection, zarr resharding, and the
+  verification suite (`spread_error_binned.py` + `plot_spread_error.py` for the
+  spread-error relationship, `ic_weight_decomposition.py` for the IC-versus-weight
+  attribution, `crpss_common_sample.py` for CRPSS on the IFS-ENS-valid subsample,
+  `compute_channel_scale.py` + `compare_fixedscale_ranking.py` for the
+  fixed-climatology rescore of ES/VS/SIGK); `tools/milton/` holds the Hurricane
+  Milton case-study pipeline (TC tracking + figures)
 - **`figures/`** - perturbation schematics (regenerable SVG/PDF/PNG)
 
 ## Pre-commit & Ruff
@@ -415,6 +423,15 @@ inference + perturbation are exercised end-to-end on a GPU node.
   the model deps only live inside containers; the host venv is intentionally
   minimal. Run inside `$STORE/<model>.sqsh` via `srun --container-image=...`.
 - **CDS data source fails**: needs `~/.cdsapirc`. Prefer `arco` for ERA5.
+- **AIFS inference takes ~2 h per init instead of ~8 min**: the CDS GRIB cache
+  is cold. ARCO cannot replace CDS for AIFS (it lacks the land-surface fields),
+  so CDS-bound runs must mount the persistent cache at
+  `$STORE/e2s_cache_backup` (5376 pre-downloaded GRIBs) rather than the copy on
+  iopsstor scratch, which gets purged. `scripts/submit_all_inference.sh`
+  selects it automatically when the data source is `cds`.
+- **`SIGSEGV (-11)` from every GPU worker at startup**: a transient GH200/UCX
+  race. Failed members are relaunched automatically; raise the count with
+  `E2S_ROUND_RETRIES` (default 2) when the cluster is busy.
 - **`envsubst: command not found`**: install `gettext-base`.
 - **Container build fails**: must be submitted to a compute node via
   `containers/submit_build.sh`; the login nodes can't build.

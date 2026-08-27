@@ -247,7 +247,7 @@ echo "Submitting ${JOB_TAG} (8 baselines, Milton box, geostrophic-only) ..." >&2
 sbatch --parsable \
     --job-name="$JOB_TAG" \
     --partition="$PARTITION" \
-    --account=a122 \
+    --account=ab016 \
     --nodes=1 \
     --ntasks=1 \
     --cpus-per-task=128 \

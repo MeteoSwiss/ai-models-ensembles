@@ -16,7 +16,7 @@
 #   crps_clim_eval_<tag>_provenance.json
 # plus a versioned copy at tools/data/crps_clim_eval_<tag>.json
 #
-#SBATCH --account=a122
+#SBATCH --account=ab016
 #SBATCH --partition=normal
 #SBATCH --time=12:00:00
 #SBATCH --mem=800G

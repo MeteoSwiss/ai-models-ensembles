@@ -115,6 +115,13 @@ def out_paths(tag: str):
         "prov": OUTDIR / f"crps_clim_eval_{tag}_provenance.json",
         "ckpt": OUTDIR / f"crps_clim_eval_{tag}_checkpoint.jsonl",
         "repo": Path(__file__).resolve().parent / "data" / f"crps_clim_eval_{tag}.json",
+        # Per-(lead, init) denominator, so a CRPSS can be recomputed on any
+        # subsample of the initialisations -- needed to pair the gappy IFS-ENS
+        # numerator with a denominator over exactly its valid cases.
+        "per_init": OUTDIR / f"crps_clim_eval_{tag}_per_init.json",
+        "per_init_repo": (
+            Path(__file__).resolve().parent / "data" / f"crps_clim_eval_{tag}_per_init.json"
+        ),
     }
 
 
@@ -290,19 +297,27 @@ def compute_field(var: str, level: int | None, grid: dict) -> dict:
         crps_pix = skill - spread[b]
         crps_vt[vt] = weighted_spatial_mean(crps_pix, wlat)
 
-    # Average over inits per lead.
+    # Average over inits per lead, keeping the per-init values for subsampling.
     per_lead: dict[str, float] = {}
+    per_init: dict[str, dict[str, float]] = {}
     inits = init_times(grid)
     for L in grid["leads"]:
         vals = [crps_vt[init + timedelta(hours=L)] for init in inits]
         per_lead[str(L)] = float(np.nanmean(vals))
+        per_init[str(L)] = {init.isoformat(): float(v) for init, v in zip(inits, vals)}
 
     print(
         f"     [{label}] done ({time.time()-t0:.0f}s) " f"CRPS@240h={per_lead.get('240'):.6g}",
         flush=True,
     )
     n_members = int(np.median([ens[b].shape[0] for b in ens]))
-    return {"label": label, "leads": per_lead, "n_members": n_members, "n_inits": len(inits)}
+    return {
+        "label": label,
+        "leads": per_lead,
+        "per_init": per_init,
+        "n_members": n_members,
+        "n_inits": len(inits),
+    }
 
 
 def _worker(var: str, level: int | None, grid: dict) -> dict:
@@ -357,6 +372,7 @@ def main():
         return var if level is None else f"{var}_{level}"
 
     out: dict[str, dict] = {}
+    out_per_init: dict[str, dict] = {}
     rows: list[dict] = []
     done: set[str] = set()
     if paths["ckpt"].exists():
@@ -368,6 +384,8 @@ def main():
                 rec = json.loads(raw)
                 done.add(rec["label"])
                 out[rec["label"]] = rec["leads"]
+                if "per_init" in rec:
+                    out_per_init[rec["label"]] = rec["per_init"]
                 rows.append(rec)
         paths["json"].write_text(json.dumps(out, indent=2))
         print(f"Resuming; {len(done)} fields already done: {sorted(done)}", flush=True)
@@ -391,15 +409,19 @@ def main():
                     continue
                 rows.append(row)
                 out[key] = row["leads"]
+                out_per_init[key] = row["per_init"]
                 ckpt.write(json.dumps(row) + "\n")
                 ckpt.flush()
                 os.fsync(ckpt.fileno())
                 paths["json"].write_text(json.dumps(out, indent=2))
+                paths["per_init"].write_text(json.dumps(out_per_init))
                 print(f"  -> committed {key}", flush=True)
 
     paths["json"].write_text(json.dumps(out, indent=2))
     paths["repo"].parent.mkdir(parents=True, exist_ok=True)
     paths["repo"].write_text(json.dumps(out, indent=2))
+    paths["per_init"].write_text(json.dumps(out_per_init))
+    paths["per_init_repo"].write_text(json.dumps(out_per_init))
     paths["prov"].write_text(
         json.dumps(
             {
@@ -412,12 +434,15 @@ def main():
                 "leads": list(grid["leads"]),
                 "n_inits": len(grid["init_dates"]),
                 "lat_weighting": "cos(lat), matches scores.create_latitude_weights",
-                "per_field": rows,
+                "per_field": [{k: v for k, v in r.items() if k != "per_init"} for r in rows],
             },
             indent=2,
         )
     )
-    print(f"\n-> {paths['json']}\n-> {paths['repo']}\n-> {paths['prov']}")
+    print(
+        f"\n-> {paths['json']}\n-> {paths['repo']}"
+        f"\n-> {paths['per_init_repo']}\n-> {paths['prov']}"
+    )
 
 
 if __name__ == "__main__":

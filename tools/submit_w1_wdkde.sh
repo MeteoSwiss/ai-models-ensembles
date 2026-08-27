@@ -16,7 +16,7 @@
 # Usage: sbatch tools/submit_w1_wdkde.sh
 # ---------------------------------------------------------------------------
 #SBATCH --job-name=w1_wdkde_baselines
-#SBATCH --account=a122
+#SBATCH --account=ab016
 #SBATCH --partition=normal
 #SBATCH --nodes=1
 #SBATCH --ntasks=1

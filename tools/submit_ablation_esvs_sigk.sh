@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ES/VS/SIGK for the 4 ablation winners at leads 120 and 240 -> Table 3
 # (calibration). Only 4 inits each, so cheap; run ~6 concurrent.
-#SBATCH --account=a122
+#SBATCH --account=ab016
 #SBATCH --partition=normal
 #SBATCH --time=01:30:00
 #SBATCH --mem=200G

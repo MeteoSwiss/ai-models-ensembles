@@ -3,7 +3,7 @@
 # Its eval produced the ridgeline npz but not the wasserstein-summary CSV, so the
 # calibration-table W1 cell was missing. wd_kde-only config, host venv (CPU), 4 inits.
 #SBATCH --job-name=gcp3frz_w1
-#SBATCH --account=a122
+#SBATCH --account=ab016
 #SBATCH --partition=normal
 #SBATCH --nodes=1
 #SBATCH --ntasks=1

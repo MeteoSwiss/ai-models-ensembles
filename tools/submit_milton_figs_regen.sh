@@ -12,7 +12,7 @@
 # The F4 warm-core peak numbers are printed to the log (look for the F4 NUMBERS block)
 # so the caption + body prose can be updated from them once the job finishes.
 #SBATCH --job-name=milton_figs_regen
-#SBATCH --account=a122
+#SBATCH --account=ab016
 #SBATCH --partition=normal
 #SBATCH --nodes=1
 #SBATCH --ntasks=1

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #SBATCH --job-name=sfno_diag_modes
 #SBATCH --partition=debug
-#SBATCH --account=a122
+#SBATCH --account=ab016
 #SBATCH --gres=gpu:1
 #SBATCH --nodes=1
 #SBATCH --ntasks=1

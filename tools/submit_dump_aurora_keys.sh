@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #SBATCH --job-name=aurora_keys
 #SBATCH --partition=debug
-#SBATCH --account=a122
+#SBATCH --account=ab016
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=64G

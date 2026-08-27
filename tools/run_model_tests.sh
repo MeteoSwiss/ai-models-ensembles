@@ -45,7 +45,7 @@ run_test() {
     echo "Testing $model (model_id=$model_id)"
     srun -N1 -n1 \
         --partition=debug \
-        --account=a122 \
+        --account=ab016 \
         --gres=gpu:1 \
         --cpus-per-task=8 \
         --mem=64G \

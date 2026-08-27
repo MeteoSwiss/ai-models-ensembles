@@ -48,6 +48,7 @@ Output columns: model, score, lead_hours, n_inits, n_members, n_pixels, value.
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from itertools import combinations
 from pathlib import Path
@@ -159,6 +160,7 @@ def _load_init(
     lead_stride: int,
     n_pixels: int,
     rng: np.random.Generator,
+    scale: dict[str, float] | None = None,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray] | None:
     """Load standardised member + truth paths on a random pixel sample.
 
@@ -201,6 +203,7 @@ def _load_init(
 
     mem_layers: list[np.ndarray] = []
     tru_layers: list[np.ndarray] = []
+    labels: list[str] = []
     M = None
     for var in variables:
         if var not in fcst.data_vars or var not in truth.data_vars:
@@ -232,14 +235,24 @@ def _load_init(
             M = fv.shape[0]
             mem_layers.append(fv)
             tru_layers.append(tv)
+            labels.append(var if lvl is None else f"{var}_{int(float(lvl))}")
 
     if not mem_layers or M is None:
         return None
 
     mem = np.stack(mem_layers, axis=-1)  # (M, L, pt, V)
     tru = np.stack(tru_layers, axis=-1)  # (L, pt, V)
-    # standardise per layer by per-init truth std over the (lead, pixel) sample
-    s = tru.reshape(-1, tru.shape[-1]).std(axis=0)  # (V,)
+    # standardise per layer. With `scale` the divisor is the fixed 1990-2019
+    # climatological constant (tools/data/channel_scale_1990_2019.json), which
+    # keeps SIGK proper; without it the per-init truth std over the
+    # (lead, pixel) sample is used, which is truth-dependent.
+    if scale is not None:
+        s = np.array([float(scale.get(lb, np.nan)) for lb in labels], dtype=np.float64)
+        if not np.all(np.isfinite(s) & (s > 0)):
+            missing = [lb for lb, v in zip(labels, s) if not (np.isfinite(v) and v > 0)]
+            raise KeyError(f"no fixed scale for channels {missing}")
+    else:
+        s = tru.reshape(-1, tru.shape[-1]).std(axis=0)  # (V,)
     s = np.where(s > 0, s, 1.0)
     mem = mem / s
     tru = tru / s
@@ -360,6 +373,14 @@ def main() -> int:
     p.add_argument("--batch", type=int, default=2048)
     p.add_argument("--model-label")
     p.add_argument("--out-csv")
+    p.add_argument(
+        "--scale-json",
+        default=None,
+        help=(
+            "Fixed per-channel scale JSON (tools/data/channel_scale_1990_2019.json). "
+            "Without it the per-init truth std is used, which makes SIGK improper."
+        ),
+    )
     args = p.parse_args()
 
     if args.self_test:
@@ -368,6 +389,11 @@ def main() -> int:
     for req in ("forecast_zarrs", "truth_zarrs", "variables", "model_label", "out_csv"):
         if getattr(args, req) is None:
             p.error(f"--{req.replace('_', '-')} is required unless --self-test")
+
+    scale = None
+    if args.scale_json:
+        scale = json.loads(Path(args.scale_json).read_text())
+        print(f"Fixed channel scale from {args.scale_json} ({len(scale)} channels)", flush=True)
 
     print("Opening truth zarrs (consolidated=True)...", flush=True)
     truth_parts = [xr.open_zarr(tz, consolidated=True, chunks={}) for tz in args.truth_zarrs]
@@ -401,6 +427,7 @@ def main() -> int:
             args.lead_stride,
             args.n_pixels,
             rng,
+            scale,
         )
         if loaded is None:
             print(f"  [{k}] SKIP {label} (no usable layers/leads)", flush=True)

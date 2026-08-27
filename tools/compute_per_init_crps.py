@@ -37,6 +37,10 @@ TRUTH_SRC = {
 }
 OUT_CSV = Path("/iopsstor/scratch/cscs/sadamov/per_init_crps_production.csv")
 
+# Stratified 10-member subsample of the 50 IFS-ENS members, matching
+# scripts/evaluate_baselines.sh so every baseline is scored at M=10.
+IFS_ENS_MEMBERS = list(range(0, 50, 5))
+
 # Baseline -> forecast.zarr parent dir (per-init subdirs <YYYYMMDD_HHMM>/forecast.zarr).
 BASELINES = {
     "aurora_encoder": f"{STORE}/baselines/aurora_encoder",
@@ -46,7 +50,27 @@ BASELINES = {
     "aifsens": f"{STORE}/baselines/aifsens",
     "atlas": f"{STORE}/baselines/atlas",
     "fcn3": f"{STORE}/baselines/fcn3",
-    "ifs_ens": f"{STORE}/baselines/ifs_ens",
+    # IFS-ENS is NOT laid out per init: it is one consolidated zarr with an
+    # init_time dimension and 50 members, of which the paper scores the
+    # stratified 10-member subsample below.
+    "ifs_ens": "/capstor/store/cscs/swissai/a122/IFS/ifs_ens.zarr",
+    # Fuhrer-review runs (2026-08-25): IC-only arms (attribution of the spread
+    # between IC and weight perturbation) and the runner-up ablation cells
+    # (out-of-sample check that each production pick beats its closest rival).
+    "aurora_ic_only": f"{STORE}/baselines/aurora_ic_only",
+    "graphcast_ic_only": f"{STORE}/baselines/graphcast_ic_only",
+    "sfno_ic_only": f"{STORE}/baselines/sfno_ic_only",
+    "aifs_ic_only": f"{STORE}/baselines/aifs_ic_only",
+    "aurora_encoder_ic": f"{STORE}/baselines/aurora_encoder_ic",
+    "graphcast_all_ic": f"{STORE}/baselines/graphcast_all_ic",
+    "sfno_modes10_ic": f"{STORE}/baselines/sfno_modes10_ic",
+    "aifs_perturbed_ic": f"{STORE}/baselines/aifs_perturbed_ic",
+    "aurora_enc_s044": f"{STORE}/baselines/aurora_enc_s044",
+    "graphcast_m2g": f"{STORE}/baselines/graphcast_m2g",
+    "graphcast_g2m": f"{STORE}/baselines/graphcast_g2m",
+    "sfno_enc_s054": f"{STORE}/baselines/sfno_enc_s054",
+    "sfno_enc_s035": f"{STORE}/baselines/sfno_enc_s035",
+    "aifs_all_s010": f"{STORE}/baselines/aifs_all_s010",
 }
 
 VARS = [
@@ -155,16 +179,31 @@ def main():
         base = Path(BASELINES[name])
         t0 = time.time()
         n_done = 0
+        consolidated = None
+        if name == "ifs_ens":
+            consolidated = xr.open_zarr(base, consolidated=True, chunks={})
+            print(
+                f"  {name}: consolidated zarr, {consolidated.sizes.get('init_time')} inits",
+                flush=True,
+            )
+
         for init in inits:
             tag = f"{init:%Y%m%d_%H%M}"
-            zp = base / tag / "forecast.zarr"
-            if not zp.is_dir():
-                continue
-            try:
-                fc = xr.open_zarr(zp, consolidated=True, chunks={})
-            except Exception as e:
-                print(f"  SKIP {name} {tag}: open failed {e}", flush=True)
-                continue
+            if consolidated is not None:
+                try:
+                    fc = consolidated.sel(init_time=np.datetime64(init, "ns"))
+                except KeyError:
+                    continue
+                fc = fc.isel(ensemble=IFS_ENS_MEMBERS)
+            else:
+                zp = base / tag / "forecast.zarr"
+                if not zp.is_dir():
+                    continue
+                try:
+                    fc = xr.open_zarr(zp, consolidated=True, chunks={})
+                except Exception as e:
+                    print(f"  SKIP {name} {tag}: open failed {e}", flush=True)
+                    continue
             flat = fc["latitude"].values
             flon = fc["longitude"].values
             wlat = cos_lat_weights(flat)

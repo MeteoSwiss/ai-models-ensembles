@@ -11,7 +11,7 @@
 #   empirical_crps_clim_1990_2019.json
 #   climatology_1990_2019_provenance.json
 #
-#SBATCH --account=a122
+#SBATCH --account=ab016
 #SBATCH --partition=normal
 #SBATCH --time=12:00:00
 #SBATCH --mem=800G

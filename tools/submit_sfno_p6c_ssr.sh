@@ -11,7 +11,7 @@
 #
 # Usage: sbatch tools/submit_sfno_p6c_ssr.sh
 #
-#SBATCH --account=a122
+#SBATCH --account=ab016
 #SBATCH --partition=normal
 #SBATCH --time=04:00:00
 #SBATCH --mem=128G

@@ -12,7 +12,7 @@
 # Output:
 #   /iopsstor/scratch/cscs/sadamov/persistence_mae_112inits.json
 #
-#SBATCH --account=a122
+#SBATCH --account=ab016
 #SBATCH --partition=normal
 #SBATCH --time=06:00:00
 #SBATCH --mem=800G

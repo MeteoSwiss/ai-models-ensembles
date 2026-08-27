@@ -1,0 +1,14 @@
+{
+  "2m_temperature": 15.211260442733765,
+  "mean_sea_level_pressure": 1125.080555419922,
+  "geopotential_500": 2734.107106933594,
+  "geopotential_850": 1205.9257580566407,
+  "temperature_500": 10.917017021179198,
+  "temperature_850": 12.31797451019287,
+  "u_component_of_wind_500": 12.092943124771118,
+  "u_component_of_wind_850": 8.24073046207428,
+  "v_component_of_wind_500": 8.523371744155884,
+  "v_component_of_wind_850": 5.890796027183533,
+  "specific_humidity_500": 0.0012331085884943604,
+  "specific_humidity_850": 0.004187071076594293
+}

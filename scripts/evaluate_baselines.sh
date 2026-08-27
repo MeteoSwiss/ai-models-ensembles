@@ -55,7 +55,7 @@ for ws in "${WEEK_STARTS[@]}"; do
     done
 done
 
-MODELS="atlas fcn3 aifsens ifs_ens sfno_modes10 aurora_encoder graphcast_all aifs_perturbed aifs_perturbed_ic aurora_encoder_ic graphcast_all_ic sfno_modes10_ic aurora_p6c aifs_p6c aurora_p6c_reseed aifs_p6c_reseed sfno_p6c_reseed"
+MODELS="atlas fcn3 aifsens ifs_ens sfno_modes10 aurora_encoder graphcast_all aifs_perturbed aifs_perturbed_ic aurora_encoder_ic graphcast_all_ic sfno_modes10_ic aurora_p6c aifs_p6c aurora_p6c_reseed aifs_p6c_reseed sfno_p6c_reseed aurora_ic_only graphcast_ic_only sfno_ic_only aifs_ic_only aurora_enc_s044 graphcast_m2g graphcast_g2m sfno_enc_s054 sfno_enc_s035 aifs_all_s010"
 declare -A MODEL_KIND=(
     [atlas]=ai [fcn3]=ai [aifsens]=ai [ifs_ens]=ref
     [sfno_modes10]=ai [aurora_encoder]=ai [graphcast_all]=ai
@@ -63,6 +63,10 @@ declare -A MODEL_KIND=(
     [aurora_encoder_ic]=ai [graphcast_all_ic]=ai [sfno_modes10_ic]=ai
     [aurora_p6c]=ai [aifs_p6c]=ai
     [aurora_p6c_reseed]=ai [aifs_p6c_reseed]=ai [sfno_p6c_reseed]=ai
+    # Fuhrer-review runs (2026-08-25): IC-only arms + runner-up ablation cells.
+    [aurora_ic_only]=ai [graphcast_ic_only]=ai [sfno_ic_only]=ai [aifs_ic_only]=ai
+    [aurora_enc_s044]=ai [graphcast_m2g]=ai [graphcast_g2m]=ai
+    [sfno_enc_s054]=ai [sfno_enc_s035]=ai [aifs_all_s010]=ai
 )
 
 IFS_ENS_ZARR="/capstor/store/cscs/swissai/a122/IFS/ifs_ens.zarr"
@@ -337,7 +341,7 @@ submit_main_eval() {
         "${dep_flag[@]}" \
         --job-name="$job_tag" \
         --partition="$PARTITION" \
-        --account=a122 \
+        --account=ab016 \
         --nodes=1 \
         --ntasks=1 \
         --cpus-per-task=144 \
@@ -364,7 +368,7 @@ submit_etsfss_eval() {
         "${dep_flag[@]}" \
         --job-name="$job_tag" \
         --partition="$PARTITION" \
-        --account=a122 \
+        --account=ab016 \
         --nodes=1 \
         --ntasks=1 \
         --cpus-per-task=144 \
@@ -429,7 +433,7 @@ _submit_module_sbatch() {
     sbatch --parsable \
         "${dep_flag[@]}" \
         --job-name="$job_tag" \
-        --partition="$PARTITION" --account=a122 \
+        --partition="$PARTITION" --account=ab016 \
         --nodes=1 --ntasks=1 --cpus-per-task=144 --mem=800G --time="12:00:00" \
         --output="$LOG_DIR/${job_tag}_%j.out" \
         --error="$LOG_DIR/${job_tag}_%j.err" \
@@ -504,7 +508,7 @@ run_intercompare() {
         "${dep_flag[@]}" \
         --job-name="$job_tag" \
         --partition="$PARTITION" \
-        --account=a122 \
+        --account=ab016 \
         --nodes=1 \
         --ntasks=1 \
         --cpus-per-task=16 \
@@ -539,7 +543,7 @@ shift || true
 
 case "$ACTION" in
     all)           submit_per_module_eval "${1:-}" "${2:-}" ;;
-    atlas|fcn3|aifsens|ifs_ens|sfno_modes10|aurora_encoder|graphcast_all|aifs_perturbed|aifs_perturbed_ic|aurora_encoder_ic|graphcast_all_ic|sfno_modes10_ic|aurora_p6c|aifs_p6c|aurora_p6c_reseed|aifs_p6c_reseed|sfno_p6c_reseed) submit_per_module_eval "$ACTION" "${1:-}" ;;
+    atlas|fcn3|aifsens|ifs_ens|sfno_modes10|aurora_encoder|graphcast_all|aifs_perturbed|aifs_perturbed_ic|aurora_encoder_ic|graphcast_all_ic|sfno_modes10_ic|aurora_p6c|aifs_p6c|aurora_p6c_reseed|aifs_p6c_reseed|sfno_p6c_reseed|aurora_ic_only|graphcast_ic_only|sfno_ic_only|aifs_ic_only|aurora_enc_s044|graphcast_m2g|graphcast_g2m|sfno_enc_s054|sfno_enc_s035|aifs_all_s010) submit_per_module_eval "$ACTION" "${1:-}" ;;
     intercompare)  run_intercompare ;;
     gen-configs)
         target_model="${1:-}"

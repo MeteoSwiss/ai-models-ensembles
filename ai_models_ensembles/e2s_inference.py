@@ -20,6 +20,7 @@ assigned members sequentially.
 
 from __future__ import annotations
 
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -598,10 +599,15 @@ def _run_members_parallel(
 
     # GH200 multi-process CUDA startup occasionally returns SIGSEGV (-11)
     # in transient races (e.g. HF Hub cache, NCCL init, torch_harmonics
-    # state). One retry of the *failed members only* is enough to recover
-    # in the vast majority of cases. After that we give up and let the
-    # whole job fail so the user investigates rather than burning compute.
+    # state, UCX). Retrying the *failed members only* recovers nearly all of
+    # them. One retry sufficed until a 263-job campaign ran the cluster hot
+    # enough for both attempts to land in the same bad window, so the count
+    # is now 2 (override with E2S_ROUND_RETRIES). After that we give up and
+    # let the whole job fail rather than burn compute silently.
+    import os
+
     RETRY_BACKOFF_SEC = 30
+    MAX_RETRIES = int(os.environ.get("E2S_ROUND_RETRIES", "2"))
     import time
 
     def _launch_round(members: list[tuple[int, int]]) -> list[tuple[tuple[int, int], int]]:
@@ -646,22 +652,25 @@ def _run_members_parallel(
                 f"GPU {gpu_id} member {member_id} exited with code {ec}"
                 for (gpu_id, member_id), ec in failures
             ]
-            print(
-                f"[main] Round {round_idx + 1} had {len(failures)} failure(s); "
-                f"retrying ONCE after {RETRY_BACKOFF_SEC}s. Errors:\n  " + "\n  ".join(err_lines),
-                flush=True,
-            )
-            time.sleep(RETRY_BACKOFF_SEC)
-            retry_members = [m for m, _ in failures]
-            failures = _launch_round(retry_members)
-            if failures:
+            for attempt in range(1, MAX_RETRIES + 1):
+                print(
+                    f"[main] Round {round_idx + 1} had {len(failures)} failure(s); "
+                    f"retry {attempt}/{MAX_RETRIES} after {RETRY_BACKOFF_SEC}s. Errors:\n  "
+                    + "\n  ".join(err_lines),
+                    flush=True,
+                )
+                time.sleep(RETRY_BACKOFF_SEC)
+                failures = _launch_round([m for m, _ in failures])
+                if not failures:
+                    break
                 err_lines = [
                     f"GPU {gpu_id} member {member_id} exited with code {ec}"
                     for (gpu_id, member_id), ec in failures
                 ]
+            if failures:
                 raise RuntimeError(
                     f"Parallel inference failed in round {round_idx + 1} "
-                    f"after 1 retry:\n" + "\n".join(err_lines)
+                    f"after {MAX_RETRIES} retries:\n" + "\n".join(err_lines)
                 )
 
         # Brief pause between rounds to let the GPU driver fully release
@@ -753,7 +762,23 @@ def _prefetch_ic_data(
         flush=True,
     )
     source = build_data_source(data_source)
-    source(fetch_times, variables)
+    # Concurrent campaign jobs hammering the remote store draw occasional
+    # truncated reads ("error during blosc decompression"), which used to kill
+    # the whole job before a single member started. Retry the warm-up.
+    for attempt in range(1, 4):
+        try:
+            source(fetch_times, variables)
+            break
+        except Exception as exc:
+            if attempt == 3:
+                raise
+            wait = 30 * attempt
+            print(
+                f"[main] IC prefetch attempt {attempt}/3 failed ({type(exc).__name__}: "
+                f"{exc}); retrying in {wait}s",
+                flush=True,
+            )
+            time.sleep(wait)
     print("[main] IC cache warmed.", flush=True)
 
 

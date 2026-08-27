@@ -38,6 +38,7 @@ Output columns: model, score, lead_hours, n_inits, n_members, value.
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
@@ -52,6 +53,7 @@ def _stack_var_level(
     variables: list[str],
     levels: list[float],
     lead_hours: int,
+    scale: dict[str, float] | None = None,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray] | None:
     """Stack the forecast and truth into multivariate arrays for one init.
 
@@ -82,6 +84,7 @@ def _stack_var_level(
 
     ens_layers: list[np.ndarray] = []
     truth_layers: list[np.ndarray] = []
+    labels: list[str] = []
     for var in variables:
         if var not in fcst.data_vars or var not in truth.data_vars:
             continue
@@ -104,10 +107,12 @@ def _stack_var_level(
                     ta_l = ta.sel(level=lvl).sel(latitude=fa_l["latitude"], method="nearest")
                     ens_layers.append(fa_l.values.astype(np.float32, copy=False))
                     truth_layers.append(ta_l.values.astype(np.float32, copy=False))
+                    labels.append(f"{var}_{int(float(lvl))}")
         else:
             ta = ta.sel(latitude=fa["latitude"], method="nearest")
             ens_layers.append(fa.values.astype(np.float32, copy=False))
             truth_layers.append(ta.values.astype(np.float32, copy=False))
+            labels.append(var)
 
     if not ens_layers:
         return None
@@ -115,12 +120,20 @@ def _stack_var_level(
     ens = np.stack(ens_layers, axis=1)  # (M, V, lat, lon)
     truth_arr = np.stack(truth_layers, axis=0)  # (V, lat, lon)
 
-    # NORMALISE per (var, level) by truth std so the multivariate norm gives
-    # equal weight to vars with different units. Per-layer std across the
-    # truth field (single timestep) is a cheap proxy for climatological std.
-    # Without this, geopotential ~10^4 m^2/s^2 swamps temperature ~ K.
+    # NORMALISE per (var, level) so the multivariate norm gives equal weight to
+    # vars with different units; without it geopotential ~10^4 m^2/s^2 swamps
+    # temperature ~ K. With `scale` (tools/data/channel_scale_1990_2019.json)
+    # the divisor is a fixed 1990-2019 climatological constant, which keeps ES
+    # and VS proper; without it the per-init truth std is used, which is
+    # truth-dependent and only proper under the approximation that it is
+    # constant.
     for k in range(truth_arr.shape[0]):
-        s = float(truth_arr[k].std())
+        if scale is not None:
+            s = float(scale.get(labels[k], float("nan")))
+            if not np.isfinite(s) or s <= 0:
+                raise KeyError(f"no fixed scale for channel {labels[k]!r}")
+        else:
+            s = float(truth_arr[k].std())
         if s > 0:
             ens[:, k, :, :] /= s
             truth_arr[k, :, :] /= s
@@ -206,7 +219,20 @@ def main() -> int:
     p.add_argument("--model-label", required=True)
     p.add_argument("--variogram-pairs", type=int, default=5000)
     p.add_argument("--out-csv", required=True)
+    p.add_argument(
+        "--scale-json",
+        default=None,
+        help=(
+            "Fixed per-channel scale JSON (tools/data/channel_scale_1990_2019.json). "
+            "Without it the per-init truth std is used, which makes ES/VS improper."
+        ),
+    )
     args = p.parse_args()
+
+    scale = None
+    if args.scale_json:
+        scale = json.loads(Path(args.scale_json).read_text())
+        print(f"Fixed channel scale from {args.scale_json} ({len(scale)} channels)", flush=True)
 
     print("Opening truth zarrs (consolidated=True)...", flush=True)
     truth_parts = [xr.open_zarr(tz, consolidated=True, chunks={}) for tz in args.truth_zarrs]
@@ -237,7 +263,7 @@ def main() -> int:
                 yield Path(fz).parent.name, ds
 
     for k, (label, fcst_ds) in enumerate(fcst_ds_iter(), start=1):
-        stacked = _stack_var_level(fcst_ds, truth_ds, args.variables, args.levels, args.lead)
+        stacked = _stack_var_level(fcst_ds, truth_ds, args.variables, args.levels, args.lead, scale)
         if stacked is None:
             if k % 25 == 0:
                 print(f"  [{k}] SKIP {label} (no usable layers)", flush=True)

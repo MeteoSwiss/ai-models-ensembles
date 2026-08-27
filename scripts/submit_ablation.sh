@@ -245,7 +245,7 @@ submit_job() {
     sbatch --parsable \
         --job-name="abl_${job_tag}" \
         --partition="$PARTITION" \
-        --account=a122 \
+        --account=ab016 \
         --nodes=1 \
         --ntasks=1 \
         --cpus-per-task=32 \
@@ -386,7 +386,7 @@ SCRIPT
         sbatch --parsable \
             --job-name="abl_${job_tag}" \
             --partition="$PARTITION" \
-            --account=a122 \
+            --account=ab016 \
             --nodes=1 \
             --ntasks=1 \
             --cpus-per-task=32 \

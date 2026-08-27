@@ -3,7 +3,7 @@
 # 2026-07-10 fresh-hook seeding fix). Mirrors tools/submit_sfno_p6c_ssr.sh but
 # parameterised by model, pointing at $STORE/baselines/<model>_p6c_reseed.
 # CPU-only sbatch (heavy zarr I/O, low mem). Usage: sbatch tools/submit_p6c_reseed_ssr.sh <sfno|aurora|aifs>
-#SBATCH --account=a122
+#SBATCH --account=ab016
 #SBATCH --partition=normal
 #SBATCH --time=04:00:00
 #SBATCH --mem=128G

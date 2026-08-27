@@ -88,7 +88,7 @@ for init_time in "${INITS[@]}"; do
     while [[ $(squeue --me -h -o "%j" 2>/dev/null | grep -c '^p6reseed_') -ge $MAX_CONCURRENT ]]; do sleep 60; done
     job_tag="p6reseed_${MODEL}_${init_tag}"
     jobid=$(sbatch --parsable \
-        --job-name="$job_tag" --partition="$PARTITION" --account=a122 \
+        --job-name="$job_tag" --partition="$PARTITION" --account=ab016 \
         --nodes=1 --ntasks=1 --cpus-per-task=32 --mem=$MEM --gres=gpu:4 --time=$TIME \
         --output="$LOG_DIR/${job_tag}_%j.out" --error="$LOG_DIR/${job_tag}_%j.err" \
         --container-image="$CONTAINER" --container-mounts="$MOUNTS" --container-workdir="$WORKDIR" \
