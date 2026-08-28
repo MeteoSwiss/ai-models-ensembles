@@ -226,7 +226,7 @@ for model in $REQUESTED; do
                         continue
                     fi
                     if [[ -d "$out_dir/_e2s_work" ]]; then
-                        rm -rf "$out_dir/_e2s_work"
+                        rm -rf "$out_dir/_e2s_work" 2>/dev/null || true
                     fi
 
                     delay=$((init_idx * 2))
@@ -288,7 +288,7 @@ SCRIPT
                     continue
                 fi
                 if [[ -d "$out_dir/_e2s_work" ]]; then
-                    rm -rf "$out_dir/_e2s_work"
+                    rm -rf "$out_dir/_e2s_work" 2>/dev/null || true
                 fi
 
                 any_missing=true

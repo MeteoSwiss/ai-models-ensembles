@@ -39,11 +39,20 @@ from __future__ import annotations
 import csv
 import json
 import math
+import os
 from pathlib import Path
 
 STORE = Path("/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles")
 ABL = STORE / "ablation"
 SCRATCH = Path("/iopsstor/scratch/cscs/sadamov/ai-models-ensembles/scratch/table_metrics")
+# Fuhrer review item 2: ES/VS/SIGK are only proper under a scale fixed in
+# advance, so the reported cells come from the fixed 1990-2019 climatological
+# rescore (tools/submit_table_metrics_fixedscale.sh). Set SCALE_TAG="" to fall
+# back to the older per-init truth-std CSVs.
+SCRATCH_FIXED = Path(
+    "/iopsstor/scratch/cscs/sadamov/ai-models-ensembles/scratch/table_metrics_fixedscale"
+)
+SCALE_TAG = os.environ.get("ESVS_SCALE_TAG", "fixed")
 CRPS_CLIM = Path(__file__).resolve().parent / "data" / "crps_clim_eval_ablation_1990_2019.json"
 
 VARS_2D = ["2m_temperature", "mean_sea_level_pressure"]
@@ -395,7 +404,13 @@ def ssr(row, lead):
 
 
 def _scratch(prefix, row, lead, score):
-    p = SCRATCH / f"{prefix}_{row['esvs']}_L{lead}.csv"
+    p = None
+    if SCALE_TAG:
+        cand = SCRATCH_FIXED / f"{prefix}_{row['esvs']}_{SCALE_TAG}_L{lead}.csv"
+        if cand.exists():
+            p = cand
+    if p is None:
+        p = SCRATCH / f"{prefix}_{row['esvs']}_L{lead}.csv"
     if not p.exists():
         return None
     for r in _rows(p):

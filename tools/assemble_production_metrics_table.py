@@ -30,6 +30,7 @@ from __future__ import annotations
 import csv
 import json
 import math
+import os
 from pathlib import Path
 
 STORE = Path("/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles")
@@ -152,6 +153,47 @@ MVAR = {
     120: {"ES": ES_120, "VS": VS_120, "SIGK": SIGK_120},
     240: {"ES": ES_240, "VS": VS_240, "SIGK": SIGK_240},
 }
+
+# Fuhrer review item 2: ES/VS/SIGK are proper only under a scale fixed in
+# advance, so the reported cells come from the fixed 1990-2019 climatological
+# rescore when it is on disk (tools/submit_table_metrics_fixedscale.sh). The
+# hardcoded dicts above are the older per-init truth-std values and remain the
+# fallback; set ESVS_SCALE_TAG="" to force them.
+_SCALE_TAG = os.environ.get("ESVS_SCALE_TAG", "fixed")
+_FIXED_DIR = Path(
+    "/iopsstor/scratch/cscs/sadamov/ai-models-ensembles/scratch/table_metrics_fixedscale"
+)
+_SCORE_KEY = {
+    "ES": "energy_score_mvar",
+    "VS": "variogram_score_p05",
+    "SIGK": "signature_kernel_score",
+}
+
+
+def _load_fixed_scale() -> int:
+    """Overwrite MVAR in place from the fixed-scale CSVs; return cells replaced."""
+    if not _SCALE_TAG or not _FIXED_DIR.is_dir():
+        return 0
+    n = 0
+    for lead, metrics in MVAR.items():
+        for metric, table in metrics.items():
+            prefix = "sigk" if metric == "SIGK" else "esvs"
+            for model in list(table):
+                f = _FIXED_DIR / f"{prefix}_{model}_{_SCALE_TAG}_L{lead}.csv"
+                if not f.exists():
+                    continue
+                with f.open() as fh:
+                    for row in csv.DictReader(fh):
+                        if row["score"] == _SCORE_KEY[metric]:
+                            table[model] = float(row["value"])
+                            n += 1
+                            break
+    return n
+
+
+_N_FIXED = _load_fixed_scale()
+if _N_FIXED:
+    print(f"# ES/VS/SIGK: {_N_FIXED} cells from the fixed climatological scale", flush=True)
 
 crps_clim = json.load(open(CRPS_CLIM))
 

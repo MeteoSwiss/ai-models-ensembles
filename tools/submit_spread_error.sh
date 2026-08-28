@@ -31,4 +31,5 @@ cd /users/sadamov/pyprojects/ai-models-ensembles
 LEADS=("${@:-}")
 [[ -z "${LEADS[*]}" ]] && LEADS=(24 72 120 240)
 
-$PY -u tools/spread_error_binned.py --baselines all --leads "${LEADS[@]}"
+BASELINES=("${BASELINES[@]:-all}")
+$PY -u tools/spread_error_binned.py --baselines "${BASELINES[@]}" --leads "${LEADS[@]}" --out "${OUT_CSV:-/iopsstor/scratch/cscs/sadamov/spread_error_binned.csv}"

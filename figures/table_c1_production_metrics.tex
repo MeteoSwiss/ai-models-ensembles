@@ -21,7 +21,7 @@
            Tab.~\ref{tab:calibration}. Two lead blocks (120, 240\,h); 7-variable
            mean (3D variables averaged over $p\in\{500,850\}$\,hPa first; LSD over
            the five 3D variables). Column arrows give each metric's optimum
-           direction (SSR$^{\mathrm{pix}}$ targets 1; SIGK on its native unbounded scale, lower is better, comparable only within this table).
+           direction (SSR$^{\mathrm{pix}}$ targets 1; SIGK on its native unbounded scale, lower is better).
            \textbf{Bold}: per-metric per-lead optimum across the eight rows, decided before rounding. IFS-ENS
            is excluded from ES/VS/SIGK and $W_1$ (its WeatherBench-2 forecasts carry
            archive NaN gaps in every variable, leaving too few jointly-complete initialisations).}
@@ -37,20 +37,20 @@
     \midrule
     \rowcolor{phaseBg}
     \multicolumn{20}{@{}l}{\textbf{Post-hoc weight perturbation (this work)}} \\
-    & aurora\_encoder & 0.471 & 0.76 & 0.876 & 1.201 & 0.735 & 0.062 & 0.730 & 0.0511 & -13.9 & 0.134 & 0.82 & 0.804 & 1.203 & 0.541 & 0.053 & 1.117 & 0.0915 & -9.9 \\
-    & graphcast\_all & 0.489 & 0.76 & 0.878 & 1.267 & 0.767 & 0.046 & 0.735 & 0.0500 & -6.9 & 0.167 & 0.94 & 0.804 & 1.287 & 0.566 & 0.065 & 1.111 & 0.0908 & 18.1 \\
-    & sfno\_modes10 & 0.388 & 0.73 & 0.853 & 1.134 & 0.729 & 0.051 & 0.850 & 0.0646 & -4.1 & 0.125 & 0.85 & 0.796 & 1.151 & 0.568 & \textbf{0.048} & 1.156 & 0.0958 & 1.0 \\
-    & aifs\_perturbed & 0.542 & 0.85 & 0.882 & 1.160 & 0.782 & 0.046 & 0.669 & 0.0470 & -16.2 & 0.221 & \textbf{0.96} & 0.809 & 1.179 & 0.586 & 0.067 & 1.054 & 0.0869 & -12.2 \\
+    & aurora\_encoder & 0.471 & 0.86 & 0.876 & 1.201 & 0.735 & 0.062 & 0.762 & 0.0543 & -13.2 & 0.134 & 0.94 & 0.804 & 1.203 & 0.541 & 0.053 & 1.172 & 0.0981 & -8.3 \\
+    & graphcast\_all & 0.489 & 0.86 & 0.878 & 1.267 & 0.767 & 0.046 & 0.766 & 0.0531 & -5.4 & 0.167 & 1.08 & 0.804 & 1.287 & 0.566 & 0.065 & 1.164 & 0.0974 & 20.8 \\
+    & sfno\_modes10 & 0.388 & 0.83 & 0.853 & 1.134 & 0.729 & 0.051 & 0.891 & 0.0689 & -3.2 & 0.125 & \textbf{0.97} & 0.796 & 1.151 & 0.568 & \textbf{0.048} & 1.214 & 0.1029 & 2.2 \\
+    & aifs\_perturbed & 0.542 & \textbf{0.98} & 0.882 & 1.160 & 0.782 & 0.046 & 0.698 & 0.0499 & -15.7 & 0.221 & 1.11 & 0.809 & 1.179 & 0.586 & 0.067 & 1.106 & 0.0932 & -10.6 \\
     \hline
     \rowcolor{phaseBg}
     \multicolumn{20}{@{}l}{\textbf{Trained probabilistic}} \\
-    & AIFS-ENS & \textbf{0.580} & 0.82 & 0.887 & 1.167 & \textbf{0.822} & \textbf{0.043} & \textbf{0.623} & \textbf{0.0426} & \textbf{-26.2} & \textbf{0.256} & 0.84 & 0.815 & 1.166 & \textbf{0.638} & 0.063 & \textbf{1.018} & \textbf{0.0840} & \textbf{-37.1} \\
-    & Atlas & 0.558 & 0.83 & \textbf{0.889} & 1.173 & 0.800 & 0.052 & 0.651 & 0.0462 & -24.2 & 0.238 & 0.86 & \textbf{0.818} & 1.338 & 0.624 & 0.054 & 1.038 & 0.0858 & -33.1 \\
-    & FCN3 & 0.534 & 0.87 & 0.877 & \textbf{0.358} & 0.787 & 0.057 & 0.675 & 0.0479 & -22.1 & 0.218 & 0.90 & 0.806 & \textbf{0.363} & 0.610 & 0.072 & 1.061 & 0.0880 & -29.4 \\
+    & AIFS-ENS & \textbf{0.580} & 0.82 & 0.887 & 1.167 & \textbf{0.822} & \textbf{0.043} & \textbf{0.650} & \textbf{0.0452} & \textbf{-26.5} & \textbf{0.256} & 0.84 & 0.815 & 1.166 & \textbf{0.638} & 0.063 & \textbf{1.067} & \textbf{0.0899} & \textbf{-36.1} \\
+    & Atlas & 0.558 & 0.83 & \textbf{0.889} & 1.173 & 0.800 & 0.052 & 0.680 & 0.0491 & -24.4 & 0.238 & 0.86 & \textbf{0.818} & 1.338 & 0.624 & 0.054 & 1.089 & 0.0920 & -32.2 \\
+    & FCN3 & 0.534 & 0.87 & 0.877 & \textbf{0.358} & 0.787 & 0.057 & 0.705 & 0.0508 & -22.2 & 0.218 & 0.90 & 0.806 & \textbf{0.363} & 0.610 & 0.072 & 1.113 & 0.0944 & -28.5 \\
     \hline
     \rowcolor{phaseBg}
     \multicolumn{20}{@{}l}{\textbf{Classical reference}} \\
-    & IFS-ENS & 0.518 & \textbf{0.87} & 0.853 & 0.881 & 0.651 & - & - & - & - & 0.207 & 0.88 & 0.786 & 0.885 & 0.527 & - & - & - & - \\
+    & IFS-ENS & 0.518 & 0.87 & 0.853 & 0.881 & 0.651 & - & - & - & - & 0.207 & 0.88 & 0.786 & 0.885 & 0.527 & - & - & - & - \\
     \bottomrule
   \end{tabular}
 \end{sidewaystable*}

@@ -432,6 +432,22 @@ inference + perturbation are exercised end-to-end on a GPU node.
 - **`SIGSEGV (-11)` from every GPU worker at startup**: a transient GH200/UCX
   race. Failed members are relaunched automatically; raise the count with
   `E2S_ROUND_RETRIES` (default 2) when the cluster is busy.
+- **`RuntimeError: error during blosc decompression: 0`, reproducibly on the
+  same initialisation**: a truncated write has poisoned the fsspec disk cache.
+  Retries can never win, because every read decompresses the same corrupt
+  bytes. Find it with
+  `find $E2S_CACHE_DIR/arco -maxdepth 1 -type f -size -1k` and delete the
+  zero-length entries; they re-download on the next run. A genuinely transient
+  ARCO failure looks different (it succeeds on a retry), and the IC prefetch
+  now continues without a warm cache rather than killing the job.
+- **Jobs hang in `preparing data + model` for 45-90 min** (normally ~10 min for
+  SFNO) and then fail with `Errno 19 No such device` or `transport endpoint
+  shutdown`: the capstor mount is degraded, not the code. Check with
+  `time ls -d $STORE/baselines/<run>/*/forecast.zarr` - healthy is well under a
+  second. Do not resubmit into it; a short healthy window is not predictive.
+  Note that `timeout N ls ... | wc -l` returns a plausible **wrong** count when
+  the glob is killed mid-stream, so audit completeness with
+  `find <dir> -maxdepth 2 -name forecast.zarr -type d | wc -l` instead.
 - **`envsubst: command not found`**: install `gettext-base`.
 - **Container build fails**: must be submitted to a compute node via
   `containers/submit_build.sh`; the login nodes can't build.

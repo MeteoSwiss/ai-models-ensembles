@@ -53,7 +53,8 @@ BASELINES = {
     "aifsens": f"{STORE}/baselines/aifsens",
     "atlas": f"{STORE}/baselines/atlas",
     "fcn3": f"{STORE}/baselines/fcn3",
-    "ifs_ens": f"{STORE}/baselines/ifs_ens",
+    # One consolidated zarr (init_time dim, 50 members), not per-init dirs.
+    "ifs_ens": "/capstor/store/cscs/swissai/a122/IFS/ifs_ens.zarr",
 }
 
 VARS = [
@@ -73,6 +74,9 @@ INIT_DATES = [
     for d in range(2, 9)
     for h in (0, 12)
 ]
+
+# Stratified 10-member subsample of IFS-ENS, matching evaluate_baselines.sh.
+IFS_ENS_MEMBERS = list(range(0, 50, 5))
 
 N_BINS = 240
 # Fixed decades of spread around the first field's scale; wide enough that the
@@ -144,16 +148,27 @@ def main():
         t0 = time.time()
         acc: dict = {}
         n_done = 0
+        consolidated = None
+        if name == "ifs_ens":
+            consolidated = xr.open_zarr(base, consolidated=True, chunks={})
+
         for init in inits:
             tag = f"{init:%Y%m%d_%H%M}"
-            zp = base / tag / "forecast.zarr"
-            if not zp.is_dir():
-                continue
-            try:
-                fc = xr.open_zarr(zp, consolidated=True, chunks={})
-            except Exception as e:
-                print(f"  SKIP {name} {tag}: open failed {e}", flush=True)
-                continue
+            if consolidated is not None:
+                try:
+                    fc = consolidated.sel(init_time=np.datetime64(init, "ns"))
+                except KeyError:
+                    continue
+                fc = fc.isel(ensemble=IFS_ENS_MEMBERS)
+            else:
+                zp = base / tag / "forecast.zarr"
+                if not zp.is_dir():
+                    continue
+                try:
+                    fc = xr.open_zarr(zp, consolidated=True, chunks={})
+                except Exception as e:
+                    print(f"  SKIP {name} {tag}: open failed {e}", flush=True)
+                    continue
             flat = fc["latitude"].values
             flon = fc["longitude"].values
             wlat = cos_lat_weights(flat)
@@ -190,6 +205,8 @@ def main():
                         )
                     else:
                         o = o_full
+                    if not np.isfinite(members).any():
+                        continue
                     mean = np.nanmean(members, axis=0)
                     var_pix = np.nanvar(members, axis=0, ddof=1)
                     spread = np.sqrt((M + 1.0) / M * var_pix)

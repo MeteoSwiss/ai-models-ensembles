@@ -771,7 +771,18 @@ def _prefetch_ic_data(
             break
         except Exception as exc:
             if attempt == 3:
-                raise
+                # The warm-up is an optimisation, not a correctness
+                # requirement: some ARCO chunks fail to decompress on every
+                # attempt (observed for 2024-01-01T18Z), and killing the job
+                # here throws away a whole week of inits for a cache miss.
+                # Fall through and let each member fetch what it needs.
+                print(
+                    f"[main] IC prefetch failed after 3 attempts "
+                    f"({type(exc).__name__}: {exc}); continuing without a warm "
+                    f"cache -- members will fetch their own inputs",
+                    flush=True,
+                )
+                return
             wait = 30 * attempt
             print(
                 f"[main] IC prefetch attempt {attempt}/3 failed ({type(exc).__name__}: "
