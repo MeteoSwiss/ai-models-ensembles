@@ -11,7 +11,7 @@
 # (default: production -- the 112-init headline grid; ablation = 4 mid-season
 #  inits at 240 h for the calibration table)
 #
-# Outputs in /iopsstor/scratch/cscs/sadamov/:
+# Outputs in ${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/:
 #   crps_clim_eval_<tag>.json
 #   crps_clim_eval_<tag>_provenance.json
 # plus a versioned copy at tools/data/crps_clim_eval_<tag>.json
@@ -28,14 +28,14 @@
 
 set -euo pipefail
 
-PY=/capstor/store/cscs/mch/s83/sadamov/venvs/ai-models-ensembles/bin/python
+PY=${AIENS_PY:-/capstor/store/cscs/mch/s83/sadamov/venvs/ai-models-ensembles/bin/python}
 export PYTHONUNBUFFERED=1
-export TMPDIR=/iopsstor/scratch/cscs/sadamov/tmp
-export DASK_TEMPORARY_DIRECTORY=/iopsstor/scratch/cscs/sadamov/tmp
+export TMPDIR=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/tmp
+export DASK_TEMPORARY_DIRECTORY=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/tmp
 export UV_CACHE_DIR=/capstor/scratch/cscs/sadamov/uv_cache
 mkdir -p "$TMPDIR"
 
-cd /users/sadamov/pyprojects/ai-models-ensembles
+cd ${AIENS_REPO:-/users/sadamov/pyprojects/ai-models-ensembles}
 
 GRID="${1:-production}"
 $PY -u tools/compute_climatology_crps_vs_eval.py \

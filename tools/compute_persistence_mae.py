@@ -27,8 +27,8 @@ Each (var, level) key now takes ~5-10 min wall on Clariden's WB2 storage,
 vs the ~75 min/key seen with the original per-timestep loop. Per-key
 JSONL checkpointing means kills lose at most the in-flight key.
 
-Output: /iopsstor/scratch/cscs/sadamov/persistence_mae_112inits.json
-Checkpoint: /iopsstor/scratch/cscs/sadamov/persistence_mae_112inits.jsonl
+Output: $AIENS_SCRATCH/persistence_mae_112inits.json
+Checkpoint: $AIENS_SCRATCH/persistence_mae_112inits.jsonl
 """
 
 from __future__ import annotations
@@ -38,15 +38,16 @@ import os
 import sys
 import time
 from concurrent.futures import ProcessPoolExecutor, as_completed
-from pathlib import Path
 
 import numpy as np
 import xarray as xr
 
+from _env import SCRATCH, STORE, WB2_2022, WB2_2024
+
 sys.stdout.reconfigure(line_buffering=True)
 
-OUT = Path("/iopsstor/scratch/cscs/sadamov/persistence_mae_112inits.json")
-CHECKPOINT = Path("/iopsstor/scratch/cscs/sadamov/persistence_mae_112inits.jsonl")
+OUT = SCRATCH / "persistence_mae_112inits.json"
+CHECKPOINT = SCRATCH / "persistence_mae_112inits.jsonl"
 
 VARS_2D = ["2m_temperature", "mean_sea_level_pressure"]
 VARS_3D = [
@@ -59,14 +60,11 @@ VARS_3D = [
 LEVELS = [500, 850]
 LEADS_H = list(range(6, 366, 6))  # 6 h .. 360 h, matches paper-headline lead range
 
-WB2_ZARRS = [
-    "/capstor/store/cscs/swissai/weatherbench/weatherbench2_2022_2023.zarr",
-    "/capstor/store/cscs/swissai/weatherbench/weatherbench2_2024_2025.zarr",
-]
+WB2_ZARRS = [WB2_2022, WB2_2024]
 
 
 def _build_inits() -> list[str]:
-    base = Path("/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles/baselines/aifsens")
+    base = STORE / "baselines/aifsens"
     out: list[str] = []
     for d in sorted(base.iterdir()):
         name = d.name

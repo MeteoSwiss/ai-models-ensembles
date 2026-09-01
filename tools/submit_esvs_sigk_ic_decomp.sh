@@ -28,11 +28,11 @@
 #SBATCH --job-name=esvs_ic_decomp
 #SBATCH --output=/iopsstor/scratch/cscs/sadamov/esvs_ic_decomp_%j.log
 set -uo pipefail
-PY=/capstor/store/cscs/mch/s83/sadamov/venvs/ai-models-ensembles/bin/python
+PY=${AIENS_PY:-/capstor/store/cscs/mch/s83/sadamov/venvs/ai-models-ensembles/bin/python}
 export PYTHONUNBUFFERED=1 OMP_NUM_THREADS=20 OPENBLAS_NUM_THREADS=20 MKL_NUM_THREADS=20
-export TMPDIR=/iopsstor/scratch/cscs/sadamov/tmp DASK_TEMPORARY_DIRECTORY=/iopsstor/scratch/cscs/sadamov/tmp
+export TMPDIR=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/tmp DASK_TEMPORARY_DIRECTORY=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/tmp
 mkdir -p "$TMPDIR"
-cd /users/sadamov/pyprojects/ai-models-ensembles
+cd ${AIENS_REPO:-/users/sadamov/pyprojects/ai-models-ensembles}
 
 SCALE=tools/data/channel_scale_1990_2019.json
 if [[ ! -f "$SCALE" ]]; then
@@ -40,11 +40,11 @@ if [[ ! -f "$SCALE" ]]; then
     exit 1
 fi
 
-STORE=/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles
+STORE=${AIENS_STORE:-/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles}
 B=$STORE/baselines
-WB2A=/capstor/store/cscs/swissai/weatherbench/weatherbench2_2022_2023.zarr
-WB2B=/capstor/store/cscs/swissai/weatherbench/weatherbench2_2024_2025.zarr
-OUT=/iopsstor/scratch/cscs/sadamov/ai-models-ensembles/scratch/table_metrics_ic_decomp
+WB2A=${AIENS_WB2_22:-/capstor/store/cscs/swissai/weatherbench/weatherbench2_2022_2023.zarr}
+WB2B=${AIENS_WB2_24:-/capstor/store/cscs/swissai/weatherbench/weatherbench2_2024_2025.zarr}
+OUT=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/ai-models-ensembles/scratch/table_metrics_ic_decomp
 mkdir -p "$OUT"
 VARS="2m_temperature mean_sea_level_pressure geopotential temperature u_component_of_wind v_component_of_wind specific_humidity"
 

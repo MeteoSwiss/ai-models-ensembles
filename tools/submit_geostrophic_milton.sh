@@ -41,11 +41,11 @@
 # ---------------------------------------------------------------------------
 set -euo pipefail
 
-STORE="/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles"
+STORE="${AIENS_STORE:-/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles}"
 SRC_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 PY="$SRC_DIR/.venv/bin/python3"
 LOG_DIR="$STORE/baseline_eval_logs"
-SCRATCH_TMP="/iopsstor/scratch/cscs/sadamov/tmp"
+SCRATCH_TMP="${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/tmp"
 mkdir -p "$LOG_DIR" "$SCRATCH_TMP"
 
 PARTITION="${PARTITION:-normal}"
@@ -63,12 +63,12 @@ declare -A MODEL_KIND=(
     [aifsens]=ai [fcn3]=ai [atlas]=ai [ifs_ens]=ref
 )
 
-IFS_ENS_ZARR="/capstor/store/cscs/swissai/a122/IFS/ifs_ens.zarr"
+IFS_ENS_ZARR="${AIENS_IFS_ENS:-/capstor/store/cscs/swissai/a122/IFS/ifs_ens.zarr}"
 IFS_ENS_MEMBERS="[0, 5, 10, 15, 20, 25, 30, 35, 40, 45]"
 
 WB2_PATHS='[
-    "/capstor/store/cscs/swissai/weatherbench/weatherbench2_2022_2023.zarr",
-    "/capstor/store/cscs/swissai/weatherbench/weatherbench2_2024_2025.zarr"
+    "${AIENS_WB2_22:-/capstor/store/cscs/swissai/weatherbench/weatherbench2_2022_2023.zarr}",
+    "${AIENS_WB2_24:-/capstor/store/cscs/swissai/weatherbench/weatherbench2_2024_2025.zarr}"
   ]'
 
 WEEK_STARTS=(

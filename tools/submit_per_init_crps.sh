@@ -6,7 +6,7 @@
 # Usage:
 #   sbatch tools/submit_per_init_crps.sh [lead ...]      # default 24 72 120 240 360
 #
-# Output: /iopsstor/scratch/cscs/sadamov/per_init_crps_production.csv
+# Output: ${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/per_init_crps_production.csv
 #
 #SBATCH --account=ab016
 #SBATCH --partition=normal
@@ -20,13 +20,13 @@
 
 set -euo pipefail
 
-PY=/capstor/store/cscs/mch/s83/sadamov/venvs/ai-models-ensembles/bin/python
+PY=${AIENS_PY:-/capstor/store/cscs/mch/s83/sadamov/venvs/ai-models-ensembles/bin/python}
 export PYTHONUNBUFFERED=1
-export TMPDIR=/iopsstor/scratch/cscs/sadamov/tmp
-export DASK_TEMPORARY_DIRECTORY=/iopsstor/scratch/cscs/sadamov/tmp
+export TMPDIR=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/tmp
+export DASK_TEMPORARY_DIRECTORY=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/tmp
 mkdir -p "$TMPDIR"
 
-cd /users/sadamov/pyprojects/ai-models-ensembles
+cd ${AIENS_REPO:-/users/sadamov/pyprojects/ai-models-ensembles}
 
 LEADS=("${@:-}")
 [[ -z "${LEADS[*]}" ]] && LEADS=(24 72 120 240 360)

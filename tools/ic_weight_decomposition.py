@@ -27,14 +27,12 @@ from pathlib import Path
 import numpy as np
 import xarray as xr
 
+from _env import SCRATCH, STORE, WB2_2022, WB2_2024
+
 sys.stdout.reconfigure(line_buffering=True)
 
-STORE = "/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles"
-TRUTH_SRC = {
-    2023: "/capstor/store/cscs/swissai/weatherbench/weatherbench2_2022_2023.zarr",
-    2024: "/capstor/store/cscs/swissai/weatherbench/weatherbench2_2024_2025.zarr",
-}
-OUT_CSV = Path("/iopsstor/scratch/cscs/sadamov/ic_weight_decomposition.csv")
+TRUTH_SRC = {2023: WB2_2022, 2024: WB2_2024}
+OUT_CSV = SCRATCH / "ic_weight_decomposition.csv"
 
 # backbone -> {arm: baseline dir name}
 TRIPLETS = {

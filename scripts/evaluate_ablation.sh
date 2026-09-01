@@ -14,7 +14,7 @@
 # ---------------------------------------------------------------------------
 set -euo pipefail
 
-STORE="/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles"
+STORE="${AIENS_STORE:-/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles}"
 SRC_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 LOG_DIR="$STORE/ablation_logs"
 WORKDIR=/workspace/ai-models-ensembles
@@ -24,8 +24,8 @@ TIME_LIMIT="${TIME_LIMIT:-06:00:00}"
 
 # WeatherBench2 ERA5 reference data (covers 2022-2025)
 WB2_PATHS='[
-    "/capstor/store/cscs/swissai/weatherbench/weatherbench2_2022_2023.zarr",
-    "/capstor/store/cscs/swissai/weatherbench/weatherbench2_2024_2025.zarr"
+    "${AIENS_WB2_22:-/capstor/store/cscs/swissai/weatherbench/weatherbench2_2022_2023.zarr}",
+    "${AIENS_WB2_24:-/capstor/store/cscs/swissai/weatherbench/weatherbench2_2024_2025.zarr}"
   ]'
 
 # Init times (must match submit_ablation.sh)

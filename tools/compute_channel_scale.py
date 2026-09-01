@@ -37,9 +37,9 @@ from pathlib import Path
 import numpy as np
 import xarray as xr
 
-sys.stdout.reconfigure(line_buffering=True)
+from _env import WB2_ORIGINAL as WB2_LOCAL
 
-WB2_LOCAL = "/capstor/store/cscs/swissai/weatherbench/weatherbench2_original"
+sys.stdout.reconfigure(line_buffering=True)
 OUT_JSON = Path(__file__).resolve().parent / "data" / "channel_scale_1990_2019.json"
 
 VARS_2D = ["2m_temperature", "mean_sea_level_pressure"]

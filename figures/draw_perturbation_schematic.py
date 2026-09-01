@@ -643,15 +643,14 @@ def main():
         rx -= 0.13
 
     out_dir = Path(__file__).parent
-    fig.savefig(out_dir / "perturbation_schematic.svg", bbox_inches="tight", pad_inches=0.15)
     fig.savefig(out_dir / "perturbation_schematic.pdf", bbox_inches="tight", pad_inches=0.15)
+    # PNG kept only for the README inline preview.
     fig.savefig(
         out_dir / "perturbation_schematic.png",
         bbox_inches="tight",
         pad_inches=0.15,
         dpi=220,
     )
-    print(f"wrote {out_dir / 'perturbation_schematic.svg'}")
     print(f"wrote {out_dir / 'perturbation_schematic.pdf'}")
     print(f"wrote {out_dir / 'perturbation_schematic.png'}")
 

@@ -48,18 +48,20 @@ import numpy as np
 import xarray as xr
 import dask
 
+from _env import SCRATCH, WB2_2022, WB2_2024, WB2_ORIGINAL
+
 sys.stdout.reconfigure(line_buffering=True)
 
 
 # ---------------------------------------------------------------------------
 # Config -- production evaluation grid (112 inits, 61 leads)
 # ---------------------------------------------------------------------------
-CLIM_SRC = "/capstor/store/cscs/swissai/weatherbench/weatherbench2_original"
+CLIM_SRC = WB2_ORIGINAL
 TRUTH_SRC = {
-    2022: "/capstor/store/cscs/swissai/weatherbench/weatherbench2_2022_2023.zarr",
-    2023: "/capstor/store/cscs/swissai/weatherbench/weatherbench2_2022_2023.zarr",
-    2024: "/capstor/store/cscs/swissai/weatherbench/weatherbench2_2024_2025.zarr",
-    2025: "/capstor/store/cscs/swissai/weatherbench/weatherbench2_2024_2025.zarr",
+    2022: WB2_2022,
+    2023: WB2_2022,
+    2024: WB2_2024,
+    2025: WB2_2024,
 }
 
 VARS_2D = ["2m_temperature", "mean_sea_level_pressure"]
@@ -106,7 +108,7 @@ GRIDS = {
     },
 }
 
-OUTDIR = Path("/iopsstor/scratch/cscs/sadamov")
+OUTDIR = SCRATCH
 
 
 def out_paths(tag: str):

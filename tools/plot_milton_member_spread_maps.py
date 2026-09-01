@@ -17,7 +17,8 @@ Milton domain (upstream WB2 property). +120 h is one such gap; +132 h is clean.
 from __future__ import annotations
 
 import argparse
-from pathlib import Path
+import os
+import sys
 
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
@@ -25,10 +26,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import xarray as xr
 
-STORE = Path("/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles")
-ERA5 = "/capstor/store/cscs/swissai/weatherbench/weatherbench2_2024_2025.zarr"
-IFS_ENS = "/capstor/store/cscs/swissai/a122/IFS/ifs_ens.zarr"
-FIGS = Path("/users/sadamov/pyprojects/ai-models-ensembles/figures")
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # tools/
+from _env import FIGURES, IFS_ENS, STORE, WB2_2024  # noqa: E402
+
+ERA5 = WB2_2024
+FIGS = FIGURES
 
 # Milton box (matches milton_F1)
 LON_MIN, LON_MAX, LAT_MIN, LAT_MAX = 255, 290, 13, 32
@@ -242,7 +244,7 @@ def main():
     cb2.set_label("ensemble std of 10 m wind speed (m s$^{-1}$)", fontsize=10)
 
     FIGS.mkdir(parents=True, exist_ok=True)
-    for ext in ("png", "pdf"):
+    for ext in ("pdf",):
         out = FIGS / f"{args.out}.{ext}"
         fig.savefig(out, dpi=150, bbox_inches="tight")
         print(f"-> {out}")

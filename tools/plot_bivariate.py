@@ -32,8 +32,10 @@ import model_colors  # noqa: F401  (shared font)
 
 from swissclim_evaluations.plots.bivariate_histograms import plot_bivariate_histogram
 
-BASE = "/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles/baselines"
-FIGDIR = "/users/sadamov/pyprojects/ai-models-ensembles/figures"
+from _env import BASELINES, FIGURES  # noqa: E402
+
+BASE = str(BASELINES)
+FIGDIR = str(FIGURES)
 
 PANELS = [
     ("aurora_encoder", "aurora_encoder"),
@@ -196,7 +198,7 @@ def make(pattern, out, xlabel, ylabel, eval_dir="eval", name_as_title=False, yli
     if shared_target_cs is not None:
         cbar.add_lines(shared_target_cs)
 
-    for ext in ("pdf", "png"):
+    for ext in ("pdf",):
         fig.savefig(f"{FIGDIR}/{out}.{ext}", dpi=150, bbox_inches="tight")
         print(f"Wrote {FIGDIR}/{out}.{ext}")
     plt.close()

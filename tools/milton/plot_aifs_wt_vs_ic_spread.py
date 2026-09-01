@@ -22,7 +22,6 @@ import statistics as st
 import sys
 from collections import defaultdict
 from datetime import datetime
-from pathlib import Path
 
 import matplotlib
 
@@ -32,11 +31,11 @@ import matplotlib.pyplot as plt
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # tools/
 from model_colors import AIFS_IC_CONTRAST, color_for, marker_for, style_for
 
-BASE = Path("/iopsstor/scratch/cscs/sadamov/milton_case_study")
+from _env import FIGURES, SCRATCH  # noqa: E402
+
+BASE = SCRATCH / "milton_case_study"
 MASTER = BASE / "milton_master_tracks.csv"
-OUT = Path(
-    "/users/sadamov/pyprojects/ai-models-ensembles/figures/milton_F9_aifs_wt_vs_ic_spread.pdf"
-)
+OUT = FIGURES / "milton_F9_aifs_wt_vs_ic_spread.pdf"
 
 # Match the headline figure: weight-only purple, weight+IC pink (the one figure
 # where the AIFS variants are deliberately drawn apart, see model_colors.py).
@@ -157,7 +156,6 @@ ax1.legend(fontsize=7, frameon=False, loc="upper left", ncol=2)
 plt.tight_layout()
 OUT.parent.mkdir(parents=True, exist_ok=True)
 plt.savefig(OUT, dpi=300, bbox_inches="tight")
-plt.savefig(str(OUT).replace(".pdf", ".png"), dpi=160, bbox_inches="tight")
 print(f"-> {OUT}")
 for b in ("aifs_perturbed", "aifs_ic_only", "aifs_perturbed_ic", "ifs_ens", "aifsens"):
     print(f"{PRETTY[b]:22s} cone {series(cone, b)}")

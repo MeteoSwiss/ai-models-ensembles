@@ -18,11 +18,13 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.stdout.reconfigure(line_buffering=True)
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # tools/
+from _env import SCRATCH  # noqa: E402
 from track_one_init import (  # noqa: E402
     extract_milton_track,
 )
 
-TRACKS_ROOT = Path("/iopsstor/scratch/cscs/sadamov/milton_case_study/tracks")
+TRACKS_ROOT = SCRATCH / "milton_case_study/tracks"
 
 
 def main() -> None:

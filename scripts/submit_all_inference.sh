@@ -37,7 +37,7 @@
 # ---------------------------------------------------------------------------
 set -euo pipefail
 
-STORE="/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles"
+STORE="${AIENS_STORE:-/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles}"
 SRC_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 LOG_DIR="${LOG_DIR:-$STORE/baseline_logs}"
 WORKDIR=/workspace/ai-models-ensembles
@@ -203,7 +203,7 @@ for model in $REQUESTED; do
     if [[ "$dsrc" == "cds" ]]; then
         E2S_CACHE_DIR="$STORE/e2s_cache_backup"
     else
-        E2S_CACHE_DIR="/iopsstor/scratch/cscs/sadamov/e2s_cache"
+        E2S_CACHE_DIR="${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/e2s_cache"
     fi
     mkdir -p "$E2S_CACHE_DIR"
     mounts="${SRC_DIR}:${WORKDIR},${SRC_DIR}/ai_models_ensembles:/usr/local/lib/python3.12/dist-packages/ai_models_ensembles,${STORE}:${STORE},${E2S_CACHE_DIR}:/workspace/.cache/earth2studio"

@@ -22,6 +22,7 @@ import numpy as np
 import xarray as xr
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _env import STORE  # noqa: E402
 from compute_per_init_crps import (  # noqa: E402
     cos_lat_weights,
     weighted_spatial_mean,
@@ -29,7 +30,6 @@ from compute_per_init_crps import (  # noqa: E402
     load_truth_field,
 )
 
-STORE = "/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles"
 CLIM = Path(__file__).resolve().parent / "data" / "crps_clim_eval_ablation_1990_2019.json"
 LEAD = 240
 INIT_TAGS = ["20230515", "20230815", "20240215", "20241115"]

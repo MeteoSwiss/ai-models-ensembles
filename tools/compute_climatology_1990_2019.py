@@ -3,9 +3,9 @@
 Two outputs per (variable, level):
   1. sigma_clim_1990_2019.json
      Per-pixel temporal standard deviation of the value (after sub-sampling
-     daily 00 UTC), then cos-lat spatial mean. Same JSON schema as
-     /iopsstor/scratch/cscs/sadamov/sigma_clim_ablation.json. Drop-in for the
-     Gaussian-CRPS formula s/sqrt(pi).
+     daily 00 UTC), then cos-lat spatial mean. Same JSON schema as the
+     ablation-grid sigma_clim JSON. Drop-in for the Gaussian-CRPS formula
+     s/sqrt(pi).
   2. empirical_crps_clim_1990_2019.json
      A non-parametric, leave-one-out fair-CRPS of a per-(pixel, DOY) 30-year
      climatological ensemble against each year's truth, then cos-lat spatial
@@ -13,9 +13,7 @@ Two outputs per (variable, level):
      2m_t) -- replaces s/sqrt(pi) in CRPSS = 1 - CRPS / CRPS_clim.
 
 Reads the WB2 ARCO-ERA5 zarr over HTTPS (no gcsfs needed; the bucket is
-public). Designed for the project venv at
-/capstor/store/cscs/mch/s83/sadamov/venvs/ai-models-ensembles. The HTTPS path
-also dodges the broken cffi/_cffi_backend wheel in that venv.
+public).
 
 Usage:
   python tools/compute_climatology_1990_2019.py \\
@@ -38,6 +36,8 @@ from pathlib import Path
 
 import numpy as np
 import xarray as xr
+
+from _env import SCRATCH, WB2_ORIGINAL
 import dask
 
 sys.stdout.reconfigure(line_buffering=True)
@@ -50,7 +50,7 @@ sys.stdout.reconfigure(line_buffering=True)
 # window in full. All 7 paper vars (2m_t, MSL, geopotential, temperature,
 # u/v_wind, specific_humidity) at 37 pressure levels. Faster than the public
 # WB2 HTTPS bucket and avoids egress + cert dependence.
-WB2_LOCAL = "/capstor/store/cscs/swissai/weatherbench/weatherbench2_original"
+WB2_LOCAL = WB2_ORIGINAL
 
 VARS_2D = ["2m_temperature", "mean_sea_level_pressure"]
 VARS_3D = [
@@ -66,7 +66,7 @@ YEAR_START_DEFAULT = 1990
 YEAR_END_DEFAULT = 2019
 HOURS_DEFAULT = (0, 6, 12, 18)
 
-OUTDIR = Path("/iopsstor/scratch/cscs/sadamov")
+OUTDIR = SCRATCH
 SIGMA_OUT = OUTDIR / "sigma_clim_1990_2019.json"
 CRPS_OUT = OUTDIR / "empirical_crps_clim_1990_2019.json"
 PROVENANCE_OUT = OUTDIR / "climatology_1990_2019_provenance.json"

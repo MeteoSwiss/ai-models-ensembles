@@ -33,11 +33,13 @@ import math
 import os
 from pathlib import Path
 
-STORE = Path("/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles")
+from _env import FIGURES, STORE
+from _env import SCRATCH as _SCRATCH_ROOT
+
 BASE = STORE / "baselines"
 INTER = BASE / "intercomparison"
 CRPS_CLIM = Path(__file__).resolve().parent / "data" / "crps_clim_eval_1990_2019.json"
-OUT = Path("/users/sadamov/pyprojects/ai-models-ensembles/figures/table_c1_production_metrics.tex")
+OUT = FIGURES / "table_c1_production_metrics.tex"
 
 VARS_2D = ["2m_temperature", "mean_sea_level_pressure"]
 VARS_3D = [
@@ -160,9 +162,7 @@ MVAR = {
 # hardcoded dicts above are the older per-init truth-std values and remain the
 # fallback; set ESVS_SCALE_TAG="" to force them.
 _SCALE_TAG = os.environ.get("ESVS_SCALE_TAG", "fixed")
-_FIXED_DIR = Path(
-    "/iopsstor/scratch/cscs/sadamov/ai-models-ensembles/scratch/table_metrics_fixedscale"
-)
+_FIXED_DIR = _SCRATCH_ROOT / "ai-models-ensembles/scratch/table_metrics_fixedscale"
 _SCORE_KEY = {
     "ES": "energy_score_mvar",
     "VS": "variogram_score_p05",

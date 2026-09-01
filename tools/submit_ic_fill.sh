@@ -25,12 +25,12 @@
 
 set -uo pipefail
 
-PY=/capstor/store/cscs/mch/s83/sadamov/venvs/ai-models-ensembles/bin/python
+PY=${AIENS_PY:-/capstor/store/cscs/mch/s83/sadamov/venvs/ai-models-ensembles/bin/python}
 export PYTHONUNBUFFERED=1
-export TMPDIR=/iopsstor/scratch/cscs/sadamov/tmp
+export TMPDIR=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/tmp
 mkdir -p "$TMPDIR"
 
-cd /users/sadamov/pyprojects/ai-models-ensembles
+cd ${AIENS_REPO:-/users/sadamov/pyprojects/ai-models-ensembles}
 
 INDICES="${1:-0:56}"
 echo "Filling 150/600 hPa on IC zarr init_time indices: $INDICES"

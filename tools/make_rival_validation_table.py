@@ -14,6 +14,8 @@ import csv
 import json
 import collections
 
+from _env import STORE
+
 WINNERS = {
     "aurora_encoder": ["aurora_enc_s044"],
     "graphcast_all": ["graphcast_m2g", "graphcast_g2m"],
@@ -45,7 +47,7 @@ GROUPS = [
 ap = argparse.ArgumentParser()
 ap.add_argument(
     "--csv",
-    default="/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles/analysis/per_init_crps_production_v2.csv",
+    default=str(STORE / "analysis/per_init_crps_production_v2.csv"),
 )
 ap.add_argument("--clim", default="tools/data/crps_clim_eval_1990_2019_per_init.json")
 ap.add_argument("--out", default="figures/rival_validation_table.tex")

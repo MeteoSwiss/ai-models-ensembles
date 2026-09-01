@@ -24,9 +24,10 @@ from matplotlib.lines import Line2D
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # tools/
 from model_colors import color_for
 
-STORE = "/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles"
+from _env import FIGURES, STORE  # noqa: E402
+
 BASE = f"{STORE}/baselines"
-OUT = "/users/sadamov/pyprojects/ai-models-ensembles/figures/refresh_frozen_vs_refresh_ssr"
+OUT = str(FIGURES / "refresh_frozen_vs_refresh_ssr")
 
 # (frozen CSV path, refresh CSV path, label, colour-key)
 # All three on the 112-init production grid.
@@ -115,7 +116,7 @@ def main() -> None:
     )
 
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
-    for ext in ("pdf", "png"):
+    for ext in ("pdf",):
         fig.savefig(f"{OUT}.{ext}", dpi=150, bbox_inches="tight")
         print(f"Wrote {OUT}.{ext}")
     plt.close()

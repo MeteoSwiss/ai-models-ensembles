@@ -21,8 +21,10 @@ from scipy.ndimage import gaussian_filter
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # tools/
 import model_colors  # noqa: F401  (sets shared font rcParams on import)
 
-BASE = "/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles/baselines"
-OUT = "/users/sadamov/pyprojects/ai-models-ensembles/figures/spectrogram_delta_z500_7way"
+from _env import BASELINES, FIGURES  # noqa: E402
+
+BASE = str(BASELINES)
+OUT = str(FIGURES / "spectrogram_delta_z500_7way")
 
 ROW1 = [("ifs_ens", "IFS-ENS"), ("aifsens", "AIFS-ENS"), ("fcn3", "FCN3"), ("atlas", "Atlas")]
 ROW2 = [
@@ -82,7 +84,7 @@ def main() -> None:
     cax = fig.add_axes([0.94, 0.12, 0.013, 0.76])
     fig.colorbar(im, cax=cax, label=r"$\Delta\log_{10}$ energy (forecast $-$ truth)")
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
-    for ext in ("pdf", "png"):
+    for ext in ("pdf",):
         fig.savefig(f"{OUT}.{ext}", dpi=150, bbox_inches="tight")
         print(f"Wrote {OUT}.{ext}  (vmax={vmax:.3f})")
     plt.close()

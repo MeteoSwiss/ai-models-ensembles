@@ -29,7 +29,9 @@ from pathlib import Path
 
 import numpy as np
 
-CSV = "/iopsstor/scratch/cscs/sadamov/per_init_crps_production.csv"
+from _env import SCRATCH
+
+CSV = str(SCRATCH / "per_init_crps_production.csv")
 CLIM = Path(__file__).resolve().parent / "data" / "crps_clim_eval_1990_2019.json"
 
 PAPER_VARS = [

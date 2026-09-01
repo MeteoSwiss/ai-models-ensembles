@@ -20,11 +20,10 @@ import csv
 import numpy as np
 import xarray as xr
 
-B = "/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles/ablation"
-WB2 = [
-    "/capstor/store/cscs/swissai/weatherbench/weatherbench2_2022_2023.zarr",
-    "/capstor/store/cscs/swissai/weatherbench/weatherbench2_2024_2025.zarr",
-]
+from _env import STORE, WB2_2022, WB2_2024
+
+B = str(STORE / "ablation")
+WB2 = [WB2_2022, WB2_2024]
 INITS = ["20230515", "20230815", "20241115", "20240215"]
 LEAD_IDX = 40  # 240 h (6-h steps); overridden by --lead at runtime
 VARS_2D = ["2m_temperature", "mean_sea_level_pressure"]

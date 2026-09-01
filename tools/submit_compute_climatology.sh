@@ -6,7 +6,7 @@
 # Usage:
 #   sbatch tools/submit_compute_climatology.sh
 #
-# Outputs land in /iopsstor/scratch/cscs/sadamov/:
+# Outputs land in ${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/:
 #   sigma_clim_1990_2019.json
 #   empirical_crps_clim_1990_2019.json
 #   climatology_1990_2019_provenance.json
@@ -23,14 +23,14 @@
 
 set -euo pipefail
 
-PY=/capstor/store/cscs/mch/s83/sadamov/venvs/ai-models-ensembles/bin/python
+PY=${AIENS_PY:-/capstor/store/cscs/mch/s83/sadamov/venvs/ai-models-ensembles/bin/python}
 export SSL_CERT_FILE=$($PY -c 'import certifi; print(certifi.where())')
-export TMPDIR=/iopsstor/scratch/cscs/sadamov/tmp
-export DASK_TEMPORARY_DIRECTORY=/iopsstor/scratch/cscs/sadamov/tmp
+export TMPDIR=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/tmp
+export DASK_TEMPORARY_DIRECTORY=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/tmp
 export UV_CACHE_DIR=/capstor/scratch/cscs/sadamov/uv_cache
 mkdir -p "$TMPDIR"
 
-cd /users/sadamov/pyprojects/ai-models-ensembles
+cd ${AIENS_REPO:-/users/sadamov/pyprojects/ai-models-ensembles}
 
 $PY -u tools/compute_climatology_1990_2019.py \
     --year-start 1990 --year-end 2019 \

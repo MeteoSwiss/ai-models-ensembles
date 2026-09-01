@@ -18,7 +18,7 @@ Spread is the finite-M-adjusted per-pixel standard deviation
 sqrt((M+1)/M * var_m), matching SSR^pix in the paper, so 1:1 is the calibrated
 target.
 
-Output: /iopsstor/scratch/cscs/sadamov/spread_error_binned.csv
+Output: $AIENS_SCRATCH/spread_error_binned.csv
   baseline,variable,level,lead,bin_lo,bin_hi,w_count,w_sum_spread,w_sum_sq_err
 
 Usage (CPU sbatch, ~2 h for all baselines):
@@ -36,14 +36,12 @@ from pathlib import Path
 import numpy as np
 import xarray as xr
 
+from _env import IFS_ENS, SCRATCH, STORE, WB2_2022, WB2_2024
+
 sys.stdout.reconfigure(line_buffering=True)
 
-STORE = "/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles"
-TRUTH_SRC = {
-    2023: "/capstor/store/cscs/swissai/weatherbench/weatherbench2_2022_2023.zarr",
-    2024: "/capstor/store/cscs/swissai/weatherbench/weatherbench2_2024_2025.zarr",
-}
-OUT_CSV = Path("/iopsstor/scratch/cscs/sadamov/spread_error_binned.csv")
+TRUTH_SRC = {2023: WB2_2022, 2024: WB2_2024}
+OUT_CSV = SCRATCH / "spread_error_binned.csv"
 
 BASELINES = {
     "aurora_encoder": f"{STORE}/baselines/aurora_encoder",
@@ -54,7 +52,7 @@ BASELINES = {
     "atlas": f"{STORE}/baselines/atlas",
     "fcn3": f"{STORE}/baselines/fcn3",
     # One consolidated zarr (init_time dim, 50 members), not per-init dirs.
-    "ifs_ens": "/capstor/store/cscs/swissai/a122/IFS/ifs_ens.zarr",
+    "ifs_ens": str(IFS_ENS),
 }
 
 VARS = [

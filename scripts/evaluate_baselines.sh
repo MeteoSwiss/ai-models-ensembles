@@ -28,7 +28,7 @@
 # ---------------------------------------------------------------------------
 set -euo pipefail
 
-STORE="/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles"
+STORE="${AIENS_STORE:-/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles}"
 SRC_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 LOG_DIR="$STORE/baseline_eval_logs"
 
@@ -37,8 +37,8 @@ TIME_LIMIT_MAIN="12:00:00"
 TIME_LIMIT_ETSFSS="12:00:00"
 
 WB2_PATHS='[
-    "/capstor/store/cscs/swissai/weatherbench/weatherbench2_2022_2023.zarr",
-    "/capstor/store/cscs/swissai/weatherbench/weatherbench2_2024_2025.zarr"
+    "${AIENS_WB2_22:-/capstor/store/cscs/swissai/weatherbench/weatherbench2_2022_2023.zarr}",
+    "${AIENS_WB2_24:-/capstor/store/cscs/swissai/weatherbench/weatherbench2_2024_2025.zarr}"
   ]'
 
 WEEK_STARTS=(
@@ -69,7 +69,7 @@ declare -A MODEL_KIND=(
     [sfno_enc_s054]=ai [sfno_enc_s035]=ai [aifs_all_s010]=ai
 )
 
-IFS_ENS_ZARR="/capstor/store/cscs/swissai/a122/IFS/ifs_ens.zarr"
+IFS_ENS_ZARR="${AIENS_IFS_ENS:-/capstor/store/cscs/swissai/a122/IFS/ifs_ens.zarr}"
 
 # Stratified 10-member subsample of IFS ENS (50 members total). Members are
 # generated with systematic perturbation spread across indices, so step-5

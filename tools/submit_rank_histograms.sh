@@ -8,7 +8,7 @@
 #   sbatch tools/submit_rank_histograms.sh all             # all 8 baselines
 #   sbatch tools/submit_rank_histograms.sh ifs_ens aifsens # a subset
 #
-# Output: /iopsstor/scratch/cscs/sadamov/rank_hist_<baseline>.npz
+# Output: ${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/rank_hist_<baseline>.npz
 #
 #SBATCH --account=ab016
 #SBATCH --partition=normal
@@ -22,13 +22,13 @@
 
 set -euo pipefail
 
-PY=/capstor/store/cscs/mch/s83/sadamov/venvs/ai-models-ensembles/bin/python
+PY=${AIENS_PY:-/capstor/store/cscs/mch/s83/sadamov/venvs/ai-models-ensembles/bin/python}
 export PYTHONUNBUFFERED=1
-export TMPDIR=/iopsstor/scratch/cscs/sadamov/tmp
-export DASK_TEMPORARY_DIRECTORY=/iopsstor/scratch/cscs/sadamov/tmp
+export TMPDIR=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/tmp
+export DASK_TEMPORARY_DIRECTORY=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/tmp
 mkdir -p "$TMPDIR"
 
-cd /users/sadamov/pyprojects/ai-models-ensembles
+cd ${AIENS_REPO:-/users/sadamov/pyprojects/ai-models-ensembles}
 
 BASELINES=("${@:-ifs_ens}")
 $PY -u tools/compute_rank_histograms.py --baselines "${BASELINES[@]}"

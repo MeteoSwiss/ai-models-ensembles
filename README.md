@@ -1,6 +1,6 @@
 # AI Model Ensembles for Weather Forecasting
 
-Compare AI weather forecast models — GraphCastOperational, SFNO, Aurora
+Compare AI weather forecast models - GraphCastOperational, SFNO, Aurora
 (deterministic, with post-training weight perturbation) against FCN3, Atlas
 (probabilistic) and the on-disk IFS ENS physical baseline. AI models are
 initialised from ARCO ERA5; IFS ENS is verified directly.
@@ -12,7 +12,7 @@ This repo is a thin orchestration layer over [NVIDIA earth2studio](https://githu
 - **earth2studio** handles model loading, IC fetching, and rollout.
 - **swissclim-evaluations** handles deterministic + probabilistic
   verification, plotting, and intercomparison.
-- This repo wires them together: a curated 7-model registry, IC + weight
+- This repo wires them together: a 7-model registry, IC + weight
   perturbation helpers, Slurm scripts, and a GH200 container build.
 
 ## Model registry
@@ -32,10 +32,10 @@ This repo is a thin orchestration layer over [NVIDIA earth2studio](https://githu
 
 ## Perturbation strategy
 
-Weight perturbation is applied in four ablation phases, each progressively
-more physically-motivated.
+Weight perturbation is explored over several ablation phases; the paper has
+the full account. The two phases the production baselines come from:
 
-### Phase 2 — architectural layer groups
+### Phase 2 - architectural layer groups
 
 Per model, partition the learnable weights into encoder / processor /
 decoder groups (model-specific naming). Apply Gaussian multiplicative
@@ -45,14 +45,14 @@ reference at `σ_full = 0.01`.
 
 ![Phase 2 schematic](figures/perturbation_schematic.png)
 
-### Phase 3 — physics-inspired coarse-scale targeting
+### Phase 3 - physics-inspired coarse-scale targeting
 
 Perturb only the parameters/activations responsible for
 upper-synoptic-and-above spatial scales (`λ ≳ 3000 km`, per the SwissClim
-band conventions: synoptic 1–5 Mm, planetary 5–20 Mm). Each model uses a
+band conventions: synoptic 1-5 Mm, planetary 5-20 Mm). Each model uses a
 different mechanism for the same physical objective:
 
-- **SFNO** — sub-axis slice perturbation of the spherical-harmonic
+- **SFNO** - sub-axis slice perturbation of the spherical-harmonic
   spectral conv weights at `l ≤ L_cut` (CLI flag `--coarse-mode-cut N`).
   Perturbs only `W[..., :N]` of the 8 `*.filter.filter.weight` tensors
   (dhconv operator, 240-mode axis is the total wavenumber l directly;
@@ -62,14 +62,14 @@ different mechanism for the same physical objective:
   global constant and mass-conservation-bound for fields like surface
   pressure, so perturbing it can spuriously inflate global-mean spread
   on rollout).
-- **Aurora** — perturb the deepest Swin-3D downsampling block of the
+- **Aurora** - perturb the deepest Swin-3D downsampling block of the
   U-net backbone, `net.backbone.encoder_layers.2.*` (96 tensors,
   indices 494:590; named group `unet_bottom`). Operates on ~450 km
   tokens with a Swin attention-window receptive field of ~5000 km,
   reaching synoptic-to-planetary scales. The decoder side was dropped
   after Phase 2 evidence that encoder perturbation produces much larger
   ensemble spread than decoder.
-- **GraphCast** — runtime activation hook on coarse mesh-node features:
+- **GraphCast** - runtime activation hook on coarse mesh-node features:
   after the grid2mesh encoder, the latent features of the first 42 mesh
   nodes (icosahedral refinement levels 0+1, ~3300 km separation) are
   multiplied by `(1 + σ × N(0,1))`. Implementation monkey-patches
@@ -84,40 +84,12 @@ empirically from the cross-phase intercomparison plots
 
 ![Phase 3 schematic](figures/phase3_schematic.png)
 
-### Phase 2b — sigma sweep around Phase 2 winners
-
-Phase 2b brackets each model's Phase 2 winning layer group with 4 extra
-sigma points (e.g. Aurora encoder {0.025, 0.060}; GraphCast g2m {0.014,
-0.045}; SFNO encoder {0.035, 0.080}) to characterize the CRPS-vs-σ curve
-near the SSR=1 crossing. Outputs at `phase2b/<model>/intercomparison/`.
-
-### Phase 3b — orthogonal threshold sweep at sqrt(N) σ
-
-Phase 3 varies σ at fixed scale threshold. Phase 3b is the orthogonal
-ablation: it varies the **scale threshold** at the per-(model, threshold)
-sqrt(N) σ, holding the variance budget constant. Tests whether broader
-spatial reach at modest σ is more effective than narrow reach at high σ
-(especially relevant for Aurora's backbone-robustness regime).
-
-Wavelength bins aligned across models:
-
-| λ bin | SFNO | Aurora | GraphCast |
-|---|---|---|---|
-| ~3000–5000 km (Phase 3 anchor) | L_cut=10, σ=0.049 | `unet_bottom`, σ=0.026 | level 0+1 (42 nodes), σ=0.312 |
-| ~2000 km | L_cut=20, σ=0.035 | `enc_12`, σ=0.017 | level 0+1+2 (162 nodes), σ=0.159 |
-| ~800–1000 km | L_cut=40, σ=0.025 | `enc_012`, σ=0.015 | level 0+1+2+3 (642 nodes), σ=0.080 |
-
-Each σ is `0.01 × √(N_total / N_partial)` for that (model, threshold).
-Aurora named groups `enc_12` = encoder_layers.{1,2} and `enc_012` =
-encoder_layers.{0,1,2}; defined in
-[`_MODEL_LAYER_GROUPS["aurora"]`](ai_models_ensembles/e2s_perturbation.py).
-Phase 3b cross-intercomp pulls Phase 1 `mag_0` + Phase 1 `mag_0.01` +
-Phase 2 winner + Phase 3 sqrt(N) anchor + the 2 Phase 3b rows.
-
-Tensor counts, channel dimensions, group definitions and the 240-mode
-layout were verified empirically from checkpoint dumps + a runtime
-diagnostic ([tools/dump_*_keys.py](tools/),
-[tools/diagnose_sfno_modes.py](tools/diagnose_sfno_modes.py)).
+Two secondary sweeps (`phase2b`, `phase3b`) bracket the winners in σ and in
+scale threshold; `scripts/submit_ablation.sh` runs them and the paper
+reports them. Tensor counts, channel dimensions and the SFNO 240-mode
+layout were read from the checkpoints with
+[tools/inspect_weights.py](tools/inspect_weights.py) and are recorded in
+`_MODEL_LAYER_GROUPS` ([e2s_perturbation.py](ai_models_ensembles/e2s_perturbation.py)).
 
 ### Production baselines (per-model picks, carried to the 112-init grid)
 
@@ -178,9 +150,9 @@ contribute (the `*_ic_only` baselines). The store carries 224 6-hourly init time
 (8 weeks × 28 samples, including the `t-6h` slot autoregressive models need)
 and 50 members. Two PL levels (150, 600 hPa) are not archived for `type=pf
 step=0`, so they are filled by log-pressure interpolation
-(`fill_interp_levels.py`); the download writes MARS short names, which
-[tools/rename_ic_to_swissclim.py](tools/rename_ic_to_swissclim.py) renames to
-SwissClim long names so `from_swissclim` maps them to the earth2studio lexicon.
+([tools/fill_ic_perturbed_levels.py](tools/fill_ic_perturbed_levels.py)). The
+download writes MARS short names; they are mapped to the SwissClim long
+names `from_swissclim` expects at load time.
 
 ## Quickstart
 
@@ -259,6 +231,29 @@ anchor per model (`PHASE3_SQRTN_TAG`), both at the top of
 See [scripts/README.md](scripts/README.md) for the full submitter docs.
 Per-run parameters are constants at the top of each script - there is no
 shared `config.sh`.
+
+## Running the analysis off the CSCS box
+
+The inference and SwissClim eval jobs need the HPC and the multi-TB zarr
+archives, but the figure/table scripts under `tools/` only need the cached
+intermediates. Every machine-specific path they use resolves through
+[tools/_env.py](tools/_env.py) (Python) or a matching `${AIENS_*:-default}`
+shell variable, so a checkout on another machine runs once you point a few
+env vars at your copies of the data:
+
+| Variable | Meaning | Default (CSCS) |
+|---|---|---|
+| `AIENS_STORE` | forecasts / baselines / intercomparison root | `/capstor/.../sadamov/ai-models-ensembles` |
+| `AIENS_SCRATCH` | scratch for large CSV/JSON intermediates | `/iopsstor/scratch/cscs/sadamov` |
+| `AIENS_WB2_22` / `AIENS_WB2_24` | WeatherBench2 ERA5 truth zarrs | `/capstor/.../weatherbench2_20{22_2023,24_2025}.zarr` |
+| `AIENS_IFS_ENS` | IFS-ENS reference zarr | `/capstor/.../a122/IFS/ifs_ens.zarr` |
+| `AIENS_PY` | interpreter for the Slurm scripts | capstor host venv |
+| `AIENS_REPO` | repo root for the Slurm scripts | this checkout |
+
+The repo root and `figures/` are derived from the file location and need no
+override. Small cached inputs (climatology CRPS, channel scales, the
+IC/weight decomposition and signature-kernel CSVs) are committed under
+[tools/data/](tools/data/), so the table scripts run with no data at all.
 
 ## Requirements
 
@@ -388,14 +383,13 @@ uses the image's installed package).
 - **`config/`** - SwissClim YAML template + intercomparison config
 - **`scripts/`** - Slurm submitters for inference and SwissClim eval
 - **`containers/`** - per-model Dockerfiles and `submit_build.sh`
-- **`tools/`** - host venv helpers, weight inspection, zarr resharding, and the
-  verification suite (`spread_error_binned.py` + `plot_spread_error.py` for the
-  spread-error relationship, `ic_weight_decomposition.py` for the IC-versus-weight
-  attribution, `crpss_common_sample.py` for CRPSS on the IFS-ENS-valid subsample,
-  `compute_channel_scale.py` + `compare_fixedscale_ranking.py` for the
-  fixed-climatology rescore of ES/VS/SIGK); `tools/milton/` holds the Hurricane
+- **`tools/`** - host-venv helpers, weight inspection, zarr resharding, and
+  the analysis scripts that produce the paper's figures and tables (one
+  `plot_*.py` / `*_table.py` per figure/table; see
+  [tools/README.md](tools/README.md)). `tools/milton/` holds the Hurricane
   Milton case-study pipeline (TC tracking + figures)
-- **`figures/`** - perturbation schematics (regenerable SVG/PDF/PNG)
+- **`figures/`** - schematic sources (`draw_*.py`) and the generated
+  figure/table files the paper vendors in; all figures are PDF
 
 ## Pre-commit & Ruff
 

@@ -12,9 +12,11 @@ import json
 import sys
 from pathlib import Path
 
+from _env import STORE
+
 # Exact-WB2 ablation-grid CRPS_clim denominator (4 mid-season inits, lead-resolved).
 CRPS_CLIM = str(Path(__file__).resolve().parent / "data" / "crps_clim_eval_ablation_1990_2019.json")
-ROOT = "/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles/ablation/allphases"
+ROOT = str(STORE / "ablation/allphases")
 
 VARS_2D = ["2m_temperature", "mean_sea_level_pressure"]
 VARS_3D = [

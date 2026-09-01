@@ -27,9 +27,12 @@ from pathlib import Path
 
 import pandas as pd
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # tools/
+from _env import SCRATCH  # noqa: E402
+
 sys.stdout.reconfigure(line_buffering=True)
 
-CASE = Path("/iopsstor/scratch/cscs/sadamov/milton_case_study")
+CASE = SCRATCH / "milton_case_study"
 VERIF = CASE / "milton_verification.csv"
 TRACKS = CASE / "milton_master_tracks.csv"
 

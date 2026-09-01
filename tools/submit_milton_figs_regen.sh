@@ -23,12 +23,12 @@
 
 set -euo pipefail
 
-REPO=/users/sadamov/pyprojects/ai-models-ensembles
-PY=/capstor/store/cscs/mch/s83/sadamov/venvs/ai-models-ensembles/bin/python
+REPO="${AIENS_REPO:-/users/sadamov/pyprojects/ai-models-ensembles}"
+PY="${AIENS_PY:-/capstor/store/cscs/mch/s83/sadamov/venvs/ai-models-ensembles/bin/python}"
 
 export PYTHONUNBUFFERED=1
-export TMPDIR=/iopsstor/scratch/cscs/sadamov/tmp
-export DASK_TEMPORARY_DIRECTORY=/iopsstor/scratch/cscs/sadamov/tmp
+export TMPDIR="${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/tmp"
+export DASK_TEMPORARY_DIRECTORY="$TMPDIR"
 mkdir -p "$TMPDIR"
 # cartopy may fetch coastline/border shapefiles on first run on a compute node.
 export SSL_CERT_FILE=$("$PY" -c 'import certifi; print(certifi.where())')
@@ -42,7 +42,7 @@ cd "$REPO"
 echo "========== F4 NUMBERS (init 20241005_0000, lead 120h, valid 2024-10-10 00 UTC) =========="
 "$PY" - <<'PYEOF'
 import sys
-sys.path.insert(0, "/users/sadamov/pyprojects/ai-models-ensembles/tools/milton")
+sys.path.insert(0, "tools/milton")
 import figures_milton as fm
 # Default init_tag is now 20241005_0000; prints ERA5 peak + per-baseline
 # peak (m) and suppression (% vs ERA5) for every baseline incl. IFS-ENS.
@@ -54,7 +54,7 @@ echo "========== END F4 NUMBERS =========="
 echo "========== F3 cascading-detection panels (9 baselines) =========="
 "$PY" - <<'PYEOF'
 import sys
-sys.path.insert(0, "/users/sadamov/pyprojects/ai-models-ensembles/tools/milton")
+sys.path.insert(0, "tools/milton")
 import figures_milton as fm
 import pandas as pd
 master = pd.read_csv(fm.BASE / "milton_master_tracks.csv", parse_dates=["time"])

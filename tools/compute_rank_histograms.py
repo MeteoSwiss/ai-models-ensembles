@@ -12,7 +12,7 @@ For each baseline and (variable, level) at lead 240h:
   * spatial-mean rank = rank of the cos-lat truth spatial mean among the M
     member spatial means, one per init.
 
-Output: /iopsstor/scratch/cscs/sadamov/rank_hist_<baseline>.npz
+Output: $AIENS_SCRATCH/rank_hist_<baseline>.npz
   perpixel_counts (nvarlev, M+1), spatialmean_ranks (nvarlev, ninits), labels.
 
 Usage (CPU sbatch): python tools/compute_rank_histograms.py --baselines all
@@ -29,14 +29,12 @@ from pathlib import Path
 import numpy as np
 import xarray as xr
 
+from _env import IFS_ENS, SCRATCH, STORE, WB2_2022, WB2_2024
+
 sys.stdout.reconfigure(line_buffering=True)
 
-STORE = "/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles"
-TRUTH_SRC = {
-    2023: "/capstor/store/cscs/swissai/weatherbench/weatherbench2_2022_2023.zarr",
-    2024: "/capstor/store/cscs/swissai/weatherbench/weatherbench2_2024_2025.zarr",
-}
-OUTDIR = Path("/iopsstor/scratch/cscs/sadamov")
+TRUTH_SRC = {2023: WB2_2022, 2024: WB2_2024}
+OUTDIR = SCRATCH
 
 BASELINES = {
     "aurora_encoder": f"{STORE}/baselines/aurora_encoder",
@@ -46,7 +44,7 @@ BASELINES = {
     "aifsens": f"{STORE}/baselines/aifsens",
     "atlas": f"{STORE}/baselines/atlas",
     "fcn3": f"{STORE}/baselines/fcn3",
-    "ifs_ens": "/capstor/store/cscs/swissai/a122/IFS/ifs_ens.zarr",
+    "ifs_ens": str(IFS_ENS),
 }
 # IFS-ENS is a single WeatherBench-2 consolidated zarr (init_time dim, 50 members)
 # rather than the per-init forecast.zarr tree, and carries archive NaN gaps in the

@@ -14,7 +14,11 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-BASE = Path("/iopsstor/scratch/cscs/sadamov/milton_case_study")
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # tools/
+from _env import BASELINES as _BASELINES_DIR  # noqa: E402
+from _env import SCRATCH  # noqa: E402
+
+BASE = SCRATCH / "milton_case_study"
 TRACKS_ROOT = BASE / "tracks"
 TRACKS_ROOT.mkdir(parents=True, exist_ok=True)
 
@@ -34,9 +38,7 @@ LAT_MIN, LAT_MAX = 8, 42
 
 
 def baseline_zarr_path(baseline: str, init_tag: str) -> Path:
-    return Path(
-        f"/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles/baselines/{baseline}/{init_tag}/forecast.zarr"
-    )
+    return _BASELINES_DIR / baseline / init_tag / "forecast.zarr"
 
 
 def make_member_nc(ds_mem: xr.Dataset, nc_out: Path, init_t: pd.Timestamp) -> None:

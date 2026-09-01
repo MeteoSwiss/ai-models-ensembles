@@ -6,7 +6,7 @@
 # Usage:
 #   sbatch tools/submit_spread_error.sh [lead ...]     # default 24 72 120 240
 #
-# Output: /iopsstor/scratch/cscs/sadamov/spread_error_binned.csv
+# Output: ${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/spread_error_binned.csv
 #
 #SBATCH --account=ab016
 #SBATCH --partition=normal
@@ -20,16 +20,16 @@
 
 set -euo pipefail
 
-PY=/capstor/store/cscs/mch/s83/sadamov/venvs/ai-models-ensembles/bin/python
+PY=${AIENS_PY:-/capstor/store/cscs/mch/s83/sadamov/venvs/ai-models-ensembles/bin/python}
 export PYTHONUNBUFFERED=1
-export TMPDIR=/iopsstor/scratch/cscs/sadamov/tmp
-export DASK_TEMPORARY_DIRECTORY=/iopsstor/scratch/cscs/sadamov/tmp
+export TMPDIR=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/tmp
+export DASK_TEMPORARY_DIRECTORY=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/tmp
 mkdir -p "$TMPDIR"
 
-cd /users/sadamov/pyprojects/ai-models-ensembles
+cd ${AIENS_REPO:-/users/sadamov/pyprojects/ai-models-ensembles}
 
 LEADS=("${@:-}")
 [[ -z "${LEADS[*]}" ]] && LEADS=(24 72 120 240)
 
 BASELINES=("${BASELINES[@]:-all}")
-$PY -u tools/spread_error_binned.py --baselines "${BASELINES[@]}" --leads "${LEADS[@]}" --out "${OUT_CSV:-/iopsstor/scratch/cscs/sadamov/spread_error_binned.csv}"
+$PY -u tools/spread_error_binned.py --baselines "${BASELINES[@]}" --leads "${LEADS[@]}" --out "${OUT_CSV:-${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/spread_error_binned.csv}"

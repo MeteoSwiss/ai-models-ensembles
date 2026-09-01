@@ -25,8 +25,10 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from model_colors import color_for  # noqa: E402
 
-INDIR = Path("/iopsstor/scratch/cscs/sadamov")
-OUT = "/users/sadamov/pyprojects/ai-models-ensembles/figures/rank_histograms_240h"
+from _env import FIGURES, SCRATCH  # noqa: E402
+
+INDIR = SCRATCH
+OUT = str(FIGURES / "rank_histograms_240h")
 
 # Column-grouped: post-hoc perturbation (this work) left, trained-probabilistic
 # baselines + the IFS-ENS classical reference right.
@@ -87,7 +89,7 @@ def main():
             ax.set_xlabel(lab, fontsize=11)
     fig.supxlabel("rank of truth among the 10 members", fontsize=10)
     fig.tight_layout()
-    for ext in ("pdf", "png"):
+    for ext in ("pdf",):
         fig.savefig(f"{OUT}.{ext}", dpi=150, bbox_inches="tight")
         print(f"Wrote {OUT}.{ext}")
 

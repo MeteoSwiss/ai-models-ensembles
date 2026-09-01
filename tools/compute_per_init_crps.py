@@ -10,7 +10,7 @@ must reproduce the headline CRPSS table (validation baked into
 block_bootstrap_crpss.py); only then is the per-init sample trustworthy for a
 paired block bootstrap over initialisations.
 
-Output: /iopsstor/scratch/cscs/sadamov/per_init_crps_production.csv
+Output: $AIENS_SCRATCH/per_init_crps_production.csv
   columns: baseline, init, variable, level, lead, crps, n_eff_members
 
 Usage (CPU sbatch, ~1-2 h for all baselines):
@@ -28,14 +28,12 @@ from pathlib import Path
 import numpy as np
 import xarray as xr
 
+from _env import IFS_ENS, SCRATCH, STORE, WB2_2022, WB2_2024
+
 sys.stdout.reconfigure(line_buffering=True)
 
-STORE = "/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles"
-TRUTH_SRC = {
-    2023: "/capstor/store/cscs/swissai/weatherbench/weatherbench2_2022_2023.zarr",
-    2024: "/capstor/store/cscs/swissai/weatherbench/weatherbench2_2024_2025.zarr",
-}
-OUT_CSV = Path("/iopsstor/scratch/cscs/sadamov/per_init_crps_production.csv")
+TRUTH_SRC = {2023: WB2_2022, 2024: WB2_2024}
+OUT_CSV = SCRATCH / "per_init_crps_production.csv"
 
 # Stratified 10-member subsample of the 50 IFS-ENS members, matching
 # scripts/evaluate_baselines.sh so every baseline is scored at M=10.
@@ -53,7 +51,7 @@ BASELINES = {
     # IFS-ENS is NOT laid out per init: it is one consolidated zarr with an
     # init_time dimension and 50 members, of which the paper scores the
     # stratified 10-member subsample below.
-    "ifs_ens": "/capstor/store/cscs/swissai/a122/IFS/ifs_ens.zarr",
+    "ifs_ens": str(IFS_ENS),
     # Fuhrer-review runs (2026-08-25): IC-only arms (attribution of the spread
     # between IC and weight perturbation) and the runner-up ablation cells
     # (out-of-sample check that each production pick beats its closest rival).

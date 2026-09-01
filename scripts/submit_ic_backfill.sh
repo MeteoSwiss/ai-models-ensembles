@@ -31,15 +31,15 @@
 # ---------------------------------------------------------------------------
 set -euo pipefail
 
-STORE="/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles"
+STORE="${AIENS_STORE:-/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles}"
 SRC_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 WORKDIR=/workspace/ai-models-ensembles
 LOG_DIR="$STORE/baseline_logs"
-HOST_PY=/capstor/store/cscs/mch/s83/sadamov/venvs/ai-models-ensembles/bin/python
+HOST_PY=${AIENS_PY:-/capstor/store/cscs/mch/s83/sadamov/venvs/ai-models-ensembles/bin/python}
 
 IC_ZARR=/capstor/store/cscs/swissai/a122/IFS/ifs_analysis_perturbed_ic.zarr
 IC_DIR=$(dirname "$IC_ZARR")
-E2S_CACHE_DIR="/iopsstor/scratch/cscs/sadamov/e2s_cache"
+E2S_CACHE_DIR="${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/e2s_cache"
 
 LEAD_HOURS=240
 NUM_MEMBERS=10

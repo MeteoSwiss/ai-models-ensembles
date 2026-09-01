@@ -8,7 +8,7 @@
 # Usage:
 #   sbatch tools/submit_signature_kernel_score.sh
 #
-# Outputs in /iopsstor/scratch/cscs/sadamov/ai-models-ensembles/scratch/sigk/:
+# Outputs in ${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/ai-models-ensembles/scratch/sigk/:
 #   <baseline>.csv  (one row each) + sigk_combined.csv after aggregation.
 #
 #SBATCH --account=ab016
@@ -23,22 +23,22 @@
 
 set -euo pipefail
 
-PY=/capstor/store/cscs/mch/s83/sadamov/venvs/ai-models-ensembles/bin/python
+PY=${AIENS_PY:-/capstor/store/cscs/mch/s83/sadamov/venvs/ai-models-ensembles/bin/python}
 export PYTHONUNBUFFERED=1
-export TMPDIR=/iopsstor/scratch/cscs/sadamov/tmp
-export DASK_TEMPORARY_DIRECTORY=/iopsstor/scratch/cscs/sadamov/tmp
+export TMPDIR=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/tmp
+export DASK_TEMPORARY_DIRECTORY=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/tmp
 # cap per-process threads so 7 parallel baselines (7x8=56) stay under 64 cpus
 export OMP_NUM_THREADS=8
 export OPENBLAS_NUM_THREADS=8
 export MKL_NUM_THREADS=8
 mkdir -p "$TMPDIR"
 
-cd /users/sadamov/pyprojects/ai-models-ensembles
+cd ${AIENS_REPO:-/users/sadamov/pyprojects/ai-models-ensembles}
 
-STORE=/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles
-WB2A=/capstor/store/cscs/swissai/weatherbench/weatherbench2_2022_2023.zarr
-WB2B=/capstor/store/cscs/swissai/weatherbench/weatherbench2_2024_2025.zarr
-OUT=/iopsstor/scratch/cscs/sadamov/ai-models-ensembles/scratch/sigk
+STORE=${AIENS_STORE:-/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles}
+WB2A=${AIENS_WB2_22:-/capstor/store/cscs/swissai/weatherbench/weatherbench2_2022_2023.zarr}
+WB2B=${AIENS_WB2_24:-/capstor/store/cscs/swissai/weatherbench/weatherbench2_2024_2025.zarr}
+OUT=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/ai-models-ensembles/scratch/sigk
 mkdir -p "$OUT"
 
 VARS="2m_temperature mean_sea_level_pressure geopotential temperature \

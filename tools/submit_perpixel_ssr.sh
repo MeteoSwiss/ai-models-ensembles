@@ -27,18 +27,18 @@ set -uo pipefail
 
 MODEL="${1:?usage: sbatch tools/submit_perpixel_ssr.sh <model_label>}"
 
-PY=/capstor/store/cscs/mch/s83/sadamov/venvs/ai-models-ensembles/bin/python
+PY=${AIENS_PY:-/capstor/store/cscs/mch/s83/sadamov/venvs/ai-models-ensembles/bin/python}
 export PYTHONUNBUFFERED=1
-export TMPDIR=/iopsstor/scratch/cscs/sadamov/tmp
-export DASK_TEMPORARY_DIRECTORY=/iopsstor/scratch/cscs/sadamov/tmp
+export TMPDIR=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/tmp
+export DASK_TEMPORARY_DIRECTORY=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/tmp
 export OMP_NUM_THREADS=8
 mkdir -p "$TMPDIR"
 
-cd /users/sadamov/pyprojects/ai-models-ensembles
+cd ${AIENS_REPO:-/users/sadamov/pyprojects/ai-models-ensembles}
 
-STORE=/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles
-WB2A=/capstor/store/cscs/swissai/weatherbench/weatherbench2_2022_2023.zarr
-WB2B=/capstor/store/cscs/swissai/weatherbench/weatherbench2_2024_2025.zarr
+STORE=${AIENS_STORE:-/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles}
+WB2A=${AIENS_WB2_22:-/capstor/store/cscs/swissai/weatherbench/weatherbench2_2022_2023.zarr}
+WB2B=${AIENS_WB2_24:-/capstor/store/cscs/swissai/weatherbench/weatherbench2_2024_2025.zarr}
 OUT="$STORE/baselines/$MODEL/per_pixel_ssr/per_pixel_ssr.csv"
 mkdir -p "$(dirname "$OUT")"
 

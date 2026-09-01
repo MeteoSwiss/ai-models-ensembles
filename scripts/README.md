@@ -5,9 +5,10 @@ Slurm submitters that wrap `python -m ai_models_ensembles.cli infer` /
 [../containers/](../containers/). Everything is configured by editing the
 constants at the top of each script - there is no shared `config.sh`.
 
-All scripts share the same hard-coded `STORE` root
-(`/capstor/store/cscs/swissai/a122/sadamov/ai-models-ensembles`) since
-`$STORE` on Clariden login nodes points at the wrong project.
+Each script sets `STORE` and the interpreter to a CSCS default that can be
+overridden with `AIENS_STORE` / `AIENS_PY` (see "Running the analysis off
+the CSCS box" in the [main README](../README.md)); `$STORE` on Clariden
+login nodes points at the wrong project, hence the explicit default.
 
 ## submit_all_inference.sh
 
@@ -62,19 +63,17 @@ bash scripts/evaluate_ablation.sh intercompare phase1          # cross-run plots
 bash scripts/evaluate_ablation.sh intercompare phase1 aurora
 ```
 
-Eval modules used:
-`energy_spectra, probabilistic, deterministic, multivariate, histograms`
-(plus `ets`, `fss`, `ssim` via the temp scripts below until merged into the
-main pipeline).
+Eval modules: `maps, wd_kde, energy_spectra, multivariate, probabilistic,
+deterministic, ssim, fss`.
 
 Output: `$STORE/ablation/<phase>/<model_id>/eval/<run_tag>/...` and
 `.../intercomparison/...`.
 
-## submit_etsfss_phase1.sh, submit_ssim_phase1.sh (temporary)
+## submit_ic_backfill.sh / submit_seed_robustness.sh
 
-Phase 1 ETS/FSS and SSIM eval as standalone passes (run before these modules
-were integrated into the main pipeline). Will be removed once the next eval
-pipeline run absorbs them.
+`submit_ic_backfill.sh` fills missing pressure levels in the IFS-ENS
+perturbed-IC store; `submit_seed_robustness.sh` reruns the production picks
+under alternate seeds for the seed-sensitivity check.
 
 ## Typical sequence
 
@@ -99,7 +98,7 @@ bash scripts/submit_ablation.sh phase2b
 
 ## Troubleshooting
 
-- **Job won't start**: check `sinfo` and account `a122` access.
+- **Job won't start**: check `sinfo` and your Slurm account access.
 - **Container launch fails**: confirm `$STORE/<model>.sqsh` exists; rebuild
   with `bash containers/submit_build.sh <model>`.
 - **CDS throttling on `aifsens`**: rerun with `CHAIN=1` (forces sequential

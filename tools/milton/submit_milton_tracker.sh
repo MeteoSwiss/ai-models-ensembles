@@ -1,26 +1,25 @@
 #!/usr/bin/env bash
-# SLURM array job: track Milton across all 6 baselines x 14 inits.
-# (ifs_ens has its own pipeline -- handled separately later)
+# SLURM array job: track Milton across a set of baselines x the 14 Milton-week
+# inits (7 days x 2 hours). One array task = one (baseline, init): 10 members
+# sequentially, ~4-6 min wall, ~50 GB peak. ifs_ens has its own pipeline.
 #
-# Total array tasks: 6 baselines x 14 inits = 84.
-# Each task: 10 members sequentially, ~4-6 min wall, ~50 GB peak memory.
+# Usage: submit_milton_tracker.sh [arm]
+#   weight    (default)  weight-only + trained-prob baselines (6)
+#   ic_only               IC-only arms (4)          -- review item 1
+#   phase5                perturbed-IC arms (4)     -- Phase 5
+# Each arm writes to disjoint TRACKS_ROOT/<baseline>/<init_tag>/ dirs.
 set -euo pipefail
 
-BASELINES=(aurora_encoder graphcast_all sfno_modes10 aifsens fcn3 atlas)
+ARM="${1:-weight}"
+case "$ARM" in
+    weight)  BASELINES=(aurora_encoder graphcast_all sfno_modes10 aifsens fcn3 atlas) ;;
+    ic_only) BASELINES=(aurora_ic_only graphcast_ic_only sfno_ic_only aifs_ic_only) ;;
+    phase5)  BASELINES=(aurora_encoder_ic graphcast_all_ic sfno_modes10_ic aifs_perturbed_ic) ;;
+    *) echo "unknown arm '$ARM' (want: weight | ic_only | phase5)" >&2; exit 2 ;;
+esac
 DAYS=(02 03 04 05 06 07 08)
 HOURS=(0000 1200)
 
-# Build the (baseline, init_tag) pair list
-PAIRS=()
-for b in "${BASELINES[@]}"; do
-    for d in "${DAYS[@]}"; do
-        for h in "${HOURS[@]}"; do
-            PAIRS+=("${b}|20241004_$((10#$d * 100))${h}")
-        done
-    done
-done
-
-# Above produces wrong format -- rebuild
 PAIRS=()
 for b in "${BASELINES[@]}"; do
     for d in "${DAYS[@]}"; do
@@ -29,31 +28,31 @@ for b in "${BASELINES[@]}"; do
         done
     done
 done
-
 N=${#PAIRS[@]}
-echo "Submitting $N array tasks (6 baselines x 7 days x 2 hours = 84)"
+echo "arm=$ARM  submitting $N array tasks (${#BASELINES[@]} baselines x 7 days x 2 hours)"
 
-# Write the pair list to a file
-LIST=/iopsstor/scratch/cscs/sadamov/milton_case_study/pair_list.txt
+SCRATCH=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}
+STORE=${AIENS_STORE:-/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles}
+REPO=${AIENS_REPO:-/users/sadamov/pyprojects/ai-models-ensembles}
+PY=${AIENS_PY:-/capstor/store/cscs/mch/s83/sadamov/venvs/ai-models-ensembles/bin/python}
+
+LIST="$SCRATCH/milton_case_study/pair_list_${ARM}.txt"
 printf "%s\n" "${PAIRS[@]}" > "$LIST"
 echo "wrote $LIST"
-
-mkdir -p /capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles/ablation_logs
+mkdir -p "$STORE/ablation_logs"
 
 sbatch --parsable \
-    --job-name=milton_track \
+    --job-name="milton_track_${ARM}" \
     --partition=normal --account=ab016 \
     --nodes=1 --ntasks=1 --cpus-per-task=8 --mem=200G \
     --time=01:00:00 \
     --array=1-${N}%10 \
-    --output=/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles/ablation_logs/milton_track_%A_%a.log \
+    --output="$STORE/ablation_logs/milton_track_${ARM}_%A_%a.log" \
     --wrap="
-        source /users/sadamov/pyprojects/ai-models-ensembles/tools/milton/env.sh
+        source $REPO/tools/milton/env.sh
         LINE=\$(sed -n \"\${SLURM_ARRAY_TASK_ID}p\" $LIST)
         BASELINE=\$(echo \$LINE | cut -d'|' -f1)
         INIT=\$(echo \$LINE | cut -d'|' -f2)
         echo \"task \$SLURM_ARRAY_TASK_ID  baseline=\$BASELINE  init=\$INIT\"
-        /capstor/store/cscs/mch/s83/sadamov/venvs/ai-models-ensembles/bin/python \
-            /users/sadamov/pyprojects/ai-models-ensembles/tools/milton/track_one_init.py \
-            \$BASELINE \$INIT
+        $PY $REPO/tools/milton/track_one_init.py \$BASELINE \$INIT
     "

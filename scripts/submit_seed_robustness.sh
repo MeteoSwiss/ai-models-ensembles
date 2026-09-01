@@ -18,12 +18,12 @@
 # ---------------------------------------------------------------------------
 set -euo pipefail
 
-STORE="/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles"
+STORE="${AIENS_STORE:-/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles}"
 SRC_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 WORKDIR=/workspace/ai-models-ensembles
 LOG_DIR="$STORE/ablation_logs"
-HOST_PY=/capstor/store/cscs/mch/s83/sadamov/venvs/ai-models-ensembles/bin/python
-E2S_CACHE_DIR="/iopsstor/scratch/cscs/sadamov/e2s_cache"
+HOST_PY=${AIENS_PY:-/capstor/store/cscs/mch/s83/sadamov/venvs/ai-models-ensembles/bin/python}
+E2S_CACHE_DIR="${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/e2s_cache"
 
 OUT_BASE="$STORE/ablation_seed43"
 LEAD_HOURS=240

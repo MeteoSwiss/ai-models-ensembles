@@ -5,12 +5,16 @@ truth). Save the master + verification CSVs.
 """
 
 from __future__ import annotations
+import sys
 from pathlib import Path
 import numpy as np
 import pandas as pd
 import xarray as xr
 
-BASE = Path("/iopsstor/scratch/cscs/sadamov/milton_case_study")
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # tools/
+from _env import SCRATCH  # noqa: E402
+
+BASE = SCRATCH / "milton_case_study"
 TRACKS = BASE / "tracks"
 OUT_MASTER = BASE / "milton_master_tracks.csv"
 OUT_VERIF = BASE / "milton_verification.csv"

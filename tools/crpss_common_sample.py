@@ -28,7 +28,9 @@ from pathlib import Path
 
 import numpy as np
 
-PER_INIT = "/iopsstor/scratch/cscs/sadamov/per_init_crps_production.csv"
+from _env import SCRATCH
+
+PER_INIT = str(SCRATCH / "per_init_crps_production.csv")
 CLIM = Path(__file__).resolve().parent / "data" / "crps_clim_eval_1990_2019_per_init.json"
 
 VARS_3D = {
@@ -73,7 +75,7 @@ def main():
     ap.add_argument("--clim", default=str(CLIM))
     ap.add_argument("--leads", nargs="+", type=int, default=[240])
     ap.add_argument("--reference", default="ifs_ens")
-    ap.add_argument("--out-csv", default="/iopsstor/scratch/cscs/sadamov/crpss_common_sample.csv")
+    ap.add_argument("--out-csv", default=str(SCRATCH / "crpss_common_sample.csv"))
     args = ap.parse_args()
 
     per_init = load_per_init(args.per_init)

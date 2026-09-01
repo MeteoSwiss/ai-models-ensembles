@@ -24,6 +24,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # tools/
 from model_colors import MODEL_COLORS as COLOUR
 from model_colors import LINESTYLE as STYLE
 
+from _env import BASELINES, FIGURES, INTERCOMP, SCRATCH  # noqa: E402
+
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument(
     "--persistence-json",
@@ -39,17 +41,14 @@ parser.add_argument(
 )
 cli = parser.parse_args()
 
-CSV = "/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles/baselines/intercomparison/probabilistic/temporal_metrics_combined.csv"
+CSV = str(INTERCOMP / "probabilistic" / "temporal_metrics_combined.csv")
 CRPS_CLIM = (
     str(cli.climatology_json)
     if cli.climatology_json is not None
     else str(Path(__file__).resolve().parent / "data" / "crps_clim_eval_1990_2019.json")
 )
-AIFS_PERT_PROB = Path(
-    "/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles/baselines/"
-    "aifs_perturbed/eval/probabilistic"
-)
-OUT = "/users/sadamov/pyprojects/ai-models-ensembles/figures/headline_crpss_vs_lead_8way.pdf"
+AIFS_PERT_PROB = BASELINES / "aifs_perturbed/eval/probabilistic"
+OUT = str(FIGURES / "headline_crpss_vs_lead_8way.pdf")
 
 VARS_2D = ["2m_temperature", "mean_sea_level_pressure"]
 VARS_3D = [
@@ -192,10 +191,10 @@ for m in MODELS:
 #     converted to CRPSS using the same WB2 clim-CRPS denominator as the models.
 if cli.persistence_json is not None:
     PERSISTENCE_JSON = cli.persistence_json
-elif Path("/iopsstor/scratch/cscs/sadamov/persistence_mae_112inits.json").exists():
-    PERSISTENCE_JSON = Path("/iopsstor/scratch/cscs/sadamov/persistence_mae_112inits.json")
+elif (SCRATCH / "persistence_mae_112inits.json").exists():
+    PERSISTENCE_JSON = SCRATCH / "persistence_mae_112inits.json"
 else:
-    PERSISTENCE_JSON = Path("/iopsstor/scratch/cscs/sadamov/persistence_mae_2024.json")
+    PERSISTENCE_JSON = SCRATCH / "persistence_mae_2024.json"
 if PERSISTENCE_JSON.exists():
     print(f"Using persistence: {PERSISTENCE_JSON}")
     pers_mae = json.load(open(PERSISTENCE_JSON))
@@ -260,9 +259,7 @@ fig.legend(
 plt.tight_layout(rect=(0, 0.10, 1, 1))
 Path(OUT).parent.mkdir(parents=True, exist_ok=True)
 plt.savefig(OUT, dpi=300, bbox_inches="tight")
-plt.savefig(OUT.replace(".pdf", ".png"), dpi=160, bbox_inches="tight")
 print(f"-> {OUT}")
-print(f"-> {OUT.replace('.pdf', '.png')}")
 
 # Sanity check: report 240 h CRPSS in order
 print("\nCRPSS @ 240 h:")

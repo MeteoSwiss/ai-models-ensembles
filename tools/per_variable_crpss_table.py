@@ -6,7 +6,7 @@ averaged over levels 500/850 first (as in the pipeline). The mean of the 7
 per-variable CRPSS values reproduces the variable-mean CRPSS of the headline
 table (verified in this script).
 
-Output: /users/sadamov/pyprojects/ai-models-ensembles/figures/per_variable_crpss_table.tex
+Output: figures/per_variable_crpss_table.tex
 """
 
 from __future__ import annotations
@@ -14,14 +14,13 @@ import csv
 import json
 from pathlib import Path
 
-CSV_COMBINED = "/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles/baselines/intercomparison/probabilistic/temporal_metrics_combined.csv"
-CRPS_CLIM = str(Path(__file__).resolve().parent / "data" / "crps_clim_eval_1990_2019.json")
-OUT = "/users/sadamov/pyprojects/ai-models-ensembles/figures/per_variable_crpss_table.tex"
+from _env import BASELINES, FIGURES, INTERCOMP
 
-AIFS_PERT_PROB = Path(
-    "/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles/baselines/"
-    "aifs_perturbed/eval/probabilistic"
-)
+CSV_COMBINED = str(INTERCOMP / "probabilistic" / "temporal_metrics_combined.csv")
+CRPS_CLIM = str(Path(__file__).resolve().parent / "data" / "crps_clim_eval_1990_2019.json")
+OUT = str(FIGURES / "per_variable_crpss_table.tex")
+
+AIFS_PERT_PROB = BASELINES / "aifs_perturbed/eval/probabilistic"
 
 VARS_2D = ["2m_temperature", "mean_sea_level_pressure"]
 VARS_3D = [

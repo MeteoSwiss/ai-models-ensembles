@@ -13,7 +13,6 @@ Figures:
 from __future__ import annotations
 import os
 import sys
-from pathlib import Path
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -24,8 +23,10 @@ import xarray as xr
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # tools/
 from model_colors import color_for, style_for
 
-BASE = Path("/iopsstor/scratch/cscs/sadamov/milton_case_study")
-FIGS = Path("/users/sadamov/pyprojects/ai-models-ensembles/figures")
+from _env import FIGURES, IFS_ENS, SCRATCH, STORE  # noqa: E402
+
+BASE = SCRATCH / "milton_case_study"
+FIGS = FIGURES
 FIGS.mkdir(parents=True, exist_ok=True)
 
 BASELINES = [
@@ -131,7 +132,7 @@ def f1_track_spaghetti(master):
                 )
     fig.tight_layout(h_pad=0.2)
     fig.subplots_adjust(hspace=0.05)
-    for ext in ("png", "pdf"):
+    for ext in ("pdf",):
         out = FIGS / f"milton_F1_track_spaghetti.{ext}"
         fig.savefig(out, dpi=140, bbox_inches="tight")
     print(f"-> {out}")
@@ -200,7 +201,7 @@ def f2_intensity_vs_lead(master):
     cbar.ax.set_xticklabels(cbar.ax.get_xticklabels(), rotation=45, ha="right")
     cbar.set_label("initialisation time", fontsize=18)
     cbar.ax.tick_params(labelsize=14)
-    for ext in ("png", "pdf"):
+    for ext in ("pdf",):
         out = FIGS / f"milton_F2_intensity_vs_lead.{ext}"
         fig.savefig(out, dpi=140, bbox_inches="tight")
     print(f"-> {out}")
@@ -258,13 +259,12 @@ def f5_track_intensity_err_vs_lead(verif):
     axes[1].set_xlim(0, 240)
     axes[1].set_xticks(np.arange(0, 241, 48))
     fig.tight_layout()
-    for ext in ("png", "pdf"):
+    for ext in ("pdf",):
         out = FIGS / f"milton_F5_verification_vs_lead.{ext}"
         fig.savefig(out, dpi=140, bbox_inches="tight")
     print(f"-> {out}")
 
 
-STORE = Path("/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles")
 ALL_INITS = [
     "20241002_0000",
     "20241002_1200",
@@ -299,7 +299,7 @@ def _msl_ensmean_at(baseline: str, init_tag: str, valid_t: np.datetime64) -> xr.
                 f"{init_tag[0:4]}-{init_tag[4:6]}-{init_tag[6:8]}T{init_tag[9:11]}:{init_tag[11:13]}"
             )
             ds_all = xr.open_zarr(
-                "/capstor/store/cscs/swissai/a122/IFS/ifs_ens.zarr",
+                str(IFS_ENS),
                 consolidated=False,
                 chunks={},
             )
@@ -427,7 +427,7 @@ def f3_cascading_detection(baseline: str = "aifsens"):
     cbar_ax = fig.add_axes([0.25, -0.03, 0.5, 0.02])
     fig.colorbar(cf, cax=cbar_ax, orientation="horizontal", label="MSL (hPa)")
     fig.tight_layout()
-    for ext in ("png", "pdf"):
+    for ext in ("pdf",):
         out = FIGS / f"milton_F3_cascading_{baseline}.{ext}"
         fig.savefig(out, dpi=140, bbox_inches="tight")
     print(f"-> {out}")
@@ -564,7 +564,7 @@ def f3_cascading_combined(
     cbar_ax = fig.add_axes([0.30, 0.035, 0.40, 0.010])
     cbar = fig.colorbar(cf, cax=cbar_ax, orientation="horizontal", label="MSL (hPa)")
     cbar.set_ticks(np.arange(990, 1025, 10))
-    for ext in ("png", "pdf"):
+    for ext in ("pdf",):
         o = FIGS / f"{out}.{ext}"
         fig.savefig(o, dpi=140, bbox_inches="tight")
     print(f"-> {o}")
@@ -681,7 +681,7 @@ def f4_storm_relative_composite(
             # (same source _msl_ensmean_at uses), selected to this init.
             try:
                 ds = xr.open_zarr(
-                    "/capstor/store/cscs/swissai/a122/IFS/ifs_ens.zarr",
+                    str(IFS_ENS),
                     consolidated=False,
                     chunks={},
                 ).sel(init_time=init_t)
@@ -736,7 +736,7 @@ def f4_storm_relative_composite(
     cbar_ax = fig.add_axes([0.25, 0.06, 0.5, 0.015])
     fig.colorbar(cf, cax=cbar_ax, orientation="horizontal", label="thickness anomaly (m)")
     fig.tight_layout(rect=[0, 0.08, 1, 0.98])
-    for ext in ("png", "pdf"):
+    for ext in ("pdf",):
         out = FIGS / f"milton_F4_storm_relative_composite.{ext}"
         fig.savefig(out, dpi=140, bbox_inches="tight")
     print(f"-> {out}")

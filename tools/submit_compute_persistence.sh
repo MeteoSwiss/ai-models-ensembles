@@ -10,7 +10,7 @@
 #   sbatch tools/submit_compute_persistence.sh
 #
 # Output:
-#   /iopsstor/scratch/cscs/sadamov/persistence_mae_112inits.json
+#   ${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/persistence_mae_112inits.json
 #
 #SBATCH --account=ab016
 #SBATCH --partition=normal
@@ -24,13 +24,13 @@
 
 set -euo pipefail
 
-PY=/capstor/store/cscs/mch/s83/sadamov/venvs/ai-models-ensembles/bin/python
+PY=${AIENS_PY:-/capstor/store/cscs/mch/s83/sadamov/venvs/ai-models-ensembles/bin/python}
 export SSL_CERT_FILE=$($PY -c 'import certifi; print(certifi.where())')
-export TMPDIR=/iopsstor/scratch/cscs/sadamov/tmp
-export DASK_TEMPORARY_DIRECTORY=/iopsstor/scratch/cscs/sadamov/tmp
+export TMPDIR=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/tmp
+export DASK_TEMPORARY_DIRECTORY=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/tmp
 export PYTHONUNBUFFERED=1
 mkdir -p "$TMPDIR"
 
-cd /users/sadamov/pyprojects/ai-models-ensembles
+cd ${AIENS_REPO:-/users/sadamov/pyprojects/ai-models-ensembles}
 
 $PY -u tools/compute_persistence_mae.py

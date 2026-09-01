@@ -27,6 +27,8 @@ from matplotlib.ticker import MultipleLocator
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # tools/
 from model_colors import color_for, marker_for, style_for
 
+from _env import FIGURES, STORE
+
 plt.rcParams.update(
     {
         "font.size": 14,
@@ -39,8 +41,8 @@ plt.rcParams.update(
     }
 )
 
-BASE = "/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles/baselines"
-OUT_ROOT = "/users/sadamov/pyprojects/ai-models-ensembles/figures/tier1b_7way_spatial_mean_ssr"
+BASE = str(STORE / "baselines")
+OUT_ROOT = str(FIGURES / "tier1b_7way_spatial_mean_ssr")
 
 PERTURBED = {
     "aurora_encoder": r"Aurora encoder $\sigma$=0.025",
@@ -136,7 +138,7 @@ def main() -> None:
 
     fig.tight_layout()
     os.makedirs(os.path.dirname(OUT_ROOT), exist_ok=True)
-    for ext in ("pdf", "png"):
+    for ext in ("pdf",):
         out = f"{OUT_ROOT}.{ext}"
         fig.savefig(out, dpi=150, bbox_inches="tight")
         print(f"Wrote {out}")

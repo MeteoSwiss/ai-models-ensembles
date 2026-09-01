@@ -17,15 +17,15 @@
 #SBATCH --output=/iopsstor/scratch/cscs/sadamov/per_init_ifsens_%j.log
 
 set -euo pipefail
-PY=/capstor/store/cscs/mch/s83/sadamov/venvs/ai-models-ensembles/bin/python
+PY=${AIENS_PY:-/capstor/store/cscs/mch/s83/sadamov/venvs/ai-models-ensembles/bin/python}
 export PYTHONUNBUFFERED=1
-export TMPDIR=/iopsstor/scratch/cscs/sadamov/tmp
-export DASK_TEMPORARY_DIRECTORY=/iopsstor/scratch/cscs/sadamov/tmp
+export TMPDIR=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/tmp
+export DASK_TEMPORARY_DIRECTORY=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/tmp
 mkdir -p "$TMPDIR"
-cd /users/sadamov/pyprojects/ai-models-ensembles
+cd ${AIENS_REPO:-/users/sadamov/pyprojects/ai-models-ensembles}
 
-OUT=/iopsstor/scratch/cscs/sadamov/per_init_crps_ifsens.csv
-MAIN=/iopsstor/scratch/cscs/sadamov/per_init_crps_production.csv
+OUT=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/per_init_crps_ifsens.csv
+MAIN=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/per_init_crps_production.csv
 
 $PY -u tools/compute_per_init_crps.py --baselines ifs_ens --leads 24 72 120 240 360 --out "$OUT"
 

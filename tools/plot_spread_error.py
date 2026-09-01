@@ -26,7 +26,9 @@ import numpy as np  # noqa: E402
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from model_colors import color_for, style_for  # noqa: E402
 
-CSV = "/iopsstor/scratch/cscs/sadamov/spread_error_binned.csv"
+from _env import SCRATCH  # noqa: E402
+
+CSV = str(SCRATCH / "spread_error_binned.csv")
 PANEL_VARS = [
     ("2m_temperature", "", "2 m temperature [K]"),
     ("geopotential", "500", "z500 [m$^2$ s$^{-2}$]"),

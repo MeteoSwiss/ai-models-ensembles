@@ -17,7 +17,9 @@ import argparse
 import csv
 from pathlib import Path
 
-DIR = "/iopsstor/scratch/cscs/sadamov/ai-models-ensembles/scratch/table_metrics_fixedscale"
+from _env import SCRATCH
+
+DIR = str(SCRATCH / "ai-models-ensembles/scratch/table_metrics_fixedscale")
 
 # family -> (winner label, [rival labels]); labels match the run tags of the
 # rescore job.
