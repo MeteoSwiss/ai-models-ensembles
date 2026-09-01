@@ -21,7 +21,7 @@ matplotlib rcParams).
 | `../figures/draw_phase3_schematic.py` | `phase3_schematic.pdf` |
 | `plot_headline_crpss_vs_lead_8way.py` | `headline_crpss_vs_lead_8way.pdf` |
 | `plot_7way_spatial_mean_ssr.py` | `tier1b_7way_spatial_mean_ssr.pdf` |
-| `plot_bivariate.py` | `bivariate_Tq_500hPa_7way.pdf`, `bivariate_geostrophic_500hPa.pdf` |
+| `plot_bivariate.py` (needs `swissclim-evaluations`) | `bivariate_Tq_500hPa_7way.pdf`, `bivariate_geostrophic_500hPa.pdf` |
 | `plot_spectrogram_delta_2row.py` | `spectrogram_delta_z500_7way.pdf` |
 | `plot_rank_histograms.py` | `rank_histograms_240h.pdf` |
 | `plot_spread_error.py` | `spread_error.pdf` |

@@ -183,11 +183,17 @@ uv pip install \
   "pyyaml>=6.0" netCDF4 cfgrib \
   "pytest>=8.0" "ruff>=0.6" "pre-commit>=3.7" ipython
 uv pip install -e . --no-deps
+
+# swissclim-evaluations: needed on the host by the verification driver
+# (`ai-ens verify`) and by tools/plot_bivariate.py. From a local checkout:
+uv pip install -e ./SwissClim_Evaluations --no-deps
+# or straight from git (the pin in pyproject.toml):
+# uv pip install "swissclim-evaluations @ git+https://github.com/swiss-ai/SwissClim_Evaluations.git@research" --no-deps
 ```
 
-`earth2studio`, `swissclim-evaluations`, `torch`, `jax`, etc. are
-deliberately not installed on the host - run anything that needs them inside
-a container via `srun --container-image=$STORE/<model>.sqsh ...`.
+`earth2studio`, `torch`, and `jax` are deliberately absent from the host
+venv - run anything that needs them inside a container via
+`srun --container-image=$STORE/<model>.sqsh ...`.
 
 3. List available models (works on the host venv)
 
@@ -254,6 +260,8 @@ The repo root and `figures/` are derived from the file location and need no
 override. Small cached inputs (climatology CRPS, channel scales, the
 IC/weight decomposition and signature-kernel CSVs) are committed under
 [tools/data/](tools/data/), so the table scripts run with no data at all.
+Dependencies are the host-venv list from the Quickstart;
+`tools/plot_bivariate.py` additionally needs `swissclim-evaluations`.
 
 ## Requirements
 
