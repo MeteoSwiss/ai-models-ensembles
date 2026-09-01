@@ -38,6 +38,12 @@ milton = ["huracanpy"]
 ai-ens = "ai_models_ensembles.cli:app"
 
 
+[tool.pytest.ini_options]
+# Only this repo's own suite; tools/test_model.py is a CLI script, not a
+# pytest module, and SwissClim_Evaluations/ carries its own tests.
+testpaths = ["tests"]
+
+
 [tool.ruff]
 # Exclude a variety of commonly ignored directories.
 exclude = [
