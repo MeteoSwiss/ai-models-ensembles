@@ -9,7 +9,7 @@ targeting the same physical scale band -- wavelengths >= ~3000-4000 km
   Aurora     coarse encoder block only (encoder_layers.2)
   GraphCast  long edges of the multi-mesh (refinement levels 0-1)
 
-Output: figures/phase3_schematic.{svg,pdf,png}
+Output: figures/phase3_schematic.pdf
 """
 
 from __future__ import annotations
@@ -922,10 +922,7 @@ def main():
 
     out_dir = Path(__file__).parent
     fig.savefig(out_dir / "phase3_schematic.pdf", bbox_inches="tight", pad_inches=0.15)
-    # PNG kept only for the README inline preview.
-    fig.savefig(out_dir / "phase3_schematic.png", bbox_inches="tight", pad_inches=0.15, dpi=220)
     print(f"wrote {out_dir / 'phase3_schematic.pdf'}")
-    print(f"wrote {out_dir / 'phase3_schematic.png'}")
 
 
 if __name__ == "__main__":

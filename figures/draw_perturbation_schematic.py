@@ -1,13 +1,11 @@
 #!/usr/bin/env python3
-"""Schematic of weight-perturbation scheme across the 3 ablation models.
+"""Schematic of the weight-perturbation scheme across the ablation models.
 
-Output: figures/perturbation_schematic.{svg,pdf}
+Output: figures/perturbation_schematic.pdf
 
-The SVG is fully editable in Inkscape / Illustrator / Affinity Designer.
-Numbers and sigmas come from the verified 2026-05-18 checkpoint dumps
-(see memory/checkpoint_perturbation_audit.md) and the Phase 2 scaling
-rule sigma_partial = sigma_full * sqrt(N_total / N_partial) at
-sigma_full = 0.01.
+Numbers and sigmas come from the checkpoint dumps (tools/inspect_weights.py)
+and the Phase 2 scaling rule sigma_partial = sigma_full * sqrt(N_total /
+N_partial) at sigma_full = 0.01.
 """
 
 from __future__ import annotations
@@ -644,15 +642,7 @@ def main():
 
     out_dir = Path(__file__).parent
     fig.savefig(out_dir / "perturbation_schematic.pdf", bbox_inches="tight", pad_inches=0.15)
-    # PNG kept only for the README inline preview.
-    fig.savefig(
-        out_dir / "perturbation_schematic.png",
-        bbox_inches="tight",
-        pad_inches=0.15,
-        dpi=220,
-    )
     print(f"wrote {out_dir / 'perturbation_schematic.pdf'}")
-    print(f"wrote {out_dir / 'perturbation_schematic.png'}")
 
 
 if __name__ == "__main__":

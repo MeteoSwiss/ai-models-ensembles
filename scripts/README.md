@@ -75,6 +75,28 @@ Output: `$STORE/ablation/<phase>/<model_id>/eval/<run_tag>/...` and
 perturbed-IC store; `submit_seed_robustness.sh` reruns the production picks
 under alternate seeds for the seed-sensitivity check.
 
+## `$STORE` output tree
+
+```text
+$STORE/
+  baselines/
+    {fcn3,atlas,aifsens,ifs_ens}/                  trained-probabilistic + physical
+    {aurora_encoder,graphcast_all,sfno_modes10,aifs_perturbed}/   post-hoc weight perturbation
+      <YYYYMMDD_HHMM>/forecast.zarr
+    <id>/eval/...                                  per-baseline SwissClim modules
+    intercomparison/                               cross-model plots + temporal_metrics_combined.csv
+  ablation/
+    <phase>/<model_id>/                            phase in {phase1,phase2,phase2b,phase3,phase3b}
+      <init_tag>/<run_tag>/forecast.zarr
+      eval/<run_tag>/{maps,wd_kde,energy_spectra,multivariate,deterministic,probabilistic,ssim,fss}/
+      intercomparison/
+    allphases/<model_id>/intercomparison/          cross-phase ablation summary
+```
+
+`forecast.zarr` uses the SwissClim chunk/shard layout; a store written with
+the wrong chunking reads slowly in eval - reshard with
+[../tools/submit_reshard.sh](../tools/submit_reshard.sh).
+
 ## Typical sequence
 
 ```bash
@@ -100,11 +122,27 @@ bash scripts/submit_ablation.sh phase2b
 
 - **Job won't start**: check `sinfo` and your Slurm account access.
 - **Container launch fails**: confirm `$STORE/<model>.sqsh` exists; rebuild
-  with `bash containers/submit_build.sh <model>`.
-- **CDS throttling on `aifsens`**: rerun with `CHAIN=1` (forces sequential
-  per-week submission via `--dependency=afterany`).
+  with `bash containers/submit_build.sh <model>`. Builds must go to a compute
+  node - the login nodes cannot build.
+- **`import earth2studio` fails on the host**: expected; it lives only in the
+  containers. Run inside `$STORE/<model>.sqsh`.
+- **CDS throttling on `aifsens`**: rerun with `CHAIN=1` (sequential per-week
+  via `--dependency=afterany`).
+- **AIFS inference ~2 h/init instead of ~8 min**: cold CDS GRIB cache. ARCO
+  cannot substitute for AIFS (no land-surface fields); `submit_all_inference.sh`
+  mounts the persistent cache `$STORE/e2s_cache_backup` for `cds` runs.
+- **`SIGSEGV (-11)` from every GPU worker at startup**: transient GH200/UCX
+  race; failed members relaunch automatically, raise `E2S_ROUND_RETRIES`.
+- **`blosc decompression: 0` reproducibly on one init**: a truncated write
+  poisoned the fsspec cache. `find $E2S_CACHE_DIR/arco -maxdepth 1 -type f -size -1k`
+  and delete the zero-length entries.
+- **Jobs hang in "preparing data + model" 45-90 min then `Errno 19` /
+  `transport endpoint shutdown`**: degraded capstor mount, not the code.
+  `time ls -d $STORE/baselines/<run>/*/forecast.zarr` (healthy is sub-second);
+  do not resubmit into it.
 - **Pre-fix zarrs read slowly in eval**: chunking changed; reshard with
   [../tools/submit_reshard.sh](../tools/submit_reshard.sh).
+- **`envsubst: command not found`**: install `gettext-base`.
 
 ## See also
 
