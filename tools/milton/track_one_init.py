@@ -179,12 +179,14 @@ def main(baseline: str, init_tag: str):
         f"{init_tag[0:4]}-{init_tag[4:6]}-{init_tag[6:8]}T{init_tag[9:11]}:{init_tag[11:13]}"
     )
     if baseline == "ifs_ens":
-        # Consolidated multi-init zarr at /capstor/store/cscs/mch/s83/IFS/ifs_ens.zarr.
+        # Consolidated multi-init zarr at /capstor/store/cscs/swissai/ab016/IFS/ifs_ens.zarr.
         # Reshard is in-progress so consolidated metadata is stale; open with
         # consolidated=False. Select the init slice + drop the init_time dim
         # so the rest of the pipeline sees a regular per-init dataset.
         print(f"{baseline} {init_tag} -> loading consolidated IFS-ENS zarr...")
-        ds_all = xr.open_zarr("/capstor/store/cscs/mch/s83/IFS/ifs_ens.zarr", consolidated=False)
+        ds_all = xr.open_zarr(
+            "/capstor/store/cscs/swissai/ab016/IFS/ifs_ens.zarr", consolidated=False
+        )
         init_np = np.datetime64(init_t.isoformat())
         ds = ds_all.sel(init_time=init_np)
     else:

@@ -251,7 +251,7 @@ def fmt_bold(v: float | None, lead: int, var: str) -> str:
 order = sorted(MODELS, key=lambda m: -(var_mean(m, 240) or -99))
 group_order = ["trained-prob", "post-hoc", "classical"]
 role_label = {
-    "post-hoc": "Post-hoc weight perturbation (this work)",
+    "post-hoc": "SPW (this work)",
     "trained-prob": "Trained probabilistic",
     "classical": "Classical reference",
 }

@@ -30,6 +30,9 @@ sfno = ["earth2studio[sfno,data]"]
 fcn3 = ["earth2studio[fcn3,data]"]
 atlas = ["earth2studio[atlas,data]"]
 aifsens = ["earth2studio[aifs,data,perturbation]"]
+# Hurricane Milton case study: IBTrACS best-track fetch + cyclone-track analysis
+# (tools/milton/aggregate_tracks.py).
+milton = ["huracanpy"]
 
 [project.scripts]
 ai-ens = "ai_models_ensembles.cli:app"

@@ -176,7 +176,7 @@ for role_g in group_order:
         if ROLE[m] != role_g:
             continue
         role_label = {
-            "post-hoc": "Post-hoc weight perturbation (this work)",
+            "post-hoc": "SPW (this work)",
             "trained-prob": "Trained probabilistic",
             "classical": "Classical reference",
         }[role_g]

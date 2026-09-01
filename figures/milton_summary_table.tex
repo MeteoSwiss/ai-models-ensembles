@@ -13,6 +13,23 @@
 % the 0.25 deg ERA5 resolution-limited intensity ceiling. Weight-only
 % post-hoc numbers preserved in the v0 commit (cb6a156 paper repo) for the
 % data release.
+%
+% CORRECTED 2026-09-01: the IFS-ENS row previously read 71 / 317 / 173 /
+% +36.6 / 252. That row could not be reproduced from any tracker run found
+% (the original job 2473058 log and a fresh end-to-end retrack both give
+% ~13-14% on the same stratified-10-member, 140-pair denominator used by
+% every other row); its provenance is untraceable (analyze_milton_stats.py
+% and aggregate_tracks.py were never committed, so there is no diff to
+% recover it from). Checked and ruled out as explanations: the a122->ab016
+% store migration (byte-identical zarr metadata both sides); WeatherBench-2
+% NaN gaps in the IFS-ENS archive (max 6-12 h contiguous, under the tracker's
+% own 18 h bridge, and uncorrelated with which inits actually detect: the
+% two cleanest inits by NaN fraction detect nothing, while two noisier ones
+% detect nearly the whole ensemble); an ERA5-relative row-count definition
+% (matched-vs-ERA5 / matched-vs-IBTrACS ratios are 0.91-1.10, nowhere near
+% 0.71); and a per-member-across-inits or per-init-any-member redefinition
+% of "detection" (100% and 14% respectively, neither matching 71%). Replaced
+% with the numbers from the current, fully reproducible regeneration.
 
 \begin{table}[t]
   \centering
@@ -34,7 +51,14 @@
            maximum-gap setting, chosen to match the longest contiguous
            archive gap; a tighter limit would break IFS-ENS tracks at
            those gaps (an archive artefact, not forecast skill), while
-           the ML tracker inputs carry no such gaps. \textbf{Bold} marks the best value in each
+           the ML tracker inputs carry no such gaps. IFS-ENS's detection
+           rate (14\%) is markedly below every ML baseline (66--89\%); we
+           verified this is not a NaN-completeness artefact of the
+           WeatherBench-2 archive (per-lead gaps are short and already
+           bridged) but reflects the ensemble rarely producing a vortex
+           the tracker's fixed thresholds recognise inside the box and
+           window used here, which we read as a property of this one
+           event rather than a general skill statement. \textbf{Bold} marks the best value in each
            scored column (highest detection rate, lowest position error); the
            MSL-bias column is not bolded, being resolution-limited rather than a
            baseline-quality discriminator (see text).}
@@ -61,7 +85,7 @@
     & AIFS-ENS      & 86 & 300 & 163 & $+39.2$ & 300 \\
     \hline
     \rowcolor{phaseBg}
-    \multicolumn{7}{@{}l}{\textbf{IC-augmented post-hoc (perturbed-IC + weight, this work)}} \\
+    \multicolumn{7}{@{}l}{\textbf{IC-augmented SPW (perturbed-IC + weight, this work)}} \\
     & sfno\_modes10\_ic    & 76 & 306 & 161 & $+41.7$ & 254 \\
     & graphcast\_all\_ic   & 73 & 258 & 157 & $+40.0$ & 250 \\
     & aifs\_perturbed\_ic  & 67 & 262 & 133 & $+40.3$ & 245 \\
@@ -69,7 +93,7 @@
     \hline
     \rowcolor{phaseBg}
     \multicolumn{7}{@{}l}{\textbf{Classical reference}} \\
-    & IFS-ENS          & 71 & 317 & 173 & $+36.6$ & 252 \\
+    & IFS-ENS          & 14 & 348 & 169 & $+40.2$ & 287 \\
     \bottomrule
   \end{tabular}
 \end{table}

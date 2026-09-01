@@ -84,7 +84,7 @@ ROLE = {
 }
 GROUP_ORDER = ["post-hoc", "trained-prob", "classical"]
 ROLE_LABEL = {
-    "post-hoc": "Post-hoc weight perturbation (this work)",
+    "post-hoc": "SPW (this work)",
     "trained-prob": "Trained probabilistic",
     "classical": "Classical reference",
 }

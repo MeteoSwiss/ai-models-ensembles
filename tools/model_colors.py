@@ -56,6 +56,12 @@ _IC_ALIASES = {
     "graphcast_all_ic": "graphcast_all",
     "sfno_modes10_ic": "sfno_modes10",
     "aifs_perturbed_ic": "aifs_perturbed",
+    # IC-only controls (review item 1): no weight noise, but they share the
+    # backbone's colour/marker registry entry so style lookups resolve.
+    "aurora_ic_only": "aurora_encoder",
+    "graphcast_ic_only": "graphcast_all",
+    "sfno_ic_only": "sfno_modes10",
+    "aifs_ic_only": "aifs_perturbed",
 }
 
 # The ONLY place the AIFS weight+IC variant is drawn in a distinct colour: the

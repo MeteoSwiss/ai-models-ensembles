@@ -1,10 +1,14 @@
-"""Milton case study: AIFS weight-only vs weight+IC ensemble dispersion.
+"""Milton case study: AIFS weight-only vs IC-only vs weight+IC dispersion.
 
 Two panels vs lead time, averaged over the 14 Milton initialisations:
 (a) track-cone width = mean great-circle distance of member cyclone centres
     to the ensemble-mean centre; (b) MSL intensity spread = cross-member
-std of central pressure. Both quantify the under-dispersion of weight-only
-AIFS that IC perturbation restores.
+std of central pressure.
+
+All three arms are drawn so the case-study dispersion can be attributed rather
+than assumed: weight-only shows what the frozen perturbation alone produces at
+these leads, IC-only what the perturbed analyses alone produce, and weight+IC
+the configuration the case study actually uses (review item 1)."
 
 Source: milton_master_tracks.csv (tools/milton/aggregate_tracks.py).
 Output: figures/milton_F9_aifs_wt_vs_ic_spread.{pdf,png}
@@ -36,19 +40,35 @@ OUT = Path(
 
 # Match the headline figure: weight-only purple, weight+IC pink (the one figure
 # where the AIFS variants are deliberately drawn apart, see model_colors.py).
+AIFS_ICONLY_CONTRAST = "#009E73"  # teal; third AIFS variant, colourblind-safe
+
 COLOUR = {
     "aifs_perturbed": color_for("aifs_perturbed"),
+    "aifs_ic_only": AIFS_ICONLY_CONTRAST,
     "aifs_perturbed_ic": AIFS_IC_CONTRAST,
     "ifs_ens": color_for("ifs_ens"),
     "aifsens": color_for("aifsens"),
 }
 PRETTY = {
     "aifs_perturbed": "weight-only",
+    "aifs_ic_only": "IC-only",
     "aifs_perturbed_ic": "weight + IC",
     "ifs_ens": "IFS-ENS",
     "aifsens": "AIFS-ENS",
 }
 BINS = [(0, 24), (24, 48), (48, 72), (72, 96), (96, 120), (120, 144)]
+
+# The three AIFS arms share a backbone, so style_for() returns the same solid
+# line for all of them. Override so the triptych is separable without colour.
+LINESTYLE_OVERRIDE = {
+    "aifs_perturbed": "-",
+    "aifs_ic_only": (0, (1, 1)),
+    "aifs_perturbed_ic": (0, (5, 1.5)),
+}
+
+
+def line_style(b):
+    return LINESTYLE_OVERRIDE.get(b, style_for(b))
 
 
 def haversine(la1, lo1, la2, lo2):
@@ -104,7 +124,7 @@ def series(d, b):
 
 
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(7.2, 3.1))
-for b in ("aifs_perturbed", "aifs_perturbed_ic", "ifs_ens", "aifsens"):
+for b in ("aifs_perturbed", "aifs_ic_only", "aifs_perturbed_ic", "ifs_ens", "aifsens"):
     ax1.plot(
         x,
         series(cone, b),
@@ -112,7 +132,7 @@ for b in ("aifs_perturbed", "aifs_perturbed_ic", "ifs_ens", "aifsens"):
         label=PRETTY[b],
         ms=4,
         lw=1.6,
-        linestyle=style_for(b),
+        linestyle=line_style(b),
         marker=marker_for(b),
     )
     ax2.plot(
@@ -122,7 +142,7 @@ for b in ("aifs_perturbed", "aifs_perturbed_ic", "ifs_ens", "aifsens"):
         label=PRETTY[b],
         ms=4,
         lw=1.6,
-        linestyle=style_for(b),
+        linestyle=line_style(b),
         marker=marker_for(b),
     )
 ax1.set_ylabel("Track-cone width (km)")
@@ -139,6 +159,6 @@ OUT.parent.mkdir(parents=True, exist_ok=True)
 plt.savefig(OUT, dpi=300, bbox_inches="tight")
 plt.savefig(str(OUT).replace(".pdf", ".png"), dpi=160, bbox_inches="tight")
 print(f"-> {OUT}")
-for b in ("aifs_perturbed", "aifs_perturbed_ic", "ifs_ens", "aifsens"):
+for b in ("aifs_perturbed", "aifs_ic_only", "aifs_perturbed_ic", "ifs_ens", "aifsens"):
     print(f"{PRETTY[b]:22s} cone {series(cone, b)}")
     print(f"{'':22s} psl  {series(psl, b)}")

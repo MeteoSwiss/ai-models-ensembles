@@ -143,9 +143,13 @@ declare -A EXTRA_FLAGS=(
 # state-accumulation SIGSEGVs across sequential inits (see MEMORY.md, e.g. SFNO).
 # Opt in with `PER_INIT=1 bash scripts/submit_all_inference.sh ...`.
 REQUESTED="${@:-$MODELS}"
-# Single-job per-init walltime (used by PER_INIT mode). Each init is ~12 min
-# for SFNO so 1h is comfortable.
-PER_INIT_TIME_LIMIT="${PER_INIT_TIME_LIMIT:-01:00:00}"
+# Single-job per-init walltime (used by PER_INIT mode). Each init is ~12 min for
+# SFNO, but a degraded /capstor stalls the forecast.zarr write for tens of
+# minutes after inference finishes, so the wall has to cover the write, not the
+# rollout (2026-08-28: 15 jobs lost to a 01:30 wall mid-write). Do NOT raise this
+# much further: the other capstor failure mode exits 1 rather than stalling, and
+# a long wall just multiplies the node-hours burnt per doomed job.
+PER_INIT_TIME_LIMIT="${PER_INIT_TIME_LIMIT:-02:30:00}"
 
 mkdir -p "$LOG_DIR"
 
@@ -156,6 +160,7 @@ if [[ -n "$AFTER_JOB" ]]; then
 fi
 
 count=0
+MISSING_CONTAINERS=()
 for model in $REQUESTED; do
     model_id="${MODEL_IDS[$model]:-}"
     if [[ -z "$model_id" ]]; then
@@ -169,8 +174,17 @@ for model in $REQUESTED; do
     # Per-init mode (default 0 / week-helper). Opt in via PER_INIT=1.
     per_init="${PER_INIT:-0}"
 
-    if [[ ! -f "$container" ]]; then
-        echo "SKIP $model: container $container not found"
+    # Retry the existence probe: a stalled /capstor makes `-f` report false for a
+    # container that is present, which silently drops a whole arm from a gap-fill
+    # pass while the pass still exits 0 (2026-08-28, sfno_enc_s035).
+    container_seen=0
+    for probe in 1 2 3 4 5; do
+        if [[ -f "$container" ]]; then container_seen=1; break; fi
+        sleep 10
+    done
+    if [[ "$container_seen" -eq 0 ]]; then
+        echo "SKIP $model: container $container not found after 5 probes" >&2
+        MISSING_CONTAINERS+=("$model")
         continue
     fi
 
@@ -362,6 +376,10 @@ done
 
 echo ""
 echo "Submitted $count baseline jobs."
+if [[ ${#MISSING_CONTAINERS[@]} -gt 0 ]]; then
+    echo "ERROR: arms skipped for a missing container: ${MISSING_CONTAINERS[*]}" >&2
+    echo "       these arms submitted NOTHING - rerun them once the filesystem is healthy." >&2
+fi
 echo "Monitor with: squeue -u \$USER | grep bl_"
 echo "Logs: $LOG_DIR/"
 echo ""

@@ -41,7 +41,7 @@ sbatch --parsable \
         BASELINE=\$(echo \$LINE | cut -d'|' -f1)
         INIT=\$(echo \$LINE | cut -d'|' -f2)
         echo \"task \$SLURM_ARRAY_TASK_ID  baseline=\$BASELINE  init=\$INIT\"
-        /iopsstor/scratch/cscs/sadamov/venvs/milton_case/bin/python \
+        /capstor/store/cscs/mch/s83/sadamov/venvs/ai-models-ensembles/bin/python \
             /users/sadamov/pyprojects/ai-models-ensembles/tools/milton/track_one_init.py \
             \$BASELINE \$INIT
     "

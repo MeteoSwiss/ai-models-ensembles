@@ -48,7 +48,7 @@
     \midrule
 
     \rowcolor{phaseBg}
-    \multicolumn{9}{@{}l}{\textbf{Post-hoc weight perturbation} (this work) - \emph{zero marginal training cost}} \\
+    \multicolumn{9}{@{}l}{\textbf{SPW} (this work) - \emph{zero marginal training cost}} \\
     & \mbadge{sfnoC}{sfno\_modes10}       & 573 M  & 2.3  & \textbf{59}   & 0.04  & 15.3 & 44.1  & 73.4  \\
     \rowcolor{altRow}
     & \mbadge{auroraC}{aurora\_encoder}   & 1.3 B  & 5.2  & 90            & 0.06  & 23.0 & 66.2  & 110.4 \\
@@ -105,5 +105,5 @@
   AIFS-ENS (229\,M; AIFS-CRPS is built on the earlier AIFS v0.2.1, so the
   v1.1 deterministic checkpoint we perturb is slightly larger), so the two
   run the same forward graph at the same per-member cost - a matched
-  post-hoc-versus-trained pair on one architecture.
+  SPW-versus-trained pair on one architecture.
 \end{sidewaystable}
