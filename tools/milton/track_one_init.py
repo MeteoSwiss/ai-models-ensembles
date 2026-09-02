@@ -6,6 +6,7 @@ e.g. python track_one_init.py aifsens 20241004_0000
 """
 
 from __future__ import annotations
+import os
 import subprocess
 import sys
 import re
@@ -17,6 +18,12 @@ import xarray as xr
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # tools/
 from _env import BASELINES as _BASELINES_DIR  # noqa: E402
 from _env import SCRATCH  # noqa: E402
+
+# Off by default: the paper's Tab. milton-summary IFS-ENS row (71%) is computed
+# on the archive as-is. Set AIENS_MILTON_GAPFILL=1 to reconstruct the
+# WeatherBench-2 dropout leads instead, which gives 80% -- a different number,
+# so do not mix gap-filled and raw tracks in one aggregation.
+GAPFILL = os.environ.get("AIENS_MILTON_GAPFILL", "0") == "1"
 
 BASE = SCRATCH / "milton_case_study"
 TRACKS_ROOT = BASE / "tracks"
@@ -252,7 +259,7 @@ def main(baseline: str, init_tag: str):
         stratified = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45]
         ds = ds.isel(ensemble=stratified)
     interp_times: set = set()
-    if baseline == "ifs_ens":
+    if baseline == "ifs_ens" and GAPFILL:
         ds = (
             ds[list(TRACKED_FIELDS)]
             .sel(latitude=slice(LAT_MAX, LAT_MIN), longitude=slice(LON_MIN, LON_MAX))
@@ -262,6 +269,8 @@ def main(baseline: str, init_tag: str):
         lead_h = (ds["lead_time"].values / np.timedelta64(1, "h")).astype(int)
         interp_times = set(init_t + pd.to_timedelta(lead_h[filled], unit="h"))
         print(f"  gap-filled {int(filled.sum())}/{len(lead_h)} leads")
+    elif baseline == "ifs_ens":
+        print("  gap-fill OFF (AIENS_MILTON_GAPFILL=1 to enable); paper setting")
     n_members = ds.sizes["ensemble"]
     out_dir = TRACKS_ROOT / baseline / init_tag
     out_dir.mkdir(parents=True, exist_ok=True)
