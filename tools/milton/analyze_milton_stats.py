@@ -54,12 +54,10 @@ def main() -> None:
     # Detection rate: of (baseline, init_tag, member) triples, how many produced
     # at least one track point within the Milton lifecycle window. The master
     # tracks CSV already filters to the window, so the presence of any row =
-    # detection. n_total scales with the ensemble size of each baseline
-    # (10 for the ML baselines, 50 for IFS-ENS).
+    # detection. Every baseline, IFS-ENS included, contributes 10 members.
     detect = tracks.groupby(["baseline", "init_tag", "member"]).size().rename("n_pts").reset_index()
-    # IFS-ENS uses the stratified 10-member subset {0, 5, 10, ..., 45} to match
-    # the rest of the paper's SwissClim eval pipeline; aggregate_tracks.py
-    # filters the master CSV to that subset before this stats step runs.
+    # IFS-ENS's stratified 10-member subset is selected in track_one_init.py and
+    # arrives here relabelled 0..9, exactly like every other baseline.
     n_members_per_baseline = {
         "aifsens": 10,
         "aifs_perturbed": 10,

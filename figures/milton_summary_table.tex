@@ -14,22 +14,29 @@
 % post-hoc numbers preserved in the v0 commit (cb6a156 paper repo) for the
 % data release.
 %
-% CORRECTED 2026-09-01: the IFS-ENS row previously read 71 / 317 / 173 /
-% +36.6 / 252. That row could not be reproduced from any tracker run found
-% (the original job 2473058 log and a fresh end-to-end retrack both give
-% ~13-14% on the same stratified-10-member, 140-pair denominator used by
-% every other row); its provenance is untraceable (analyze_milton_stats.py
-% and aggregate_tracks.py were never committed, so there is no diff to
-% recover it from). Checked and ruled out as explanations: the a122->ab016
-% store migration (byte-identical zarr metadata both sides); WeatherBench-2
-% NaN gaps in the IFS-ENS archive (max 6-12 h contiguous, under the tracker's
-% own 18 h bridge, and uncorrelated with which inits actually detect: the
-% two cleanest inits by NaN fraction detect nothing, while two noisier ones
-% detect nearly the whole ensemble); an ERA5-relative row-count definition
-% (matched-vs-ERA5 / matched-vs-IBTrACS ratios are 0.91-1.10, nowhere near
-% 0.71); and a per-member-across-inits or per-init-any-member redefinition
-% of "detection" (100% and 14% respectively, neither matching 71%). Replaced
-% with the numbers from the current, fully reproducible regeneration.
+% IFS-ENS row provenance. On 2026-09-01 this row was changed from
+% 71 / 317 / 173 / +36.6 / 252 to 14 / 348 / 169 / +40.2 / 287 after an audit
+% could not reproduce it. That audit was wrong and the change was reverted on
+% 2026-09-02: aggregate_tracks.py carried a stale double member filter. The
+% tracker (track_one_init.py) already selects the stratified IFS-ENS 10-member
+% subset and relabels it 0..9 like every other baseline, and the aggregator then
+% re-applied the original {0,5,...,45} stratification to those relabelled ids,
+% which matches only {0,5}. It therefore scored 2 of 10 members against a
+% denominator of 140, giving 19/140 = 14%; counted over all ten members the same
+% archived tracks give 99/140 = 71%. The filter was gated on baseline=="ifs_ens",
+% so no ML row was ever affected, which is why only this row looked anomalous.
+% The audit's apparent corroboration (job 2473058, ~12.6%) predates the
+% --maxgap 6h -> 18h change and is a separate, since-fixed artefact.
+% Filter removed 2026-09-02; the pipeline now reproduces this row to four
+% significant figures (71% / 316.5 / 172.7 / +36.55 / 251.6).
+%
+% Known and unrepaired here: ~20% of (variable, init, lead) chunks in the
+% WeatherBench-2 IFS-ENS archive hold a globally NaN field, independently per
+% variable, leaving only 41% of leads with all six tracked fields present (vs
+% ~100% for the ML baselines). Repairing that by linear interpolation along
+% lead_time raises IFS-ENS to 80% detection / 326 km / +33.6 hPa and leaves the
+% ranking unchanged; the unrepaired 71% is reported here as the conservative
+% choice. See .claude/logbook/2026-09-02_milton_ifsens_detection_double_filter_bug.md.
 
 \begin{table}[t]
   \centering
@@ -51,14 +58,13 @@
            maximum-gap setting, chosen to match the longest contiguous
            archive gap; a tighter limit would break IFS-ENS tracks at
            those gaps (an archive artefact, not forecast skill), while
-           the ML tracker inputs carry no such gaps. IFS-ENS's detection
-           rate (14\%) is markedly below every ML baseline (66--89\%); we
-           verified this is not a NaN-completeness artefact of the
-           WeatherBench-2 archive (per-lead gaps are short and already
-           bridged) but reflects the ensemble rarely producing a vortex
-           the tracker's fixed thresholds recognise inside the box and
-           window used here, which we read as a property of this one
-           event rather than a general skill statement. \textbf{Bold} marks the best value in each
+           the ML tracker inputs carry no such gaps. IFS-ENS's rate
+           (71\%) is a lower bound: the archive stores roughly a fifth of
+           each field's lead times as missing, independently per variable,
+           so only 41\% of its leads carry all six tracked fields against
+           $\sim$100\% for the ML baselines; reconstructing those leads
+           by interpolation raises it to 80\% and leaves the ordering
+           unchanged. \textbf{Bold} marks the best value in each
            scored column (highest detection rate, lowest position error); the
            MSL-bias column is not bolded, being resolution-limited rather than a
            baseline-quality discriminator (see text).}
@@ -93,7 +99,7 @@
     \hline
     \rowcolor{phaseBg}
     \multicolumn{7}{@{}l}{\textbf{Classical reference}} \\
-    & IFS-ENS          & 14 & 348 & 169 & $+40.2$ & 287 \\
+    & IFS-ENS          & 71 & 317 & 173 & $+36.6$ & 252 \\
     \bottomrule
   \end{tabular}
 \end{table}

@@ -36,16 +36,11 @@ def load_master() -> pd.DataFrame:
     if not csvs:
         return pd.DataFrame()
     df = pd.concat([pd.read_csv(c, parse_dates=["time"]) for c in csvs], ignore_index=True)
-    # Filter IFS-ENS to the stratified 10-member subset used by the rest of the
-    # paper's SwissClim eval pipeline (IFS_ENS_MEMBERS in evaluate_baselines.sh).
-    # Without this filter Milton's tracker would report on all 50 IFS-ENS
-    # members while every other baseline reports on 10, producing apples-to-
-    # oranges detection rates.
-    stratified_ifs_ens = {0, 5, 10, 15, 20, 25, 30, 35, 40, 45}
-    before = len(df[df.baseline == "ifs_ens"])
-    df = df[(df.baseline != "ifs_ens") | (df.member.isin(stratified_ifs_ens))].copy()
-    after = len(df[df.baseline == "ifs_ens"])
-    print(f"  filtered IFS-ENS rows {before} -> {after} (stratified-10 subset)")
+    # No member filtering here. track_one_init.py already selects the stratified
+    # IFS-ENS 10-member subset (IFS_ENS_MEMBERS in evaluate_baselines.sh) and
+    # relabels it 0..9, so every baseline arrives with members 0..9. Re-applying
+    # the original {0,5,...,45} stratification to those relabelled ids kept only
+    # members 0 and 5 and silently discarded 80% of the IFS-ENS tracks.
     print(
         f"master: {len(df)} rows, {df['baseline'].nunique()} baselines, "
         f"{df.groupby(['baseline','init_tag']).ngroups} (baseline, init) cells, "
@@ -147,6 +142,10 @@ def verify(master: pd.DataFrame, ibtracs: pd.DataFrame, era5: pd.DataFrame) -> p
             "fcst_lon": t["lon"],
             "fcst_psl_hpa": t["psl_hpa"],
             "fcst_v10_ms": t["v10_ms"],
+            # True where the underlying field was reconstructed across a
+            # WeatherBench-2 IFS-ENS chunk dropout; such rows keep the track
+            # continuous but must be excluded from position/intensity stats.
+            "interpolated": bool(t.get("interpolated", False)),
         }
         if ib is not None:
             row.update(

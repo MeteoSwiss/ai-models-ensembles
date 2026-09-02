@@ -41,6 +41,50 @@ def baseline_zarr_path(baseline: str, init_tag: str) -> Path:
     return _BASELINES_DIR / baseline / init_tag / "forecast.zarr"
 
 
+# Fields DetectNodes/StitchNodes need; each is dropped independently by the
+# WB2 IFS-ENS chunk dropout (see _fill_missing_leads).
+TRACKED_FIELDS = (
+    "mean_sea_level_pressure",
+    "geopotential",
+    "10m_u_component_of_wind",
+    "10m_v_component_of_wind",
+    "u_component_of_wind",
+    "v_component_of_wind",
+)
+
+
+def _fill_missing_leads(ds: xr.Dataset) -> tuple[xr.Dataset, np.ndarray]:
+    """Reconstruct whole-field NaN leads in the WB2 IFS-ENS zarr.
+
+    ~20% of (variable, init, lead) chunks in
+    gs://weatherbench2/datasets/ifs_ens/2016-2024-1440x721.zarr are stored as
+    globally-NaN fields, independently per variable, so the union across the six
+    fields the tracker needs leaves only ~41% of leads usable. Left alone this
+    starves DetectNodes of candidates and makes the StitchNodes v10 threshold
+    unsatisfiable, which is what produced the spurious 13-14% detection rate.
+    83% of the gaps are a single 6-h step and 97% are <= 12 h, so linear
+    interpolation along lead_time restores continuity. Returns the filled
+    dataset plus a per-lead mask of the leads that were reconstructed, so that
+    position/intensity statistics can be restricted to observed leads.
+    """
+    filled = np.zeros(ds.sizes["lead_time"], dtype=bool)
+    out = ds
+    for var in TRACKED_FIELDS:
+        da = out[var]
+        gone = da.isnull().all(dim=[d for d in da.dims if d != "lead_time"])
+        if not bool(gone.any()):
+            continue
+        filled |= gone.values
+        out = out.assign(
+            {
+                var: da.interpolate_na(dim="lead_time", method="linear")
+                .ffill("lead_time")
+                .bfill("lead_time")
+            }
+        )
+    return out, filled
+
+
 def make_member_nc(ds_mem: xr.Dataset, nc_out: Path, init_t: pd.Timestamp) -> None:
     sub = ds_mem.sel(latitude=slice(LAT_MAX, LAT_MIN), longitude=slice(LON_MIN, LON_MAX))
     lead_h = (sub["lead_time"].values / np.timedelta64(1, "h")).astype(int)
@@ -134,7 +178,7 @@ def run_tracker(nc_in: Path, detect_out: Path, stitch_out: Path) -> None:
         raise RuntimeError(f"StitchNodes failed: {r.stderr[-2000:]}")
 
 
-def extract_milton_track(stitch_path: Path) -> pd.DataFrame:
+def extract_milton_track(stitch_path: Path, interp_times: set | None = None) -> pd.DataFrame:
     if not stitch_path.exists():
         return pd.DataFrame()
     text = stitch_path.read_text()
@@ -172,7 +216,9 @@ def extract_milton_track(stitch_path: Path) -> pd.DataFrame:
             and pd.Timestamp("2024-10-04") <= p["time"] <= pd.Timestamp("2024-10-12")
         ]
         if len(in_milton) >= 4:
-            return pd.DataFrame(in_milton)
+            out = pd.DataFrame(in_milton)
+            out["interpolated"] = out["time"].isin(interp_times or set())
+            return out
     return pd.DataFrame()
 
 
@@ -205,6 +251,17 @@ def main(baseline: str, init_tag: str):
     if baseline == "ifs_ens" and ds.sizes["ensemble"] >= 50:
         stratified = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45]
         ds = ds.isel(ensemble=stratified)
+    interp_times: set = set()
+    if baseline == "ifs_ens":
+        ds = (
+            ds[list(TRACKED_FIELDS)]
+            .sel(latitude=slice(LAT_MAX, LAT_MIN), longitude=slice(LON_MIN, LON_MAX))
+            .load()
+        )
+        ds, filled = _fill_missing_leads(ds)
+        lead_h = (ds["lead_time"].values / np.timedelta64(1, "h")).astype(int)
+        interp_times = set(init_t + pd.to_timedelta(lead_h[filled], unit="h"))
+        print(f"  gap-filled {int(filled.sum())}/{len(lead_h)} leads")
     n_members = ds.sizes["ensemble"]
     out_dir = TRACKS_ROOT / baseline / init_tag
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -223,7 +280,7 @@ def main(baseline: str, init_tag: str):
                 print(f"  m{m:02d}: FAILED {e}")
                 continue
             ncf.unlink()  # remove the input nc to save space
-        track = extract_milton_track(sti)
+        track = extract_milton_track(sti, interp_times)
         if not track.empty:
             track["baseline"] = baseline
             track["init_tag"] = init_tag
