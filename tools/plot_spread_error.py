@@ -26,9 +26,9 @@ import numpy as np  # noqa: E402
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from model_colors import color_for, style_for  # noqa: E402
 
-from _env import SCRATCH  # noqa: E402
+from _env import STORE  # noqa: E402
 
-CSV = str(SCRATCH / "spread_error_binned.csv")
+CSV = str(STORE / "analysis" / "spread_error_all.csv")
 PANEL_VARS = [
     ("2m_temperature", "", "2 m temperature [K]"),
     ("geopotential", "500", "z500 [m$^2$ s$^{-2}$]"),
@@ -82,11 +82,11 @@ def main():
             for col in ("bin_lo", "bin_hi", "w_count", "w_sum_spread", "w_sum_sq_err"):
                 data[key][col].append(float(p[ix[col]]))
 
-    nrow, ncol = len(args.leads), len(PANEL_VARS)
-    fig, axes = plt.subplots(nrow, ncol, figsize=(5.0 * ncol, 3.6 * nrow), squeeze=False)
+    nrow, ncol = len(PANEL_VARS), len(args.leads)
+    fig, axes = plt.subplots(nrow, ncol, figsize=(2.95 * ncol, 3.25 * nrow), squeeze=False)
     for i, lead in enumerate(args.leads):
         for j, (var, lvl, xlabel) in enumerate(PANEL_VARS):
-            ax = axes[i][j]
+            ax = axes[j][i]
             lim = [np.inf, -np.inf]
             for name in ORDER:
                 d = data.get((name, var, lvl, lead))
@@ -116,7 +116,7 @@ def main():
                 lim[1] = max(lim[1], s.max(), r.max())
             if np.isfinite(lim[0]):
                 ax.plot(lim, lim, color="0.4", lw=0.8, ls=(0, (4, 3)), zorder=0)
-            ax.set_xlabel(f"ensemble spread, {xlabel}")
+            ax.set_xlabel(f"ensemble spread{xlabel[xlabel.index(' ['):]}")
             ax.set_ylabel("ensemble-mean RMSE")
             name = xlabel.split(" [")[0]
             ax.set_title(
