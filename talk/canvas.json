@@ -1,0 +1,279 @@
+{
+  "artboards": [
+    {
+      "file": "Main.dc.html",
+      "x": 0,
+      "y": 0,
+      "w": 1280,
+      "h": 720,
+      "title": "01 Title"
+    },
+    {
+      "file": "Slide02.dc.html",
+      "x": 1700,
+      "y": 0,
+      "w": 1280,
+      "h": 720,
+      "title": "02 The gap"
+    },
+    {
+      "file": "Slide03.dc.html",
+      "x": 3400,
+      "y": 0,
+      "w": 1280,
+      "h": 720,
+      "title": "03 Four routes"
+    },
+    {
+      "file": "Slide04.dc.html",
+      "x": 0,
+      "y": 870,
+      "w": 1280,
+      "h": 720,
+      "title": "04 Method: SPW"
+    },
+    {
+      "file": "Slide05.dc.html",
+      "x": 1700,
+      "y": 870,
+      "w": 1280,
+      "h": 720,
+      "title": "05 Three questions"
+    },
+    {
+      "file": "Slide06.dc.html",
+      "x": 3400,
+      "y": 870,
+      "w": 1280,
+      "h": 720,
+      "title": "06 Experimental design"
+    },
+    {
+      "file": "Slide07.dc.html",
+      "x": 0,
+      "y": 1740,
+      "w": 1280,
+      "h": 720,
+      "title": "07 Three-phase ablation"
+    },
+    {
+      "file": "Slide08.dc.html",
+      "x": 1700,
+      "y": 1740,
+      "w": 1280,
+      "h": 720,
+      "title": "08 Q1 result: CRPSS"
+    },
+    {
+      "file": "Slide09.dc.html",
+      "x": 3400,
+      "y": 1740,
+      "w": 1280,
+      "h": 720,
+      "title": "09 Cost"
+    },
+    {
+      "file": "Slide10.dc.html",
+      "x": 0,
+      "y": 2610,
+      "w": 1280,
+      "h": 720,
+      "title": "10 Q2 result: four winners"
+    },
+    {
+      "file": "Slide11.dc.html",
+      "x": 1700,
+      "y": 2610,
+      "w": 1280,
+      "h": 720,
+      "title": "11 Q2 interpretation"
+    },
+    {
+      "file": "Slide12.dc.html",
+      "x": 3400,
+      "y": 2610,
+      "w": 1280,
+      "h": 720,
+      "title": "12 Q3 failure: domain mean"
+    },
+    {
+      "file": "Slide13.dc.html",
+      "x": 0,
+      "y": 3480,
+      "w": 1280,
+      "h": 720,
+      "title": "13 Repair 1: refresh"
+    },
+    {
+      "file": "Slide14.dc.html",
+      "x": 1700,
+      "y": 3480,
+      "w": 1280,
+      "h": 720,
+      "title": "14 Repair 2: perturbed ICs"
+    },
+    {
+      "file": "Slide15.dc.html",
+      "x": 3400,
+      "y": 3480,
+      "w": 1280,
+      "h": 720,
+      "title": "15 Milton"
+    },
+    {
+      "file": "Slide16.dc.html",
+      "x": 0,
+      "y": 4350,
+      "w": 1280,
+      "h": 720,
+      "title": "16 Milton: what ICs buy"
+    },
+    {
+      "file": "Slide17.dc.html",
+      "x": 1700,
+      "y": 4350,
+      "w": 1280,
+      "h": 720,
+      "title": "17 Limitations"
+    },
+    {
+      "file": "Slide18.dc.html",
+      "x": 3400,
+      "y": 4350,
+      "w": 1280,
+      "h": 720,
+      "title": "18 Take-aways"
+    }
+  ],
+  "annotations": [
+    {
+      "id": "notes-01",
+      "x": 1310,
+      "y": 0,
+      "w": 300,
+      "text": "0:00 - 0:25\n\nTitle, 25 s. Name, affiliations, one line: we turn deterministic AI weather models into ensembles by perturbing their weights at inference. Four backbones, 112 initialisations. Go straight to slide 2."
+    },
+    {
+      "id": "notes-02",
+      "x": 3010,
+      "y": 0,
+      "w": 300,
+      "text": "0:25 - 1:25\n\n60 s. Set the gap in three beats: MLWMs are as good as the IFS and far cheaper; they give one forecast; retraining is often not an option. Land the question on the right verbatim - it is the paper's thesis. Do not explain CRPS yet."
+    },
+    {
+      "id": "notes-03",
+      "x": 4710,
+      "y": 0,
+      "w": 300,
+      "text": "1:25 - 2:30\n\n65 s. Fast. The 2x2 exists to justify one choice: post-hoc is the only route that is both training-free and gives spread that grows with lead time. IC perturbation comes back later as a complement, not a rival."
+    },
+    {
+      "id": "notes-04",
+      "x": 1310,
+      "y": 870,
+      "w": 300,
+      "text": "2:30 - 3:50\n\n80 s. The whole method is one equation. Emphasise multiplicative: sigma is dimensionless, so the same number means the same thing in a 37 M and a 1.3 B model. Say 'weight-space neighbours of one checkpoint'. Two knobs: which tensors, how hard."
+    },
+    {
+      "id": "notes-05",
+      "x": 3010,
+      "y": 870,
+      "w": 300,
+      "text": "3:50 - 4:25\n\n35 s. Read the three questions and say the talk answers them in order. This is the roadmap slide - do not linger."
+    },
+    {
+      "id": "notes-06",
+      "x": 4710,
+      "y": 870,
+      "w": 300,
+      "text": "4:25 - 5:25\n\n60 s. Point at the two grids: selection happens on four inits, the 112-init grid is held out and validates the picks. That design decision pre-empts the obvious overfitting question. Mention the pipeline is open source."
+    },
+    {
+      "id": "notes-07",
+      "x": 1310,
+      "y": 1740,
+      "w": 300,
+      "text": "5:25 - 6:45\n\n80 s. Walk the three phases, then the variance budget: sigma_group scales as sqrt(N_total/N_group) so a small group gets a larger sigma and every phase spends the same noise budget. Mention the +/-0.02 scatter and the tie-break rule."
+    },
+    {
+      "id": "notes-08",
+      "x": 3010,
+      "y": 1740,
+      "w": 300,
+      "text": "6:45 - 8:20\n\n95 s. The Q1 answer. Give the four gaps, then the two things that matter: zero training cost, and perturbed AIFS beats the operational IFS-ENS. Flag that the 360 h gaps narrow only because everything decays to climatology. Bootstrap CIs if pressed."
+    },
+    {
+      "id": "notes-09",
+      "x": 4710,
+      "y": 1740,
+      "w": 300,
+      "text": "8:20 - 9:05\n\n45 s. Quick. Six models within 59-125 s per member, Atlas 38 min because of its SDE sampler. Then the training row: this is where SPW actually wins."
+    },
+    {
+      "id": "notes-10",
+      "x": 1310,
+      "y": 2610,
+      "w": 300,
+      "text": "9:05 - 10:25\n\n80 s. The central negative result and the honest one. Four winners, four different places. Say plainly: this is a tuning procedure, not plug-and-play. Expect a question here - the answer is slide 11."
+    },
+    {
+      "id": "notes-11",
+      "x": 3010,
+      "y": 2610,
+      "w": 300,
+      "text": "10:25 - 11:35\n\n70 s. The interpretive claim, carefully hedged. Winners border the low-resolution latent; interiors have normalisation layers that damp the variance; GraphCast does not fit. Four models cannot establish a rule - say that out loud. End on the practical recipe."
+    },
+    {
+      "id": "notes-12",
+      "x": 4710,
+      "y": 2610,
+      "w": 300,
+      "text": "11:35 - 13:10\n\n95 s. The most important failure slide. Two numbers side by side: pointwise fine, domain mean broken. Then the mechanism in one sentence - one weight set per member shifts the whole field together. The SFNO control proves it is the perturbation target, not the model."
+    },
+    {
+      "id": "notes-13",
+      "x": 1310,
+      "y": 3480,
+      "w": 300,
+      "text": "13:10 - 14:25\n\n75 s. The variance-budget rule keeps the comparison fair. It works for SFNO and essentially nowhere else, and GraphCast flips sign because its noise lives in activations, not weights. Report the negative result plainly."
+    },
+    {
+      "id": "notes-14",
+      "x": 3010,
+      "y": 3480,
+      "w": 300,
+      "text": "14:25 - 15:40\n\n75 s. The complementary lever. The variance decomposition is the cleanest result on the slide: weights supply 8-17% of the spread at 6 h and 86-97% at 240 h. That is why the headline uses weight-only and Milton uses weight+IC."
+    },
+    {
+      "id": "notes-15",
+      "x": 4710,
+      "y": 3480,
+      "w": 300,
+      "text": "15:40 - 17:00\n\n80 s. Set the case up in two sentences, then read the table inversion: trained models detect more often, SPW places better, Aurora+IC is the best position error of all eight. Let the track figure carry the rest."
+    },
+    {
+      "id": "notes-16",
+      "x": 1310,
+      "y": 4350,
+      "w": 300,
+      "text": "17:00 - 18:10\n\n70 s. IC augmentation doubles the early track cone and widens intensity spread ~70%. Pre-empt the MSL bias question: +37 to +44 hPa for everyone is the 0.25 deg grid, not the forecast."
+    },
+    {
+      "id": "notes-17",
+      "x": 3010,
+      "y": 4350,
+      "w": 300,
+      "text": "18:10 - 19:05\n\n55 s. Do not read all six. Say the three that reviewers ask about: sweep cost, eight effective blocks not 112, and no precipitation. Then move on."
+    },
+    {
+      "id": "notes-18",
+      "x": 4710,
+      "y": 4350,
+      "w": 300,
+      "text": "19:05 - 20:00\n\n55 s. Four sentences, one per line, then stop. Leave the repo link on screen for questions. Backup answers: MC-dropout/SWAG need training access; M=10 is defensible per Leutbecher (2019); GraphCast is not bit-reproducible because it runs in JAX/XLA."
+    }
+  ],
+  "launch": {
+    "view": "canvas"
+  }
+}
