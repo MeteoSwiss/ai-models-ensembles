@@ -52,11 +52,40 @@ matplotlib rcParams).
 - Proper scores: `signature_kernel_score.py`, `energy_variogram_score.py`,
   `aggregate_signature_kernel_score.py`, `compute_channel_scale.py`,
   `compare_fixedscale_ranking.py`
+- Spectra: `compute_psd_lead.py`, `compute_banded_lsd.py`,
+  `compute_spectrogram_bug_impact.py`, `compute_lsd_bug_impact.py`
 - Other: `compute_persistence_mae.py`, `ic_weight_decomposition.py`,
   `compare_seed_robustness.py`, `fill_ic_perturbed_levels.py`
 
 Committed outputs (`data/`): `crps_clim_eval_*.json`,
 `channel_scale_1990_2019.json`, `ic_decomp_4bb.csv`, `sigk_production.csv`.
+
+## Zonal spectra (supplementary)
+
+The routine eval runs on a 24 h lead stride, so short leads are absent from the
+`energy_spectra` bundles; `compute_psd_lead.py` recomputes them from
+`forecast.zarr` with the same processing.
+
+    sbatch tools/submit_psd_lead.sh 6                            # Phase-1 sweep
+    sbatch --partition=normal --time=02:00:00 \
+        tools/submit_psd_lead.sh 6 phase2 phase2b                # layer groups
+
+Each job writes `data/psd_<first phase>_lead<LLL>h.npz`, keyed `<phase>:<run>`,
+always including the unperturbed Phase-1 run as the sigma=0 reference and
+skipping the Phase-6 refresh/frozen/fresh/sub-step variants.
+
+`plot_psd_lead.py` draws one column per backbone (raw PSD over log10 ratio to
+ERA5) and takes several `--npz` files at once, so a figure can mix phases:
+
+    python tools/plot_psd_lead.py --npz data/psd_phase2_lead006h.npz \
+        --tag phase2 --variable geopotential@500hPa --harmonics 180
+
+`--tag` names the output, `--models` subsets the columns, `--harmonics N` marks
+multiples of zonal wavenumber N (180 = Aurora's patch grid), `--runs
+<model>=<run>` picks individual runs (used for the production overlay) and
+`--model-colors` draws them in the canonical per-baseline colour instead of the
+sigma ramp. Colour otherwise encodes sigma and line style the perturbation
+target.
 
 ## Utilities
 

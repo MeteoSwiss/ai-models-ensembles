@@ -1,4 +1,4 @@
-"""Zonal energy spectra of every Phase-1 ablation run at one lead time.
+"""Zonal energy spectra of the ablation runs at one lead time.
 
 The routine SwissClim eval runs on a 24 h lead stride, so the first forecast
 step is absent from the ``energy_spectra`` NPZ bundles. This script recomputes
@@ -7,8 +7,13 @@ same processing as the eval module (mean of per-member spectra, cos-phi latitude
 weighting, zero wavenumber dropped) so the numbers are comparable to the
 published spectrograms.
 
+Any set of phases can be requested; the unperturbed Phase-1 run is always
+included as the sigma=0 reference. Run keys in the output NPZ are ``<phase>:<run>``.
+
 Usage (compute node):
     python tools/compute_psd_lead.py --lead 6 --out tools/data/psd_phase1_lead006h.npz
+    python tools/compute_psd_lead.py --lead 6 --phases phase2 phase2b \
+        --out tools/data/psd_phase2_lead006h.npz
 """
 
 from __future__ import annotations
@@ -26,6 +31,10 @@ from _env import STORE, WB2_2022, WB2_2024  # noqa: E402
 from swissclim_evaluations.plots.energy_spectra import calculate_energy_spectra  # noqa: E402
 
 MODELS = ["aurora", "graphcast_operational", "sfno", "aifs"]
+UNPERTURBED = "mag_0_layer_all"
+# Phase-6 style variants (fresh/refreshed noise, frozen-mesh controls, sub-stepping)
+# live in the Phase-3 directories but are a different experiment - keep them out.
+SKIP_RUNS = ("_frozen", "_fresh", "refresh", "_skip")
 INITS = ["20240215", "20230515", "20230815", "20241115"]
 VARIABLES = [
     ("geopotential", 500),
@@ -59,18 +68,28 @@ def spectrum(da: xr.DataArray) -> xr.DataArray:
     )
 
 
-def run_dirs(model: str) -> list[str]:
-    root = STORE / "ablation" / "phase1" / model / INITS[0]
-    runs = sorted(p for p in os.listdir(root) if p.startswith("mag_"))
-    # unperturbed first, then ascending sigma
-    return sorted(runs, key=lambda r: float(r.split("_")[1]))
+def sigma_of(run: str) -> float:
+    return float(run.split("_")[1])
+
+
+def run_dirs(model: str, phase: str) -> list[str]:
+    """Runs of ``phase`` that actually carry a forecast, ascending sigma."""
+    root = STORE / "ablation" / phase / model / INITS[0]
+    if not root.exists():
+        return []
+    runs = [
+        p
+        for p in os.listdir(root)
+        if (root / p / "forecast.zarr").exists() and not any(s in p for s in SKIP_RUNS)
+    ]
+    return sorted(runs, key=sigma_of)
 
 
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--lead", type=int, default=6, help="lead time in hours")
     ap.add_argument("--models", nargs="+", default=MODELS)
-    ap.add_argument("--phase", default="phase1")
+    ap.add_argument("--phases", nargs="+", default=["phase1"])
     ap.add_argument("--out", required=True)
     args = ap.parse_args()
 
@@ -78,13 +97,15 @@ def main() -> None:
     out: dict[str, np.ndarray] = {}
 
     for model in args.models:
-        runs = run_dirs(model)
-        print(f"[{model}] runs: {runs}", flush=True)
-        for run in runs:
+        pairs = [(ph, r) for ph in args.phases for r in run_dirs(model, ph)]
+        if ("phase1", UNPERTURBED) not in pairs:
+            pairs.insert(0, ("phase1", UNPERTURBED))
+        print(f"[{model}] runs: {[f'{ph}:{r}' for ph, r in pairs]}", flush=True)
+        for phase, run in pairs:
             per_init: dict[str, list[np.ndarray]] = {}
             tgt_per_init: dict[str, list[np.ndarray]] = {}
             for init in INITS:
-                path = STORE / "ablation" / args.phase / model / init / run / "forecast.zarr"
+                path = STORE / "ablation" / phase / model / init / run / "forecast.zarr"
                 if not path.exists():
                     print(f"  MISSING {path}", flush=True)
                     continue
@@ -108,9 +129,9 @@ def main() -> None:
                     tgt_per_init.setdefault(key, []).append(st.values)
                     if "wavenumber" not in out:
                         out["wavenumber"] = sp["wavenumber"].values
-                print(f"  {run} {init} done", flush=True)
+                print(f"  {phase}:{run} {init} done", flush=True)
             for key, arrs in per_init.items():
-                out[f"{model}|{run}|{key}"] = np.mean(np.stack(arrs), axis=0)
+                out[f"{model}|{phase}:{run}|{key}"] = np.mean(np.stack(arrs), axis=0)
             for key, arrs in tgt_per_init.items():
                 out[f"{model}|__truth__|{key}"] = np.mean(np.stack(arrs), axis=0)
 
