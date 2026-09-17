@@ -434,7 +434,7 @@ _submit_module_sbatch() {
         "${dep_flag[@]}" \
         --job-name="$job_tag" \
         --partition="$PARTITION" --account=ab016 \
-        --nodes=1 --ntasks=1 --cpus-per-task=144 --mem=800G --time="12:00:00" \
+        --nodes=1 --ntasks=1 --requeue --cpus-per-task=144 --mem=800G --time="12:00:00" \
         --output="$LOG_DIR/${job_tag}_%j.out" \
         --error="$LOG_DIR/${job_tag}_%j.err" \
         --wrap="source ${SRC_DIR}/.venv/bin/activate && \

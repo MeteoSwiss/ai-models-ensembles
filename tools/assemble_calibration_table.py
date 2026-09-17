@@ -12,7 +12,7 @@ Single source per metric (all the ablation 4-init x 10-member grid):
            climatology (tools/data/crps_clim_eval_ablation_1990_2019.json),
            calibration_crpss.py logic. Reproduces the published CRPSS exactly.
   SSIM   - <intercomp>/ssim/ssim_by_lead_combined.csv (level-collapsed, 7-var mean).
-  LSD    - <intercomp>/energy_spectra/lsd_metrics_3d_lead_time_combined.csv
+  LSD    - eval/<run>/energy_spectra/energy_ratios_3d_lead_time_*_enspooled.csv
            (lsd_mean, 5 3D vars).
   FSS95  - <intercomp>/fss/fss_per_member_per_lead_combined.csv (mean over members, 7 vars).
   W1     - per-run eval/<run>/wd_kde/wd_kde_wasserstein_averaged_enspooled.csv
@@ -327,14 +327,15 @@ def ssim(row, lead):
 
 
 def lsd(row, lead):
-    rs = _rows(row["inter"] / "energy_spectra" / "lsd_metrics_3d_lead_time_combined.csv")
+    # Read the per-run eval CSV directly: the intercomparison's
+    # lsd_metrics_3d_lead_time_combined.csv is a plain concat of these and was
+    # not refreshed after the 2026-09-17 energy_spectra re-eval (SwissClim
+    # member-0 align fix).
+    (f,) = (row["evrun"] / "energy_spectra").glob("energy_ratios_3d_lead_time_*_enspooled.csv")
+    rs = _rows(f)
     out = []
     for v in VARS_3D:
-        xs = [
-            float(r["lsd_mean"])
-            for r in rs
-            if r["model"] == row["key"] and r["variable"] == v and _L(r["lead_time"]) == lead
-        ]
+        xs = [float(r["lsd_mean"]) for r in rs if r["variable"] == v and _L(r["lead_time"]) == lead]
         out.append(_mean(xs))
     return _mean(out)
 
