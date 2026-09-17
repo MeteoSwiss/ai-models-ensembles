@@ -5,31 +5,19 @@
 %   \usepackage{amssymb}
 %   \usepackage{booktabs}
 %   \usepackage{multirow}
-%   \usepackage[table]{xcolor}
 %   \usepackage{array}
 %   \usepackage{tabularx}
 %
 % Drop into the paper with:
 %   \input{figures/experiments_tables.tex}
 % and then reference via \ref{tab:ablation}.
-
-% - model colour palette -
-\definecolor{auroraC}   {HTML}{E67E22}  % orange
-\definecolor{graphcastC}{HTML}{27AE60}  % green
-\definecolor{sfnoC}     {HTML}{2980B9}  % blue
-\definecolor{aifsC}     {HTML}{8E44AD}  % purple
-\definecolor{aifsensC}  {HTML}{8B5A2B}  % brown
-\definecolor{atlasC}    {HTML}{C0392B}  % red
-\definecolor{fcn3C}     {HTML}{D4A017}  % gold
-\definecolor{ifsC}      {HTML}{7F8C8D}  % grey
-\definecolor{phaseBg}   {HTML}{ECF0F1}  % phase header band
-\definecolor{altRow}    {HTML}{F8F9FA}  % alt row tint
-
-% small colour pill used in the Model column
-\newcommand{\mbadge}[2]{\textcolor{#1}{\rule[-0.15ex]{0.85ex}{0.85ex}}\,\textbf{#2}}
+%
+% No colour or shading anywhere in the tables: AMS production cannot process
+% shaded rows or coloured symbols (returned AIES-D-26-0140, 2026-09), so
+% emphasis is bold/italic only.
 
 % production-baseline star
-\newcommand{\winner}{\textcolor{black!75}{$\bigstar$}}
+\newcommand{\winner}{$\bigstar$}
 
 % - Table 1: Ablation grid -
 \begin{table}[t]
@@ -61,40 +49,30 @@
     \textbf{Phase} & \textbf{Model} & \textbf{Configuration} & \textbf{$\sigma$} \\
     \midrule
 
-    \rowcolor{phaseBg}
     \multicolumn{4}{@{}l}{\textbf{Phase 1} \ \  magnitude sweep} \\
-    & \mbadge{auroraC}{aurora}     & all weights          & 0.001 / 0.003 / 0.01 / \textbf{0.03} / 0.1 \\
-    \rowcolor{altRow}
-    & \mbadge{graphcastC}{graphcast} & all weights        & 0.001 / 0.003 / \textbf{0.01} \,\winner\ / 0.03 / 0.1 \\
-    & \mbadge{sfnoC}{sfno}         & all weights          & 0.001 / 0.003 / 0.01 / \textbf{0.03} / 0.1 \\
-    \rowcolor{altRow}
-    & \mbadge{aifsC}{aifs}         & all weights          & 0.003 / \textbf{0.01} / 0.03 \\
+    & aurora     & all weights          & 0.001 / 0.003 / 0.01 / \textbf{0.03} / 0.1 \\
+    & graphcast & all weights        & 0.001 / 0.003 / \textbf{0.01} \,\winner\ / 0.03 / 0.1 \\
+    & sfno         & all weights          & 0.001 / 0.003 / 0.01 / \textbf{0.03} / 0.1 \\
+    & aifs         & all weights          & 0.003 / \textbf{0.01} / 0.03 \\
     \hline
 
-    \rowcolor{phaseBg}
     \multicolumn{4}{@{}l}{\textbf{Phase 2} \ \  tensor-group sweep (variance-budget anchor) and Phase 2b finer-grid refinement on the top two groups} \\
-    & \mbadge{auroraC}{aurora}     & \textbf{encoder}$^{\dagger}$ / backbone / decoder & \textbf{0.025}$^{\dagger}$ \,\winner, 0.044, 0.060 / 0.010 / 0.040, 0.062, 0.085 \\
-    \rowcolor{altRow}
-    & \mbadge{graphcastC}{graphcast} & g2m$^{\dagger}$ / m2m / \textbf{m2g}            & 0.014$^{\dagger}$, 0.027, 0.045 / 0.012 / 0.018, \textbf{0.030}, 0.050 \\
-    & \mbadge{sfnoC}{sfno}         & \textbf{encoder} / processor / decoder           & 0.035, \textbf{0.054}, 0.080 / 0.010 / 0.054, 0.075, 0.100 \\
-    \rowcolor{altRow}
-    & \mbadge{aifsC}{aifs}         & encoder / processor / \textbf{decoder}            & 0.027 / 0.012 / \textbf{0.028} \,\winner \\
+    & aurora     & \textbf{encoder}$^{\dagger}$ / backbone / decoder & \textbf{0.025}$^{\dagger}$ \,\winner, 0.044, 0.060 / 0.010 / 0.040, 0.062, 0.085 \\
+    & graphcast & g2m$^{\dagger}$ / m2m / \textbf{m2g}            & 0.014$^{\dagger}$, 0.027, 0.045 / 0.012 / 0.018, \textbf{0.030}, 0.050 \\
+    & sfno         & \textbf{encoder} / processor / decoder           & 0.035, \textbf{0.054}, 0.080 / 0.010 / 0.054, 0.075, 0.100 \\
+    & aifs         & encoder / processor / \textbf{decoder}            & 0.027 / 0.012 / \textbf{0.028} \,\winner \\
     \hline
 
-    \rowcolor{phaseBg}
     \multicolumn{4}{@{}l}{\textbf{Phase 3} \ \  coarse-scale perturbation} \\
-    & \mbadge{auroraC}{aurora}     & \texttt{enc\_2}                                       & 0.026 / 0.05 / 0.15 / \textbf{0.40} / 0.80 / 1.50 \\
-    \rowcolor{altRow}
-    & \mbadge{graphcastC}{graphcast} & \texttt{n\_coarse\_42} (frozen)                     & 0.10 / 0.312 / 0.60 / \textbf{1.00} \\
-    & \mbadge{sfnoC}{sfno}         & \texttt{Lcut\_10}                                     & 0.049 / 0.10 / \textbf{0.25} \,\winner\ / 0.60 \\
+    & aurora     & \texttt{enc\_2}                                       & 0.026 / 0.05 / 0.15 / \textbf{0.40} / 0.80 / 1.50 \\
+    & graphcast & \texttt{n\_coarse\_42} (frozen)                     & 0.10 / 0.312 / 0.60 / \textbf{1.00} \\
+    & sfno         & \texttt{Lcut\_10}                                     & 0.049 / 0.10 / \textbf{0.25} \,\winner\ / 0.60 \\
     \hline
 
-    \rowcolor{phaseBg}
     \multicolumn{4}{@{}l}{\textbf{Phase 3b} \ \  spatial-reach threshold sweep (Phase 3 winner shown inline)} \\
-    & \mbadge{auroraC}{aurora}     & \textbf{\texttt{enc\_2}} / \texttt{enc\_12} / \texttt{enc\_012}                              & \textbf{0.40} / 0.017 / 0.015 \\
-    \rowcolor{altRow}
-    & \mbadge{graphcastC}{graphcast} & \textbf{\texttt{n\_coarse\_42}} / \texttt{n\_coarse\_162} / \texttt{n\_coarse\_642} (frozen)        & \textbf{1.00} / 0.159 / 0.080 \\
-    & \mbadge{sfnoC}{sfno}         & \textbf{\texttt{Lcut\_10}} / \texttt{Lcut\_20} / \texttt{Lcut\_40}                          & \textbf{0.25} / 0.035 / 0.025 \\
+    & aurora     & \textbf{\texttt{enc\_2}} / \texttt{enc\_12} / \texttt{enc\_012}                              & \textbf{0.40} / 0.017 / 0.015 \\
+    & graphcast & \textbf{\texttt{n\_coarse\_42}} / \texttt{n\_coarse\_162} / \texttt{n\_coarse\_642} (frozen)        & \textbf{1.00} / 0.159 / 0.080 \\
+    & sfno         & \textbf{\texttt{Lcut\_10}} / \texttt{Lcut\_20} / \texttt{Lcut\_40}                          & \textbf{0.25} / 0.035 / 0.025 \\
     \bottomrule
   \end{tabular}
 \end{table}

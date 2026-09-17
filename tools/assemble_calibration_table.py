@@ -512,20 +512,17 @@ def main():
     print("LaTeX tabular body (replace the block between \\midrule and \\bottomrule):")
     print("=" * 110)
     badge = {
-        "aurora": r"\mbadge{auroraC}{aurora}",
-        "graphcast_operational": r"\mbadge{graphcastC}{graphcast}",
-        "sfno": r"\mbadge{sfnoC}{sfno}",
-        "aifs": r"\mbadge{aifsC}{aifs}",
+        "aurora": r"\textbf{aurora}",
+        "graphcast_operational": r"\textbf{graphcast}",
+        "sfno": r"\textbf{sfno}",
+        "aifs": r"\textbf{aifs}",
     }
     order = ["aurora", "graphcast_operational", "sfno", "aifs"]
     out = []
     for mi, model in enumerate(order):
         idxs = by_model[model]
-        out.append(r"    \rowcolor{phaseBg}")
         out.append(r"    \multicolumn{20}{@{}l}{" + badge[model] + r"} \\")
-        for pos, i in enumerate(idxs):
-            if pos % 2 == 1:
-                out.append(r"    \rowcolor{altRow}")
+        for i in idxs:
             cells = " & ".join(cell(i, n, L) for n, _, _ in METRICS for L in LEADS)
             out.append(f"    {ROWS[i]['phase']} & {ROWS[i]['cfg']} & {cells} \\\\")
         out.append(r"    \hline" if mi < len(order) - 1 else "")

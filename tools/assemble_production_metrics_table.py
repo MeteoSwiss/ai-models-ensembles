@@ -577,7 +577,6 @@ def main():
         if not first_group:
             L.append("    \\hline")
         first_group = False
-        L.append("    \\rowcolor{phaseBg}")
         L.append(f"    \\multicolumn{{20}}{{@{{}}l}}{{\\textbf{{{ROLE_LABEL[g]}}}}} \\\\")
         for m in members:
             cells = [cell(m, lead, mt) for lead in LEADS for mt in METRIC_ORDER]

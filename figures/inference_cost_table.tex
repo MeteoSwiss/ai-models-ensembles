@@ -7,7 +7,7 @@
 % CS h recomputed for the 10-member case-study ensemble (was 50).
 %
 % Required packages (already in main preamble per experiments_tables.tex):
-%   amsmath, booktabs, xcolor[table], array
+%   amsmath, booktabs, array
 %
 % Reference via \ref{tab:inference-cost}.
 
@@ -47,27 +47,21 @@
      &  & & \textbf{(GB)} &  &  &  &  &  \\
     \midrule
 
-    \rowcolor{phaseBg}
     \multicolumn{9}{@{}l}{\textbf{SPW} (this work) - \emph{zero marginal training cost}} \\
-    & \mbadge{sfnoC}{sfno\_modes10}       & 573 M  & 2.3  & \textbf{59}   & 0.04  & 15.3 & 44.1  & 73.4  \\
-    \rowcolor{altRow}
-    & \mbadge{auroraC}{aurora\_encoder}   & 1.3 B  & 5.2  & 90            & 0.06  & 23.0 & 66.2  & 110.4 \\
-    & \mbadge{graphcastC}{graphcast\_all}  & 37 M   & 0.15 & 125           & 0.09  & 28.7 & 82.7  & 137.8 \\
-    \rowcolor{altRow}
-    & \mbadge{aifsC}{aifs\_perturbed}$^{\star\star}$ & 255 M & 1.0 & 75 & 0.05 & 18.3 & 52.7 & 87.8 \\
+    & sfno\_modes10       & 573 M  & 2.3  & \textbf{59}   & 0.04  & 15.3 & 44.1  & 73.4  \\
+    & aurora\_encoder   & 1.3 B  & 5.2  & 90            & 0.06  & 23.0 & 66.2  & 110.4 \\
+    & graphcast\_all  & 37 M   & 0.15 & 125           & 0.09  & 28.7 & 82.7  & 137.8 \\
+    & aifs\_perturbed$^{\star\star}$ & 255 M & 1.0 & 75 & 0.05 & 18.3 & 52.7 & 87.8 \\
     \hline
 
-    \rowcolor{phaseBg}
     \multicolumn{9}{@{}l}{\textbf{Trained probabilistic}} \\
-    & \mbadge{aifsensC}{AIFS-ENS}       & 229 M  & 0.9   & 75            & 0.05  & 18.3 & 52.7  & 87.8  \\
-    \rowcolor{altRow}
-    & \mbadge{fcn3C}{FCN3}               & 711 M  & 2.8   & 114           & 0.08  & 26.6 & 76.6  & 127.7 \\
-    & \mbadge{atlasC}{Atlas}             & 4.2 B  & 17    & 2280 & 1.58  & 177.3 & 510.7 & 851.2 \\
+    & AIFS-ENS       & 229 M  & 0.9   & 75            & 0.05  & 18.3 & 52.7  & 87.8  \\
+    & FCN3               & 711 M  & 2.8   & 114           & 0.08  & 26.6 & 76.6  & 127.7 \\
+    & Atlas             & 4.2 B  & 17    & 2280 & 1.58  & 177.3 & 510.7 & 851.2 \\
     \hline
 
-    \rowcolor{phaseBg}
     \multicolumn{9}{@{}l}{\textbf{Classical reference} (off-site)} \\
-    & \mbadge{ifsC}{IFS-ENS}          & -    & -   & \multicolumn{5}{l}{WeatherBench-2 download only; no CSCS compute} \\
+    & IFS-ENS          & -    & -   & \multicolumn{5}{l}{WeatherBench-2 download only; no CSCS compute} \\
 
     \bottomrule
   \end{tabular}

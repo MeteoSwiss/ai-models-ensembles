@@ -281,7 +281,6 @@ for role_g in group_order:
         if ROLE[m] != role_g:
             continue
         if last_role != role_g:
-            lines.append("    \\rowcolor{phaseBg}")
             lines.append(
                 f"    \\multicolumn{{9}}{{@{{}}l}}{{\\textbf{{{role_label[role_g]}}}}} \\\\"
             )

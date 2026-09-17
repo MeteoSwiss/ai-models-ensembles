@@ -228,7 +228,6 @@ for role_g in group_order:
             "classical": "Classical reference",
         }[role_g]
         if last_role != role_g:
-            lines.append("    \\rowcolor{phaseBg}")
             lines.append(f"    \\multicolumn{{6}}{{@{{}}l}}{{\\textbf{{{role_label}}}}} \\\\")
             last_role = role_g
         cells = [fmt_bold(rows[m][lead], lead) for lead in LEADS]
