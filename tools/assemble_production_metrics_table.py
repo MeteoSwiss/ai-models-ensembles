@@ -194,6 +194,15 @@ def _load_fixed_scale() -> int:
 _N_FIXED = _load_fixed_scale()
 if _N_FIXED:
     print(f"# ES/VS/SIGK: {_N_FIXED} cells from the fixed climatological scale", flush=True)
+elif _SCALE_TAG:
+    # The committed table carries the fixed-scale cells; the iopsstor scratch
+    # copies were purged once (2026-09-18) and the silent fallback then rewrote
+    # ES/VS/SIGK with the older per-init values. Refuse rather than regress.
+    raise SystemExit(
+        f"no fixed-scale ES/VS/SIGK CSVs under {_FIXED_DIR} (scratch purge?); "
+        "rerun tools/submit_table_metrics_fixedscale.sh or set ESVS_SCALE_TAG='' "
+        "to knowingly use the per-init fallback"
+    )
 
 crps_clim = json.load(open(CRPS_CLIM))
 

@@ -408,8 +408,15 @@ def _scratch(prefix, row, lead, score):
     p = None
     if SCALE_TAG:
         cand = SCRATCH_FIXED / f"{prefix}_{row['esvs']}_{SCALE_TAG}_L{lead}.csv"
-        if cand.exists():
-            p = cand
+        if not cand.exists():
+            # Both scratch dirs were purged once (2026-09-18); the committed
+            # table holds the fixed-scale cells, so refuse to regress silently.
+            raise SystemExit(
+                f"missing fixed-scale CSV {cand} (scratch purge?); rerun "
+                "tools/submit_table_metrics_fixedscale.sh or set ESVS_SCALE_TAG='' "
+                "to knowingly use the per-init fallback"
+            )
+        p = cand
     if p is None:
         p = SCRATCH / f"{prefix}_{row['esvs']}_L{lead}.csv"
     if not p.exists():
