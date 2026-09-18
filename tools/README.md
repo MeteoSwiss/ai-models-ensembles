@@ -36,8 +36,8 @@ matplotlib rcParams).
 |---|---|
 | `headline_8way_table.py` | `headline_8way_table.tex` |
 | `per_variable_crpss_table.py` | `per_variable_crpss_table.tex` |
-| `assemble_production_metrics_table.py` | `table_c1_production_metrics.tex` |
-| `assemble_calibration_table.py` | calibration-basis table body |
+| `assemble_production_metrics_table.py` | `table_c1_production_metrics.tex` (needs the fixed-scale ES/VS/SIGK CSVs from `submit_table_metrics_fixedscale.sh` on scratch; refuses to run without them unless `ESVS_SCALE_TAG=''`) |
+| `assemble_calibration_table.py` | calibration-basis table body (same fixed-scale requirement) |
 | `patch_calibration_lsd.py` | rewrites only the LSD cells of `calibration_basis_table.tex` from the per-run eval CSVs (after an `energy_spectra` re-eval) |
 | `make_ic_decomp_table.py` | `ic_decomp_table.tex` |
 | `make_rival_validation_table.py` | `rival_validation_table.tex` |
