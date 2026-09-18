@@ -38,6 +38,7 @@ matplotlib rcParams).
 | `per_variable_crpss_table.py` | `per_variable_crpss_table.tex` |
 | `assemble_production_metrics_table.py` | `table_c1_production_metrics.tex` |
 | `assemble_calibration_table.py` | calibration-basis table body |
+| `patch_calibration_lsd.py` | rewrites only the LSD cells of `calibration_basis_table.tex` from the per-run eval CSVs (after an `energy_spectra` re-eval) |
 | `make_ic_decomp_table.py` | `ic_decomp_table.tex` |
 | `make_rival_validation_table.py` | `rival_validation_table.tex` |
 
@@ -54,6 +55,14 @@ matplotlib rcParams).
   `compare_fixedscale_ranking.py`
 - Other: `compute_persistence_mae.py`, `ic_weight_decomposition.py`,
   `compare_seed_robustness.py`, `fill_ic_perturbed_levels.py`
+- Spectra re-eval (after the SwissClim member-0 fix, 2026-09-17):
+  `submit_ablation_spectra_reeval.sh` (one whole-node sbatch per Tab. 4 row,
+  spectra-only config rebuilt from the zarrs on disk, `PARTITION`/`ONLY`
+  overrides) and `run_ablation_spectra_batch.sh` (idempotent `debug`-partition
+  batch runner, `PAR` concurrent evals, skips rows whose `_enspooled` LSD CSV
+  exists). Production baselines: `PARTITION=normal bash
+  scripts/evaluate_baselines.sh <model> energy_spectra`; `preemptable` is not
+  viable for the 5 h runs.
 
 Committed outputs (`data/`): `crps_clim_eval_*.json`,
 `channel_scale_1990_2019.json`, `ic_decomp_4bb.csv`, `sigk_production.csv`.
