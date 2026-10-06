@@ -1,0 +1,107 @@
+[
+  {
+    "file": "milton_wind_f000.png",
+    "lead_h": 0,
+    "valid_utc": "2024-10-06 00 UTC"
+  },
+  {
+    "file": "milton_wind_f006.png",
+    "lead_h": 6,
+    "valid_utc": "2024-10-06 06 UTC"
+  },
+  {
+    "file": "milton_wind_f012.png",
+    "lead_h": 12,
+    "valid_utc": "2024-10-06 12 UTC"
+  },
+  {
+    "file": "milton_wind_f018.png",
+    "lead_h": 18,
+    "valid_utc": "2024-10-06 18 UTC"
+  },
+  {
+    "file": "milton_wind_f024.png",
+    "lead_h": 24,
+    "valid_utc": "2024-10-07 00 UTC"
+  },
+  {
+    "file": "milton_wind_f030.png",
+    "lead_h": 30,
+    "valid_utc": "2024-10-07 06 UTC"
+  },
+  {
+    "file": "milton_wind_f036.png",
+    "lead_h": 36,
+    "valid_utc": "2024-10-07 12 UTC"
+  },
+  {
+    "file": "milton_wind_f042.png",
+    "lead_h": 42,
+    "valid_utc": "2024-10-07 18 UTC"
+  },
+  {
+    "file": "milton_wind_f048.png",
+    "lead_h": 48,
+    "valid_utc": "2024-10-08 00 UTC"
+  },
+  {
+    "file": "milton_wind_f054.png",
+    "lead_h": 54,
+    "valid_utc": "2024-10-08 06 UTC"
+  },
+  {
+    "file": "milton_wind_f060.png",
+    "lead_h": 60,
+    "valid_utc": "2024-10-08 12 UTC"
+  },
+  {
+    "file": "milton_wind_f066.png",
+    "lead_h": 66,
+    "valid_utc": "2024-10-08 18 UTC"
+  },
+  {
+    "file": "milton_wind_f072.png",
+    "lead_h": 72,
+    "valid_utc": "2024-10-09 00 UTC"
+  },
+  {
+    "file": "milton_wind_f078.png",
+    "lead_h": 78,
+    "valid_utc": "2024-10-09 06 UTC"
+  },
+  {
+    "file": "milton_wind_f084.png",
+    "lead_h": 84,
+    "valid_utc": "2024-10-09 12 UTC"
+  },
+  {
+    "file": "milton_wind_f090.png",
+    "lead_h": 90,
+    "valid_utc": "2024-10-09 18 UTC"
+  },
+  {
+    "file": "milton_wind_f096.png",
+    "lead_h": 96,
+    "valid_utc": "2024-10-10 00 UTC"
+  },
+  {
+    "file": "milton_wind_f102.png",
+    "lead_h": 102,
+    "valid_utc": "2024-10-10 06 UTC"
+  },
+  {
+    "file": "milton_wind_f108.png",
+    "lead_h": 108,
+    "valid_utc": "2024-10-10 12 UTC"
+  },
+  {
+    "file": "milton_wind_f114.png",
+    "lead_h": 114,
+    "valid_utc": "2024-10-10 18 UTC"
+  },
+  {
+    "file": "milton_wind_f120.png",
+    "lead_h": 120,
+    "valid_utc": "2024-10-11 00 UTC"
+  }
+]
