@@ -82,4 +82,8 @@ Hurricane Milton case study: `track_one_init.py` +
 `submit_milton_tracker.sh [weight|ic_only|phase5]` (TC tracking),
 `restitch_all.py` / `aggregate_tracks.py` (assemble master tracks),
 `analyze_milton_stats.py` (summary numbers), then the two Milton figure
-scripts above.
+scripts above. `plot_z500_plume.py` is a slide figure, not in the paper: z500 member
+plumes at the landfall box for the 2024-10-06 00 UTC run (SPW AIFS weight+IC and
+weight-only, AIFS-ENS, IFS-ENS) with SIGK skill vs persistence and the within-run
+flip-flop ratio vs ERA5 per panel, written to `../figures/slides/`. It needs the
+unperturbed AIFS control run (job 3592400, `$STORE/analysis/milton_z500_plume/`).
