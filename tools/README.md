@@ -25,7 +25,7 @@ matplotlib rcParams).
 | `plot_spectrogram_delta_2row.py` | `spectrogram_delta_z500_7way.pdf` |
 | `plot_rank_histograms.py` | `rank_histograms_240h.pdf` |
 | `plot_spread_error.py` | `spread_error.pdf` |
-| `plot_refresh_ssr.py` | `refresh_frozen_vs_refresh_ssr.pdf` |
+| `plot_refresh_ssr.py` | `refresh_frozen_vs_refresh_ssr.pdf` (`--with-graphcast --out <path>`: talk variant with the GraphCast refresh grid) |
 | `plot_milton_member_spread_maps.py` | `milton_F8_member_spread_maps_96h.pdf` |
 | `milton/figures_milton.py` | `milton_F1..F5` |
 | `milton/plot_aifs_wt_vs_ic_spread.py` | `milton_F9_aifs_wt_vs_ic_spread.pdf` |
