@@ -2,7 +2,7 @@
 # Spatial-mean SSR for a RESEED refresh grid (fig:phase6 number after the
 # 2026-07-10 fresh-hook seeding fix). Mirrors tools/submit_sfno_p6c_ssr.sh but
 # parameterised by model, pointing at $STORE/baselines/<model>_p6c_reseed.
-# CPU-only sbatch (heavy zarr I/O, low mem). Usage: sbatch tools/submit_p6c_reseed_ssr.sh <sfno|aurora|aifs>
+# CPU-only sbatch (heavy zarr I/O, low mem). Usage: sbatch tools/submit_p6c_reseed_ssr.sh <sfno|aurora|aifs|graphcast>
 #SBATCH --account=ab016
 #SBATCH --partition=normal
 #SBATCH --time=04:00:00
@@ -13,7 +13,7 @@
 #SBATCH --job-name=p6reseed_ssr
 #SBATCH --output=/iopsstor/scratch/cscs/sadamov/tmp/p6reseed_ssr_%j.log
 set -uo pipefail
-MODEL="${1:?usage: sbatch submit_p6c_reseed_ssr.sh <sfno|aurora|aifs>}"
+MODEL="${1:?usage: sbatch submit_p6c_reseed_ssr.sh <sfno|aurora|aifs|graphcast>}"
 PY=${AIENS_PY:-/capstor/store/cscs/mch/s83/sadamov/venvs/ai-models-ensembles/bin/python}
 export PYTHONUNBUFFERED=1
 export TMPDIR=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/tmp

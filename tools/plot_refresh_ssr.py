@@ -14,6 +14,7 @@ production grid to match Aurora/AIFS (tools/submit_sfno_p6c_production.sh).
 
 from __future__ import annotations
 
+import argparse
 import os
 import sys
 
@@ -52,6 +53,14 @@ PAIRS = [
     ),
 ]
 
+# GraphCast all-weights refresh (2026-10-07, talk-only; not in the paper figure).
+GC_PAIR = (
+    f"{BASE}/graphcast_all/spatial_mean_ssr/spatial_ssr.csv",
+    f"{BASE}/graphcast_p6c_reseed/spatial_mean_ssr/spatial_ssr.csv",
+    "GraphCast",
+    "graphcast_all",
+)
+
 
 def var_mean(path: str) -> pd.DataFrame:
     df = pd.read_csv(path)
@@ -59,10 +68,16 @@ def var_mean(path: str) -> pd.DataFrame:
 
 
 def main() -> None:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--with-graphcast", action="store_true")
+    ap.add_argument("--out", default=OUT, help="output path without extension")
+    args = ap.parse_args()
+    pairs = PAIRS + [GC_PAIR] if args.with_graphcast else PAIRS
+
     fig, ax = plt.subplots(figsize=(7.5, 5.0))
     ax.axhline(1.0, color="0.5", lw=1.2, ls="-", zorder=0)
     color_handles = []
-    for frozen, refresh, label, ckey in PAIRS:
+    for frozen, refresh, label, ckey in pairs:
         c = color_for(ckey)
         d = var_mean(frozen).sort_values("lead_time_hours")
         ax.plot(
@@ -115,13 +130,13 @@ def main() -> None:
         borderaxespad=0.0,
     )
 
-    os.makedirs(os.path.dirname(OUT), exist_ok=True)
+    os.makedirs(os.path.dirname(args.out), exist_ok=True)
     for ext in ("pdf",):
-        fig.savefig(f"{OUT}.{ext}", dpi=150, bbox_inches="tight")
-        print(f"Wrote {OUT}.{ext}")
+        fig.savefig(f"{args.out}.{ext}", dpi=150, bbox_inches="tight")
+        print(f"Wrote {args.out}.{ext}")
     plt.close()
     print("\n240h values:")
-    for frozen, refresh, label, _ in PAIRS:
+    for frozen, refresh, label, _ in pairs:
         f240 = var_mean(frozen).query("lead_time_hours==240")["ssr"].iloc[0]
         r240 = var_mean(refresh).query("lead_time_hours==240")["ssr"].iloc[0]
         print(f"  {label}: frozen {f240:.2f} -> refresh {r240:.2f}")

@@ -184,7 +184,13 @@ def _model_for_member(
         _os_fresh.environ.get("AURORA_FRESH", "0") == "1" and model_name == "aurora"
     )
     _aifs_fresh_active = _os_fresh.environ.get("AIFS_FRESH", "0") == "1" and model_name == "aifs"
-    _any_fresh_active = _sfno_fresh_active or _aurora_fresh_active or _aifs_fresh_active
+    _gc_fresh_active = (
+        _os_fresh.environ.get("GRAPHCAST_FRESH", "0") == "1"
+        and model_name == "graphcast_operational"
+    )
+    _any_fresh_active = (
+        _sfno_fresh_active or _aurora_fresh_active or _aifs_fresh_active or _gc_fresh_active
+    )
 
     if weight_magnitude <= 0 or _any_fresh_active:
         model, _ = load_model(model_name)
@@ -221,7 +227,8 @@ def _model_for_member(
     # When this branch fires, the checkpoint perturbation upstream is skipped
     # by the inference driver. Each backbone's installer reads its own env
     # vars: SFNO_FRESH_SIGMA + SFNO_FRESH_MODE_CUT (+ refresh_every),
-    # AURORA_FRESH_SIGMA (+ refresh_every), AIFS_FRESH_SIGMA (+ refresh_every).
+    # AURORA_FRESH_SIGMA (+ refresh_every), AIFS_FRESH_SIGMA (+ refresh_every),
+    # GRAPHCAST_FRESH_SIGMA (+ refresh_every).
     # See [[phase6-fresh-per-step-weight]].
     import os as _os2
 
@@ -237,6 +244,10 @@ def _model_for_member(
         from . import aifs_fresh_perturbation as _aifs_fresh
 
         _aifs_fresh.maybe_install_from_env(model, seed + member_id)
+    if _os2.environ.get("GRAPHCAST_FRESH", "0") == "1" and model_name == "graphcast_operational":
+        from . import graphcast_fresh_perturbation as _gc_fresh
+
+        _gc_fresh.maybe_install_from_env(model, seed + member_id)
     return model
 
 
@@ -332,7 +343,10 @@ def _gpu_worker(
     _sfno_fresh_gpu = _os_gpu.environ.get("SFNO_FRESH", "0") == "1" and model_name == "sfno"
     _aurora_fresh_gpu = _os_gpu.environ.get("AURORA_FRESH", "0") == "1" and model_name == "aurora"
     _aifs_fresh_gpu = _os_gpu.environ.get("AIFS_FRESH", "0") == "1" and model_name == "aifs"
-    _any_fresh_gpu = _sfno_fresh_gpu or _aurora_fresh_gpu or _aifs_fresh_gpu
+    _gc_fresh_gpu = (
+        _os_gpu.environ.get("GRAPHCAST_FRESH", "0") == "1" and model_name == "graphcast_operational"
+    )
+    _any_fresh_gpu = _sfno_fresh_gpu or _aurora_fresh_gpu or _aifs_fresh_gpu or _gc_fresh_gpu
     if weight_magnitude > 0 or graph_coarse_sigma > 0 or _any_fresh_gpu:
         model = _model_for_member(
             model_name=model_name,
@@ -479,7 +493,10 @@ def _run_members_sequential(
     _sfno_fresh_seq = _os_seq.environ.get("SFNO_FRESH", "0") == "1" and model_name == "sfno"
     _aurora_fresh_seq = _os_seq.environ.get("AURORA_FRESH", "0") == "1" and model_name == "aurora"
     _aifs_fresh_seq = _os_seq.environ.get("AIFS_FRESH", "0") == "1" and model_name == "aifs"
-    _any_fresh_seq = _sfno_fresh_seq or _aurora_fresh_seq or _aifs_fresh_seq
+    _gc_fresh_seq = (
+        _os_seq.environ.get("GRAPHCAST_FRESH", "0") == "1" and model_name == "graphcast_operational"
+    )
+    _any_fresh_seq = _sfno_fresh_seq or _aurora_fresh_seq or _aifs_fresh_seq or _gc_fresh_seq
     use_shared_model = weight_magnitude <= 0 and graph_coarse_sigma <= 0 and not _any_fresh_seq
     shared_model = load_model(model_name)[0] if use_shared_model else None
     cached_ic: xr.Dataset | None = None

@@ -12,17 +12,19 @@
 #   sfno   : SFNO_FRESH  sigma=0.35   modes10 refresh-20  mem=444G arco ~8 min/init
 #   aurora : AURORA_FRESH sigma=0.025 encoder refresh-20  mem=800G arco ~2h10/init
 #   aifs   : AIFS_FRESH  sigma=0.0275 decoder refresh-20  mem=800G CDS  ~2h/init
+#   graphcast: GRAPHCAST_FRESH sigma=0.01 all weights refresh-20 mem=800G arco
+#            (first GraphCast weight-space refresh, 2026-10-07; no original p6c run)
 #
 # Writes to $STORE/baselines/<model>_p6c_reseed/ (originals untouched). Global
 # throttle keeps ALL p6reseed jobs (any model) at <= MAX_CONCURRENT nodes.
 #
-# Usage: bash tools/submit_p6c_reseed.sh <sfno|aurora|aifs> [spot|full]
+# Usage: bash tools/submit_p6c_reseed.sh <sfno|aurora|aifs|graphcast> [spot|full]
 #   spot (default) = 8 season-spanning anchor inits; full = all 112.
 #   MAX_CONCURRENT env (default 12) caps concurrent nodes across all models.
 # ---------------------------------------------------------------------------
 set -uo pipefail
 
-MODEL="${1:?usage: submit_p6c_reseed.sh <sfno|aurora|aifs> [spot|full]}"
+MODEL="${1:?usage: submit_p6c_reseed.sh <sfno|aurora|aifs|graphcast> [spot|full]}"
 MODE="${2:-spot}"
 MAX_CONCURRENT="${MAX_CONCURRENT:-12}"
 
@@ -40,8 +42,10 @@ case "$MODEL" in
   sfno)   MEM=800G; TIME=01:00:00; DSRC=arco; E2S_CACHE=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/e2s_cache; FRESH_ENV="SFNO_FRESH=1 SFNO_FRESH_SIGMA=0.35 SFNO_FRESH_MODE_CUT=10 SFNO_FRESH_REFRESH_EVERY=20"; EXTRA_CLI="--coarse-mode-cut 10"; NEED_SSL=0 ;;
   aurora) MEM=800G; TIME=03:00:00; DSRC=arco; E2S_CACHE=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/e2s_cache; FRESH_ENV="AURORA_FRESH=1 AURORA_FRESH_SIGMA=0.025 AURORA_FRESH_REFRESH_EVERY=20"; EXTRA_CLI=""; NEED_SSL=0 ;;
   aifs)   MEM=800G; TIME=03:00:00; DSRC=cds;  E2S_CACHE=$STORE/e2s_cache_backup;                  FRESH_ENV="AIFS_FRESH=1 AIFS_FRESH_SIGMA=0.0275 AIFS_FRESH_REFRESH_EVERY=20"; EXTRA_CLI=""; NEED_SSL=1 ;;
-  *) echo "unknown model '$MODEL' (want sfno|aurora|aifs)"; exit 1 ;;
+  graphcast) MEM=800G; TIME=01:00:00; DSRC=arco; E2S_CACHE=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/e2s_cache; FRESH_ENV="GRAPHCAST_FRESH=1 GRAPHCAST_FRESH_SIGMA=0.01 GRAPHCAST_FRESH_REFRESH_EVERY=20"; EXTRA_CLI=""; NEED_SSL=1; MODEL_ID=graphcast_operational ;;
+  *) echo "unknown model '$MODEL' (want sfno|aurora|aifs|graphcast)"; exit 1 ;;
 esac
+MODEL_ID="${MODEL_ID:-$MODEL}"
 CONTAINER="$STORE/${MODEL}.sqsh"
 [[ -f "$CONTAINER" ]] || { echo "container $CONTAINER not found"; exit 1; }
 mkdir -p "$LOG_DIR" "$E2S_CACHE"
@@ -93,7 +97,7 @@ for init_time in "${INITS[@]}"; do
         --output="$LOG_DIR/${job_tag}_%j.out" --error="$LOG_DIR/${job_tag}_%j.err" \
         --container-image="$CONTAINER" --container-mounts="$MOUNTS" --container-workdir="$WORKDIR" \
         --wrap="${SWEEP}; ${SSL_EXPORT}${FRESH_ENV} \
-            python -m ai_models_ensembles.cli infer --model $MODEL --init '${init_time}' \
+            python -m ai_models_ensembles.cli infer --model $MODEL_ID --init '${init_time}' \
             --lead-hours $LEAD_HOURS --members $NUM_MEMBERS --weight-magnitude 0 ${EXTRA_CLI} \
             --data-source $DSRC --output-levels '$OUTPUT_LEVELS' --output-vars '$OUTPUT_VARS' \
             --seed $SEED --output '${out_zarr}'; STATUS=\$?; ${SWEEP}; exit \$STATUS")
