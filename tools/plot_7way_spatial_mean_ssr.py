@@ -2,10 +2,11 @@
 
 Reads per-baseline CSVs from
   $STORE/baselines/<baseline>/spatial_mean_ssr/spatial_ssr.csv
-covering aurora_encoder, graphcast_all, sfno_modes10, aifsens, fcn3, atlas
-(plus aifs_perturbed once the production run lands), and produces a multi-panel
-plot of spatial-mean SSR vs lead per variable, split by baseline family
-(post-hoc weight perturbation vs trained probabilistic).
+covering aurora_encoder, graphcast_all, sfno_modes10, aifs_perturbed, aifsens,
+fcn3, atlas and the ifs_ens reference (10 stratified members, WB2 NaN slabs
+skipped per variable and lead), and produces a multi-panel plot of spatial-mean
+SSR vs lead per variable, split by baseline family (post-hoc weight
+perturbation vs trained probabilistic vs classical reference).
 
 Hypothesis: post-hoc weight perturbation produces order-of-magnitude larger
 spatial-mean spread than trained probabilistic models, even when pointwise SSR
@@ -55,6 +56,9 @@ TRAINED = {
     "fcn3": "FCN3",
     "atlas": "Atlas",
 }
+REFERENCE = {
+    "ifs_ens": "IFS-ENS",
+}
 
 VARS_PLOT = [
     "2m_temperature",
@@ -102,7 +106,7 @@ def main() -> None:
 
     for ax, var in zip(axs.flat[: len(VARS_PLOT)], VARS_PLOT, strict=False):
         sub = df_lvl[df_lvl["variable"] == var]
-        for b, lab in {**PERTURBED, **TRAINED}.items():
+        for b, lab in {**PERTURBED, **TRAINED, **REFERENCE}.items():
             d = sub[sub["baseline"] == b].sort_values("lead_time_hours")
             if len(d):
                 ax.plot(

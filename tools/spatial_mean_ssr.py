@@ -69,11 +69,14 @@ def _compute_for_init(
     variable: str,
     lead_hours: int,
     level: float | None,
+    members: list[int] | None = None,
 ) -> dict | None:
     """Return spread^2 and error^2 for one (init, variable, lead, level)."""
     if variable not in fcst.data_vars:
         return None
     fa = fcst[variable]
+    if members is not None:
+        fa = fa.isel(ensemble=members)
     ta = truth[variable]
 
     if level is not None and "level" in fa.dims:
@@ -144,6 +147,13 @@ def main() -> int:
         help="Label written to the 'model' column of the output CSV.",
     )
     p.add_argument("--out-csv", required=True)
+    p.add_argument(
+        "--members",
+        nargs="+",
+        type=int,
+        default=None,
+        help="Ensemble indices to keep (e.g. IFS-ENS every fifth of 50: 0 5 ... 45).",
+    )
     args = p.parse_args()
 
     # consolidated=True is required for WB2 2022-2023 / 2024-2025: the raw
@@ -194,7 +204,7 @@ def main() -> int:
                                 truth_local = truth_ds.sel(time=valid_time)
                             except KeyError:
                                 continue
-                        out = _compute_for_init(sub, truth_local, var, lead, lvl)
+                        out = _compute_for_init(sub, truth_local, var, lead, lvl, args.members)
                         if out is None:
                             continue
                         spread2_acc.append(out["spread2"])
