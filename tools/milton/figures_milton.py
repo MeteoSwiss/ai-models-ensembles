@@ -67,17 +67,18 @@ def load():
 
 
 def f1_track_spaghetti(master):
-    """3 init rows x 3 baseline cols. Selected inits: 02 00 / 04 00 / 06 00.
+    """3 init rows x 4 baseline cols. Selected inits: 02 00 / 04 00 / 06 00.
 
-    Reviewer asked to show only IFS-ENS, AIFS and AIFS-ENS, in that order.
+    Reviewer asked to show only IFS-ENS, AIFS and AIFS-ENS, in that order; the
+    weight-only AIFS sits next to its weight+IC sibling as in f3_cascading_combined.
     """
-    f1_baselines = ["ifs_ens", "aifs_perturbed_ic", "aifsens"]
+    f1_baselines = ["ifs_ens", "aifs_perturbed", "aifs_perturbed_ic", "aifsens"]
     init_picks = ["20241002_0000", "20241004_0000", "20241006_0000"]
     nrows, ncols = len(init_picks), len(f1_baselines)
     fig, axes = plt.subplots(
         nrows,
         ncols,
-        figsize=(ncols * 3.2, nrows * 2.6),
+        figsize=(ncols * 3.2, nrows * 2.1),
         subplot_kw={"projection": ccrs.PlateCarree(central_longitude=270)},
     )
     # IBTrACS truth track
@@ -108,18 +109,13 @@ def f1_track_spaghetti(master):
                 ax.plot(
                     tk["lon"],
                     tk["lat"],
-                    color=BASELINE_COLORS.get(b, "black"),
+                    color=color_for(b),
                     linewidth=0.5,
                     alpha=0.6,
                     transform=ccrs.PlateCarree(),
                 )
             n_det = sub["member"].nunique()
-            ax.set_title(
-                f"{disp(b)}  ({n_det}/10)"
-                if r == 0
-                else f"{init_tag[6:8]} {init_tag[9:11]} UTC  {disp(b)}  ({n_det}/10)",
-                fontsize=9,
-            )
+            ax.set_title(f"{disp(b)}  ({n_det}/10)", fontsize=12)
             if c == 0:
                 ax.text(
                     -0.18,
@@ -128,7 +124,7 @@ def f1_track_spaghetti(master):
                     rotation=90,
                     transform=ax.transAxes,
                     va="center",
-                    fontsize=9,
+                    fontsize=12,
                 )
     fig.tight_layout(h_pad=0.2)
     fig.subplots_adjust(hspace=0.05)
