@@ -23,10 +23,10 @@ PARTITION="${PARTITION:-normal}"
 TIME_LIMIT="${TIME_LIMIT:-06:00:00}"
 
 # WeatherBench2 ERA5 reference data (covers 2022-2025)
-WB2_PATHS='[
-    "${AIENS_WB2_22:-/capstor/store/cscs/swissai/weatherbench/weatherbench2_2022_2023.zarr}",
-    "${AIENS_WB2_24:-/capstor/store/cscs/swissai/weatherbench/weatherbench2_2024_2025.zarr}"
-  ]'
+WB2_PATHS="[
+    \"${AIENS_WB2_22:-/capstor/store/cscs/swissai/weatherbench/weatherbench2_2022_2023.zarr}\",
+    \"${AIENS_WB2_24:-/capstor/store/cscs/swissai/weatherbench/weatherbench2_2024_2025.zarr}\"
+  ]"
 
 # Init times (must match submit_ablation.sh)
 INIT_TIMES=(
