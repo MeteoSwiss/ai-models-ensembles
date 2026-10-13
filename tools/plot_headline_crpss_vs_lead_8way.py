@@ -39,6 +39,14 @@ parser.add_argument(
     default=None,
     help="WB2 clim-CRPS denominator JSON (default: tools/data/crps_clim_eval_1990_2019.json)",
 )
+parser.add_argument(
+    "--with-aifs-det",
+    action="store_true",
+    help="Talk variant: add the unperturbed AIFS (sigma=0, single-member CRPS = MAE) as a grey line",
+)
+parser.add_argument(
+    "--out", type=Path, default=None, help="Output PDF path (a PNG is written alongside)"
+)
 cli = parser.parse_args()
 
 CSV = str(INTERCOMP / "probabilistic" / "temporal_metrics_combined.csv")
@@ -48,7 +56,13 @@ CRPS_CLIM = (
     else str(Path(__file__).resolve().parent / "data" / "crps_clim_eval_1990_2019.json")
 )
 AIFS_PERT_PROB = BASELINES / "aifs_perturbed/eval/probabilistic"
-OUT = str(FIGURES / "headline_crpss_vs_lead_8way.pdf")
+AIFS_DET_DET = BASELINES / "aifs_det/eval/deterministic"
+if cli.out is not None:
+    OUT = str(cli.out)
+elif cli.with_aifs_det:
+    OUT = str(FIGURES / "talk" / "headline_crpss_vs_lead_8way_aifs_det.pdf")
+else:
+    OUT = str(FIGURES / "headline_crpss_vs_lead_8way.pdf")
 
 VARS_2D = ["2m_temperature", "mean_sea_level_pressure"]
 VARS_3D = [
@@ -140,6 +154,24 @@ def _load_perbase(root, model):
 
 
 _load_perbase(AIFS_PERT_PROB, "aifs_perturbed")
+
+
+def _load_det_mae(root, model):
+    """SwissClim deterministic long CSV (lead_time_hours, variable, level, MAE).
+    For a single member the CRPS reduces to the MAE, so the MAE goes into
+    `data` in place of the CRPS.
+    """
+    (path,) = root.glob("deterministic_metrics_by_lead_long_*.csv")
+    with open(path) as f:
+        for row in csv.DictReader(f):
+            if row["variable"] not in VARS_2D + VARS_3D:
+                continue
+            lvl = None if row["variable"] in VARS_2D else float(row["level"])
+            data[(model, row["variable"], int(row["lead_time_hours"]), lvl)] = float(row["MAE"])
+
+
+if cli.with_aifs_det:
+    _load_det_mae(AIFS_DET_DET, "aifs_det")
 LEADS = sorted({k[2] for k in data})
 
 
@@ -184,6 +216,18 @@ for m in MODELS:
         ys.append(v)
     ax.plot(xs, ys, label=PRETTY[m], color=COLOUR[m], linestyle=STYLE[m], linewidth=1.6)
 
+if cli.with_aifs_det:
+    det = [(lead, crpss("aifs_det", lead)) for lead in LEADS if lead > 0]
+    det = [(x, y) for x, y in det if y is not None]
+    ax.plot(
+        [x for x, _ in det],
+        [y for _, y in det],
+        label=r"AIFS ($\sigma=0$)",
+        color="#A6A6A6",
+        linestyle="-",
+        linewidth=1.6,
+    )
+
 # Reference baselines:
 # (a) Climatology: CRPSS = 0 exactly, by definition of the CRPSS denominator.
 # (b) Persistence: forecast(t+h) = analysis(t). Empirical MAE from
@@ -191,6 +235,8 @@ for m in MODELS:
 #     converted to CRPSS using the same WB2 clim-CRPS denominator as the models.
 if cli.persistence_json is not None:
     PERSISTENCE_JSON = cli.persistence_json
+elif (Path(__file__).resolve().parent / "data" / "persistence_mae_112inits.json").exists():
+    PERSISTENCE_JSON = Path(__file__).resolve().parent / "data" / "persistence_mae_112inits.json"
 elif (SCRATCH / "persistence_mae_112inits.json").exists():
     PERSISTENCE_JSON = SCRATCH / "persistence_mae_112inits.json"
 else:
@@ -239,6 +285,9 @@ else:
 ax.axhline(0, color="black", linewidth=1.0, linestyle="--", alpha=0.6, label="Climatology")
 ax.set_xlim(0, 360)
 ax.set_ylim(-0.1, 1.0)  # cut below -0.1: persistence dives off-axis after the first 2 leads
+if cli.with_aifs_det:
+    # Single-member MAE drops well below the probabilistic climatology at long leads.
+    ax.set_ylim(min(-0.1, math.floor(min(y for _, y in det) * 10 - 0.5) / 10), 1.0)
 ax.set_xticks([0, 24, 72, 120, 168, 240, 312, 360])
 ax.set_xlabel("Lead time (h)")
 ax.set_ylabel("CRPSS (variable-mean, 7 paper variables)")
@@ -260,6 +309,8 @@ plt.tight_layout(rect=(0, 0.10, 1, 1))
 Path(OUT).parent.mkdir(parents=True, exist_ok=True)
 plt.savefig(OUT, dpi=300, bbox_inches="tight")
 print(f"-> {OUT}")
+if cli.with_aifs_det:
+    plt.savefig(str(Path(OUT).with_suffix(".png")), dpi=300, bbox_inches="tight")
 
 # Sanity check: report 240 h CRPSS in order
 print("\nCRPSS @ 240 h:")
@@ -267,3 +318,5 @@ ordered = sorted(MODELS, key=lambda m: -(crpss(m, 240) or -99))
 for m in ordered:
     v = crpss(m, 240)
     print(f"  {PRETTY[m]:25s} {v:.3f}" if v is not None else f"  {PRETTY[m]:25s} --")
+if cli.with_aifs_det:
+    print(f"  {'AIFS (sigma=0, MAE)':25s} {crpss('aifs_det', 240):.3f}")

@@ -83,6 +83,9 @@ fi
 #   rival cells - the runner-up ablation configs within the +-0.02 CRPSS band
 #                of each production pick, rerun on held-out production inits
 #                -> review item 3.
+# Talk-only (2026-10-13): aifs_det - unperturbed deterministic AIFS (sigma=0,
+#                1 member), scored as single-member CRPS = MAE on the headline
+#                CRPSS figure (talk variant, not the paper figure).
 MODELS="fcn3 atlas aifsens sfno_modes10 aurora_encoder graphcast_all aifs_perturbed"
 IC_ZARR="/capstor/store/cscs/swissai/a122/IFS/ifs_analysis_perturbed_ic.zarr"
 IC_ONLY_MODELS="aurora_ic_only graphcast_ic_only sfno_ic_only aifs_ic_only"
@@ -96,6 +99,7 @@ declare -A MODEL_IDS=(
     [aurora_enc_s044]=aurora [graphcast_m2g]=graphcast_operational
     [graphcast_g2m]=graphcast_operational [sfno_enc_s054]=sfno
     [sfno_enc_s035]=sfno [aifs_all_s010]=aifs
+    [aifs_det]=aifs
 )
 declare -A DATA_SRC=(
     [fcn3]=arco [atlas]=arco [aifsens]=cds
@@ -105,6 +109,7 @@ declare -A DATA_SRC=(
     [sfno_ic_only]=arco [aifs_ic_only]=cds
     [aurora_enc_s044]=arco [graphcast_m2g]=arco [graphcast_g2m]=arco
     [sfno_enc_s054]=arco [sfno_enc_s035]=arco [aifs_all_s010]=cds
+    [aifs_det]=cds
 )
 declare -A CONTAINER_BASE=(
     [fcn3]=fcn3 [atlas]=atlas [aifsens]=aifsens
@@ -115,6 +120,11 @@ declare -A CONTAINER_BASE=(
     [aurora_enc_s044]=aurora [graphcast_m2g]=graphcast
     [graphcast_g2m]=graphcast [sfno_enc_s054]=sfno
     [sfno_enc_s035]=sfno [aifs_all_s010]=aifs
+    [aifs_det]=aifs
+)
+# Per-model member count (default NUM_MEMBERS).
+declare -A MEMBERS=(
+    [aifs_det]=1
 )
 # Per-model extra inference flags (post-hoc perturbation recipe per variant).
 declare -A EXTRA_FLAGS=(
@@ -171,6 +181,7 @@ for model in $REQUESTED; do
     container="$STORE/${CONTAINER_BASE[$model]}.sqsh"
     dsrc="${DATA_SRC[$model]}"
     extra_flags="${EXTRA_FLAGS[$model]:-}"
+    n_members="${MEMBERS[$model]:-$NUM_MEMBERS}"
     # Per-init mode (default 0 / week-helper). Opt in via PER_INIT=1.
     per_init="${PER_INIT:-0}"
 
@@ -269,7 +280,7 @@ for model in $REQUESTED; do
                         --container-image="$container" \
                         --container-mounts="$mounts" \
                         --container-workdir="$WORKDIR" \
-                        --wrap="python -m ai_models_ensembles.cli infer --model $model_id --init '${init_time}' --lead-hours $LEAD_HOURS --members $NUM_MEMBERS --data-source $dsrc --output-levels '$OUTPUT_LEVELS' --output-vars '$OUTPUT_VARS' --seed $SEED ${extra_flags} --output '${out_zarr}'")
+                        --wrap="python -m ai_models_ensembles.cli infer --model $model_id --init '${init_time}' --lead-hours $LEAD_HOURS --members $n_members --data-source $dsrc --output-levels '$OUTPUT_LEVELS' --output-vars '$OUTPUT_VARS' --seed $SEED ${extra_flags} --output '${out_zarr}'")
                     echo "  $job_tag -> $jobid (+${delay}min)"
                     [[ "$CHAIN" == "1" ]] && LAST_JOB[$model]="$jobid"
                     count=$((count + 1))
@@ -312,7 +323,7 @@ python -m ai_models_ensembles.cli infer \\
     --model $model_id \\
     --init '${init_time}' \\
     --lead-hours $LEAD_HOURS \\
-    --members $NUM_MEMBERS \\
+    --members $n_members \\
     --data-source $dsrc \\
     --output-levels '$OUTPUT_LEVELS' \\
     --output-vars '$OUTPUT_VARS' \\
