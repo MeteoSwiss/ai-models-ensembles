@@ -13,6 +13,10 @@ day and hour, years as members):
       tools/compute_ens_anomalies.py (28 inits), subsampled to BAND_MAX for the KDE.
   figures/ens_anom/point_members_<point>_<init>_<lead>h.{png,pdf}
       the 10 member values of each model at one point and one init on a value axis.
+  figures/ens_anom/point_member_qq_<point>_<init>_<lead>h.{png,pdf}
+      normal Q-Q of the same 10 members per model with the 95% simultaneous envelope of
+      10 Gaussian members (the ensemble's own mean and std) and the Shapiro-Wilk p-value;
+      also the fraction of the 112 inits whose ensemble at this point rejects at 5%.
 
 Usage: python tools/plot_point_ensemble.py [--lead 240] [--member-point zurich --member-init 20230102_0000]
 """
@@ -26,8 +30,9 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.stats import gaussian_kde
+from scipy.stats import gaussian_kde, shapiro
 
+from model_colors import color_for
 from plot_ens_anom_gaussianity import (
     BIG_RC,
     CLIM,
@@ -35,15 +40,21 @@ from plot_ens_anom_gaussianity import (
     FIGDIR,
     INDIR,
     LABEL,
+    NULL_COLOR,
+    NULL_SEED,
     SPW,
+    SW_ALPHA,
     TRAINED,
     VAR_SHORT,
+    gaussian_null,
     model_line,
     phys,
     style_axes,
 )
 
 SEED = 2026
+QQ_SIMS = 200_000
+QQ_LEVEL = 0.95
 POINTS = [
     ("ny_alesund", "Ny-Ålesund"),
     ("zurich", "Zurich"),
@@ -217,6 +228,81 @@ def plot_members(lead: int, point: str, init: str) -> None:
         plt.close(fig)
 
 
+def gaussian_order_stats(M: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Mean and QQ_LEVEL simultaneous envelope of the sorted standardized sample of M N(0,1)."""
+    z = np.sort(gaussian_null((QQ_SIMS, M, 1), NULL_SEED)[..., 0], axis=1)
+    lo_b, hi_b = 0.0, 1.0 - QQ_LEVEL
+    for _ in range(30):  # largest pointwise tail prob whose band still holds QQ_LEVEL of curves
+        b = 0.5 * (lo_b + hi_b)
+        lo, hi = np.quantile(z, [b / 2, 1 - b / 2], axis=0)
+        cover = np.mean(np.all((z >= lo) & (z <= hi), axis=1))
+        lo_b, hi_b = (b, hi_b) if cover >= QQ_LEVEL else (lo_b, b)
+    lo, hi = np.quantile(z, [lo_b / 2, 1 - lo_b / 2], axis=0)
+    return z.mean(axis=0), lo, hi
+
+
+def plot_member_qq(lead: int, point: str, init: str) -> None:
+    f = np.load(INDIR / f"point_{point}.npz")
+    li = int(np.flatnonzero(f["lead_hours"] == lead)[0])
+    j = list(f["inits"]).index(init)
+    title = dict(POINTS + OPPOSITE_POINTS)[point]
+    labels = list(f["labels"])
+    names = SPW + TRAINED
+    M = f[names[0]].shape[-1]
+    ref, lo, hi = gaussian_order_stats(M)
+    with plt.rc_context(BIG_RC):
+        fig, axes = plt.subplots(
+            len(FEATURE), len(names), figsize=(28, 13), sharex=True, sharey="row"
+        )
+        for r, var in enumerate(FEATURE):
+            scale, unit = phys(var)
+            k = labels.index(var)
+            for c, name in enumerate(names):
+                ax = axes[r, c]
+                ens = f[name][k, li].astype(np.float64)
+                x = np.sort(ens[j]) * scale
+                mu, sd = x.mean(), x.std(ddof=1)
+                ax.fill_between(ref, mu + sd * lo, mu + sd * hi, color=NULL_COLOR, alpha=0.3, lw=0)
+                ax.plot(ref, mu + sd * ref, color=NULL_COLOR, lw=2)
+                ax.plot(ref, x, "o", color=color_for(name), ms=9, mec="white", mew=0.8)
+                p = shapiro(x).pvalue
+                rate = np.mean(shapiro(ens, axis=-1).pvalue < SW_ALPHA)
+                ax.text(
+                    0.04,
+                    0.96,
+                    f"p = {p:.2f}\nall inits: {100 * rate:.0f}% < {SW_ALPHA}",
+                    transform=ax.transAxes,
+                    va="top",
+                    fontsize=13,
+                    color="#B00020" if p < SW_ALPHA else "black",
+                )
+                style_axes(ax)
+                if r == 0:
+                    ax.set_title(LABEL[name], color=color_for(name), fontweight="bold")
+                if r == len(FEATURE) - 1:
+                    ax.set_xlabel("Gaussian quantile")
+            axes[r, 0].set_ylabel(f"{VAR_SHORT[var]} [{unit}]")
+        t0 = f"{init[:4]}-{init[4:6]}-{init[6:8]} {init[9:11]} UTC"
+        fig.suptitle(f"Normal Q-Q of the {M} members, {title} ({coords(f)}), init {t0}, +{lead} h")
+        fig.text(
+            0.5,
+            0.935,
+            f"dots: sorted members;   grey line and band: Gaussian with the ensemble's own mean "
+            f"and std, {QQ_LEVEL:.0%} simultaneous envelope for {M} Gaussian members;   "
+            f"p: Shapiro-Wilk;   all inits: share of the {f['inits'].size} inits at this point "
+            f"with p < {SW_ALPHA} ({SW_ALPHA:.0%} if every ensemble is Gaussian)",
+            ha="center",
+            fontsize=13,
+        )
+        fig.tight_layout(rect=(0, 0, 1, 0.925))
+        FIGDIR.mkdir(parents=True, exist_ok=True)
+        for ext in ("png", "pdf"):
+            out = FIGDIR / f"point_member_qq_{point}_{init}_{lead}h.{ext}"
+            fig.savefig(out, dpi=200)
+            print(f"saved {out}")
+        plt.close(fig)
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--lead", type=int, default=240)
@@ -226,6 +312,7 @@ def main() -> None:
     ap.add_argument("--members-only", action="store_true")
     args = ap.parse_args()
     plot_members(args.lead, args.member_point, args.member_init)
+    plot_member_qq(args.lead, args.member_point, args.member_init)
     if args.members_only:
         return
     plot_points(args.lead, POINTS, f"point_grid_values_{args.lead}h")

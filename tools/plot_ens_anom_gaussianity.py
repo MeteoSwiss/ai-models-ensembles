@@ -14,10 +14,15 @@ era5_clim):
       the same for the standardized anomaly z = (x_m - mean) / std against those Gaussian
       members standardized the same way. z removes each forecast's location and scale, so
       Gaussian members at every gridpoint and init give exactly 0 even after pooling.
+  figures/ens_anom/member_shapiro_rate.{png,pdf}
+      share of the single ensembles (one init, one gridpoint) whose 10 members reject
+      Gaussianity in a Shapiro-Wilk test at 5%, against lead time. Each test sees one
+      forecast only, so a mixture over inits cannot raise it. References: Gaussian members
+      (the test's own size) and three non-Gaussian member distributions at the same M.
 
 The styling helpers here are shared with tools/plot_point_ensemble.py.
 
-Usage: python tools/plot_ens_anom_gaussianity.py [--lead 240]
+Usage: python tools/plot_ens_anom_gaussianity.py [--lead 240] [--shapiro-only]
 """
 
 from __future__ import annotations
@@ -30,7 +35,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.stats import norm
+from scipy.stats import norm, shapiro
 
 from _env import FIGURES, STORE
 from model_colors import color_for, style_for
@@ -62,6 +67,17 @@ PHYS = {
 }
 NULL_SEED = 1234
 NULL_COLOR = "#9AA0A6"
+SW_ALPHA = 0.05
+SW_SIMS = 200_000
+SW_BOOT = 2000
+SW_REFS = [  # non-Gaussian member distributions: (label, sampler(rng, shape))
+    ("Laplace members", lambda rng, n: rng.laplace(size=n)),
+    ("gamma k=4 members", lambda rng, n: rng.gamma(4.0, size=n)),
+    (
+        "two clusters at ±2 std",
+        lambda rng, n: rng.standard_normal(n) + np.where(rng.random(n) < 0.5, -2.0, 2.0),
+    ),
+]
 QQ_PROBS = norm.cdf(np.linspace(-3.3, 3.3, 121))
 Z_POOL = "pooled over 28 inits x 2048 points x 10 members"
 A_EQ = r"$a_m = x_m - \bar{x}$"
@@ -152,10 +168,94 @@ def panel_qq_z(ax, data, nulls, k: int) -> None:
     style_axes(ax)
 
 
+def sw_reject_rate(z: np.ndarray) -> np.ndarray:
+    """z (nlead, ninit, M, npts) -> (nlead, ninit) share of points with Shapiro p < SW_ALPHA."""
+    p = shapiro(np.moveaxis(z, 2, -1), axis=-1).pvalue
+    return np.nanmean(np.where(np.isfinite(p), p < SW_ALPHA, np.nan), axis=-1)
+
+
+def plot_shapiro_rate() -> None:
+    rng = np.random.default_rng(NULL_SEED)
+    rates, leads = {}, None
+    for name in SPW + TRAINED + [CLIM]:
+        f = np.load(INDIR / f"{name}.npz")
+        labels = list(f["labels"])
+        z = f["z"]
+        rates[name] = np.stack([sw_reject_rate(z[labels.index(v)]) for v in FEATURE])
+        leads, M = f["lead_hours"], z.shape[3]
+        del z
+        print(f"  {name}: {np.round(100 * rates[name][:, -1].mean(-1), 1)} % at {leads[-1]} h")
+    size = np.mean(shapiro(rng.standard_normal((SW_SIMS, M)), axis=-1).pvalue < SW_ALPHA)
+    refs = [
+        (lab, np.mean(shapiro(draw(rng, (SW_SIMS, M)), axis=-1).pvalue < SW_ALPHA))
+        for lab, draw in SW_REFS
+    ]
+    print(
+        f"  Gaussian members {100 * size:.2f} %, "
+        + ", ".join(f"{a} {100 * r:.1f} %" for a, r in refs)
+    )
+
+    with plt.rc_context(BIG_RC):
+        fig, axes = plt.subplots(1, len(FEATURE), figsize=(20, 7.4), sharey=True)
+        for k, (ax, var) in enumerate(zip(axes, FEATURE, strict=True)):
+            ax.axhline(100 * size, color=NULL_COLOR, lw=3.6, label="Gaussian members")
+            for lab, r in refs:
+                ax.axhline(100 * r, color=NULL_COLOR, lw=1.2, ls=":")
+                if k == len(FEATURE) - 1:
+                    ax.annotate(
+                        f"{lab} ({100 * r:.0f}%)",
+                        xy=(1, 100 * r),
+                        xycoords=("axes fraction", "data"),
+                        xytext=(6, 0),
+                        textcoords="offset points",
+                        va="center",
+                        fontsize=12,
+                        color="#5F6368",
+                    )
+            for name, rate in rates.items():
+                r = rate[k]
+                boot = rng.integers(0, r.shape[1], (SW_BOOT, r.shape[1]))
+                lo, hi = np.percentile(r[:, boot].mean(-1), [2.5, 97.5], axis=1)
+                color = "black" if name == CLIM else color_for(name)
+                ax.fill_between(leads, 100 * lo, 100 * hi, color=color, alpha=0.12, lw=0)
+                model_line(ax, name, leads, 100 * r.mean(-1), lw=2.4)
+            ax.set_title(VAR_SHORT[var])
+            ax.set_xlabel("lead time [h]")
+            ax.set_xticks(leads[1::2])
+            style_axes(ax)
+        axes[0].set_ylabel(f"ensembles rejecting Gaussianity at {SW_ALPHA:.0%} [%]")
+        axes[0].set_ylim(0, None)
+        handles, names = axes[0].get_legend_handles_labels()
+        fig.legend(handles, names, loc="lower center", ncol=len(handles), frameon=False)
+        fig.suptitle(
+            f"Shapiro-Wilk test on each single ensemble ({M} members at one init and one gridpoint)"
+        )
+        fig.text(
+            0.5,
+            0.905,
+            f"share of the 28 inits x 2048 cos-lat points that reject at {SW_ALPHA:.0%};   "
+            "band: 95% bootstrap over inits;   dotted: the same test on non-Gaussian members "
+            f"(M = {M})",
+            ha="center",
+            fontsize=13,
+        )
+        fig.tight_layout(rect=(0, 0.07, 0.9, 0.9))
+        for ext in ("png", "pdf"):
+            out = FIGDIR / f"member_shapiro_rate.{ext}"
+            fig.savefig(out, dpi=200)
+            print(f"saved {out}")
+        plt.close(fig)
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--lead", type=int, default=240)
+    ap.add_argument("--shapiro-only", action="store_true")
     args = ap.parse_args()
+    FIGDIR.mkdir(parents=True, exist_ok=True)
+    plot_shapiro_rate()
+    if args.shapiro_only:
+        return
 
     data, nulls = {}, {}
     for name in SPW + TRAINED + [CLIM]:
@@ -167,7 +267,6 @@ def main() -> None:
         seed = NULL_SEED + 3 if name == CLIM else NULL_SEED
         nulls[name] = gaussian_null(data[name][0].shape, seed)
 
-    FIGDIR.mkdir(parents=True, exist_ok=True)
     with plt.rc_context(BIG_RC):
         for kind in ("values", "qq", "qq_z"):
             fig, axes = plt.subplots(1, len(FEATURE), figsize=(20, 7.4))
