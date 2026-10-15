@@ -322,11 +322,9 @@ def plot_member_qq(lead: int, point: str, init: str) -> None:
                 x = np.sort(members[r, c]) * scale
                 ref, (lo, hi) = nulls[x.size].ref, bands[x.size]
                 mu, sd = x.mean(), x.std(ddof=1)
-                out = (x < mu + sd * lo) | (x > mu + sd * hi)
                 ax.fill_between(ref, mu + sd * lo, mu + sd * hi, color=NULL_COLOR, alpha=0.3, lw=0)
                 ax.plot(ref, mu + sd * ref, color=NULL_COLOR, lw=2)
                 ax.plot(ref, x, "o", color=line_color(name), ms=8, mec="white", mew=0.8)
-                ax.plot(ref[out], x[out], "o", mfc="none", mec=SIG_COLOR, ms=13, mew=2.2)
                 sig = qvals[r, c] < SW_Q
                 ax.text(
                     0.04,
@@ -350,7 +348,7 @@ def plot_member_qq(lead: int, point: str, init: str) -> None:
             "Gaussian with the ensemble's own mean and std\n"
             "grey band: range of Gaussian samples of the same size, widened for testing "
             f"{int(ok.sum())} panels at once (Benjamini-Hochberg, FDR {SW_Q:.0%});   "
-            f"red ring: member outside the band = non-Gaussian;   adj. p: the same test as a "
+            f"member outside the band = non-Gaussian;   adj. p: the same test as a "
             "p-value (global envelope test, BH-adjusted)",
             ha="center",
             va="top",
