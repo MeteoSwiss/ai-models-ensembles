@@ -20,7 +20,7 @@ day and hour, years as members):
       adjusted over the panels (red: significant at FDR 5%); also the fraction of the 112
       inits whose ensemble at this point has p < 0.05.
 
-Usage: python tools/plot_point_ensemble.py [--lead 240] [--member-point zurich --member-init 20230102_0000]
+Usage: python tools/plot_point_ensemble.py [--lead 240] [--member-point zurich --member-init 20231005_0000]
 """
 
 from __future__ import annotations
@@ -245,6 +245,10 @@ def gaussian_order_stats(M: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     return z.mean(axis=0), lo, hi
 
 
+def fmt_p(p: float) -> str:
+    return f"{p:.2f}" if p >= 0.01 else f"{p:.0e}"
+
+
 def plot_member_qq(lead: int, point: str, init: str) -> None:
     f = np.load(INDIR / f"point_{point}.npz")
     li = int(np.flatnonzero(f["lead_hours"] == lead)[0])
@@ -299,7 +303,7 @@ def plot_member_qq(lead: int, point: str, init: str) -> None:
                 ax.text(
                     0.04,
                     0.96,
-                    f"p = {pvals[r, c]:.2f}, BH {qvals[r, c]:.2f}\n"
+                    f"p = {fmt_p(pvals[r, c])}, BH {fmt_p(qvals[r, c])}\n"
                     f"all inits: {100 * rate:.0f}% < {SW_ALPHA}",
                     transform=ax.transAxes,
                     va="top",
@@ -338,7 +342,7 @@ def main() -> None:
     ap.add_argument("--lead", type=int, default=240)
     ap.add_argument("--band-max", type=int, default=BAND_MAX)
     ap.add_argument("--member-point", default="zurich")
-    ap.add_argument("--member-init", default="20230102_0000")
+    ap.add_argument("--member-init", default="20231005_0000")
     ap.add_argument("--members-only", action="store_true")
     args = ap.parse_args()
     plot_members(args.lead, args.member_point, args.member_init)
