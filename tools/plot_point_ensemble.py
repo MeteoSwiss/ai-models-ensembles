@@ -45,6 +45,7 @@ from plot_ens_anom_gaussianity import (
     NULL_SEED,
     SPW,
     SW_Q,
+    TEST_FEATURE,
     TRAINED,
     VAR_SHORT,
     gaussian_null,
@@ -278,11 +279,11 @@ def plot_member_qq(lead: int, point: str, init: str) -> None:
     names = SPW + TRAINED + IFS + [CLIM]
     members = {
         (r, c): f[n][labels.index(v), li, j].astype(np.float64)
-        for r, v in enumerate(FEATURE)
+        for r, v in enumerate(TEST_FEATURE)
         for c, n in enumerate(names)
     }
     nulls = {M: EnvelopeNull(M) for M in {x.size for x in members.values()}}
-    pvals = np.full((len(FEATURE), len(names)), np.nan)
+    pvals = np.full((len(TEST_FEATURE), len(names)), np.nan)
     for rc, x in members.items():
         if np.isfinite(x).all():
             pvals[rc] = nulls[x.size].pvalue(x)
@@ -294,9 +295,9 @@ def plot_member_qq(lead: int, point: str, init: str) -> None:
     bands = {M: null.band(alpha) for M, null in nulls.items()}
     with plt.rc_context(BIG_RC):
         fig, axes = plt.subplots(
-            len(FEATURE), len(names), figsize=(38, 13), sharex=True, sharey="row"
+            len(TEST_FEATURE), len(names), figsize=(38, 17), sharex=True, sharey="row"
         )
-        for r, var in enumerate(FEATURE):
+        for r, var in enumerate(TEST_FEATURE):
             scale, unit = phys(var)
             for c, name in enumerate(names):
                 ax = axes[r, c]
@@ -305,7 +306,7 @@ def plot_member_qq(lead: int, point: str, init: str) -> None:
                     M = f[name].shape[-1]
                     head = LABEL[name] + (f", {M} years" if name == CLIM else "")
                     ax.set_title(head, color=line_color(name), fontweight="bold")
-                if r == len(FEATURE) - 1:
+                if r == len(TEST_FEATURE) - 1:
                     ax.set_xlabel("Gaussian quantile")
                 if not ok[r, c]:
                     ax.text(
@@ -343,7 +344,7 @@ def plot_member_qq(lead: int, point: str, init: str) -> None:
         )
         fig.text(
             0.5,
-            0.95,
+            0.96,
             "dots: sorted members (ERA5: the same calendar day and hour in each year);   grey line: "
             "Gaussian with the ensemble's own mean and std\n"
             "grey band: range of Gaussian samples of the same size, widened for testing "
@@ -354,7 +355,7 @@ def plot_member_qq(lead: int, point: str, init: str) -> None:
             va="top",
             fontsize=13,
         )
-        fig.tight_layout(rect=(0, 0, 1, 0.9))
+        fig.tight_layout(rect=(0, 0, 1, 0.925))
         FIGDIR.mkdir(parents=True, exist_ok=True)
         for ext in ("png", "pdf"):
             out = FIGDIR / f"point_member_qq_{point}_{init}_{lead}h.{ext}"

@@ -31,7 +31,7 @@ Output: $AIENS_STORE/analysis/ens_anom_gaussianity/<baseline>[_<tag>].npz
 Usage (CPU sbatch): python tools/compute_ens_anomalies.py --baselines all era5_clim
   Shapiro-Wilk sample (figures/ens_anom/member_shapiro_rate): --baselines all era5_clim ifs_ens
   --init-stride 1 --n-points 8192 --vars 2m_temperature specific_humidity_850
-  geopotential_500 --tag sw --p-only
+  geopotential_500 10m_wind_speed --tag sw --p-only
 """
 
 from __future__ import annotations
@@ -65,6 +65,7 @@ VARS = [
     ("mean_sea_level_pressure", None),
     ("10m_u_component_of_wind", None),
     ("10m_v_component_of_wind", None),
+    ("10m_wind_speed", None),
     ("geopotential", 500),
     ("geopotential", 850),
     ("temperature", 500),
@@ -83,6 +84,7 @@ POINT_SEED = 0
 CLIM_NAME = "era5_clim"
 CLIM_YEARS = list(range(1990, 2020))
 CLIM_GROUPS = 3
+WIND_SPEED = "10m_wind_speed"  # derived from the 10 m wind components in every source
 IFS_NAME = "ifs_ens"  # all 50 perturbed members of the WB2 IFS-ENS zarr (no control)
 IFS10_NAME = "ifs_ens10"
 IFS10_MEMBERS = list(range(0, 50, 5))  # the 10-member IFS-ENS of the CRPSS / SSR figures
@@ -113,6 +115,13 @@ def standardize(x: np.ndarray, axis: int) -> tuple[np.ndarray, np.ndarray, np.nd
 def sw_pvalue(z: np.ndarray, axis: int) -> np.ndarray:
     """Shapiro-Wilk p-value of the members on `axis` (NaN where the members are constant)."""
     return shapiro(np.moveaxis(z, axis, -1), axis=-1).pvalue.astype(np.float32)
+
+
+def field(ds: xr.Dataset, var: str, lev) -> xr.DataArray:
+    """(var, lev) of ds. Select time and lead on ds first: the wind speed loads both components."""
+    if var == WIND_SPEED:
+        return np.hypot(ds["10m_u_component_of_wind"], ds["10m_v_component_of_wind"])
+    return ds[var] if lev is None else ds[var].sel(level=lev)
 
 
 def var_label(var: str, lev) -> str:
@@ -160,17 +169,14 @@ def members_out(x: np.ndarray, axis: int) -> tuple[np.ndarray, ...]:
 
 
 def process_init(path: str, ilat: np.ndarray, ilon: np.ndarray, vars_) -> tuple[np.ndarray, ...]:
-    ds = xr.open_zarr(path, chunks=None)
+    ds = xr.open_zarr(path, chunks=None).isel(init_time=0)
     lead_h = (ds.lead_time.values / np.timedelta64(1, "h")).astype(int)
     li = [int(np.flatnonzero(lead_h == h)[0]) for h in LEAD_HOURS]
     x = np.empty((len(vars_), len(LEAD_HOURS), ds.sizes["ensemble"], ilat.size), np.float32)
     for k, (var, lev) in enumerate(vars_):
-        da = ds[var].isel(init_time=0)
-        if lev is not None:
-            da = da.sel(level=lev)
         for j, lt in enumerate(li):
-            v = da.isel(lead_time=lt).transpose("ensemble", "latitude", "longitude").values
-            x[k, j] = v[:, ilat, ilon]
+            da = field(ds.isel(lead_time=lt), var, lev)
+            x[k, j] = da.transpose("ensemble", "latitude", "longitude").values[:, ilat, ilon]
     return members_out(x, axis=2)
 
 
@@ -182,10 +188,9 @@ def process_ifs_init(init: str, ilat: np.ndarray, ilon: np.ndarray, vars_) -> tu
     )
     x = np.empty((len(vars_), len(LEAD_HOURS), ds.sizes["ensemble"], ilat.size), np.float32)
     for k, (var, lev) in enumerate(vars_):
-        da = ds[var] if lev is None else ds[var].sel(level=lev)
         for j in range(len(LEAD_HOURS)):
-            v = da.isel(lead_time=j).transpose("ensemble", "latitude", "longitude").values
-            x[k, j] = v[:, ilat, ilon]
+            da = field(ds.isel(lead_time=j), var, lev)
+            x[k, j] = da.transpose("ensemble", "latitude", "longitude").values[:, ilat, ilon]
     return members_out(x, axis=2), members_out(x[:, :, IFS10_MEMBERS], axis=2)
 
 
@@ -196,15 +201,14 @@ def process_clim_time(
     ds = xr.open_zarr(WB2_ORIGINAL, consolidated=True, chunks=None)
     x = np.empty((len(vars_), len(CLIM_YEARS), ilat.size), np.float32)
     for y, year in enumerate(CLIM_YEARS):
-        t = np.datetime64(f"{year}-{month:02d}-{day:02d}T{hour:02d}")
+        dt = ds.sel(time=np.datetime64(f"{year}-{month:02d}-{day:02d}T{hour:02d}"))
         for var in dict.fromkeys(v for v, _ in vars_):
             rows = [k for k, (v, _) in enumerate(vars_) if v == var]
             levs = [vars_[k][1] for k in rows]
-            da = ds[var].sel(time=t)
             if levs[0] is None:
-                x[rows[0], y] = da.values[ilat, ilon]
+                x[rows[0], y] = field(dt, var, None).values[ilat, ilon]
             else:
-                vals = da.sel(level=levs).values  # one read of the 37-level chunk
+                vals = dt[var].sel(level=levs).values  # one read of the 37-level chunk
                 for r, k in enumerate(rows):
                     x[k, y] = vals[r][ilat, ilon]
     groups = np.stack([x[:, g::CLIM_GROUPS] for g in range(CLIM_GROUPS)], axis=1)

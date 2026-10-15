@@ -38,6 +38,7 @@ from compute_ens_anomalies import (
     IFS_NAME,
     OUTDIR,
     VARS,
+    field,
 )
 
 sys.stdout.reconfigure(line_buffering=True)
@@ -64,16 +65,13 @@ def nearest(ds: xr.Dataset, lats, lons) -> tuple[np.ndarray, np.ndarray]:
 
 def process_init(path: str, lats, lons, leads: list[int]) -> np.ndarray:
     """(npoint, nvarlev, nlead, M)."""
-    ds = xr.open_zarr(path, chunks=None)
+    ds = xr.open_zarr(path, chunks=None).isel(init_time=0)
     ilat, ilon = nearest(ds, lats, lons)
     lead_h = (ds.lead_time.values / np.timedelta64(1, "h")).astype(int)
     out = np.empty((len(lats), len(VARS), len(leads), ds.sizes["ensemble"]), np.float32)
     for k, (var, lev) in enumerate(VARS):
-        da = ds[var].isel(init_time=0)
-        if lev is not None:
-            da = da.sel(level=lev)
         for j, h in enumerate(leads):
-            x = da.isel(lead_time=int(np.flatnonzero(lead_h == h)[0]))
+            x = field(ds.isel(lead_time=int(np.flatnonzero(lead_h == h)[0])), var, lev)
             out[:, k, j] = x.transpose("ensemble", "latitude", "longitude").values[:, ilat, ilon].T
     return out
 
@@ -84,9 +82,8 @@ def process_ifs_init(init: str, lats, lons, leads: list[int]) -> np.ndarray:
     ilat, ilon = nearest(ds, lats, lons)
     out = np.empty((len(lats), len(VARS), len(leads), ds.sizes["ensemble"]), np.float32)
     for k, (var, lev) in enumerate(VARS):
-        da = ds[var] if lev is None else ds[var].sel(level=lev)
         for j, h in enumerate(leads):
-            x = da.sel(lead_time=np.timedelta64(h, "h"))
+            x = field(ds.sel(lead_time=np.timedelta64(h, "h")), var, lev)
             out[:, k, j] = x.transpose("ensemble", "latitude", "longitude").values[:, ilat, ilon].T
     return out
 
@@ -97,15 +94,14 @@ def process_clim_time(month: int, day: int, hour: int, lats, lons) -> np.ndarray
     ilat, ilon = nearest(ds, lats, lons)
     out = np.empty((len(lats), len(VARS), len(CLIM_YEARS)), np.float32)
     for y, year in enumerate(CLIM_YEARS):
-        t = np.datetime64(f"{year}-{month:02d}-{day:02d}T{hour:02d}")
+        dt = ds.sel(time=np.datetime64(f"{year}-{month:02d}-{day:02d}T{hour:02d}"))
         for var in dict.fromkeys(v for v, _ in VARS):
             rows = [k for k, (v, _) in enumerate(VARS) if v == var]
             levs = [VARS[k][1] for k in rows]
-            da = ds[var].sel(time=t)
             if levs[0] is None:
-                out[:, rows[0], y] = da.values[ilat, ilon]
+                out[:, rows[0], y] = field(dt, var, None).values[ilat, ilon]
             else:
-                vals = da.sel(level=levs).values  # one read of the 37-level chunk
+                vals = dt[var].sel(level=levs).values  # one read of the 37-level chunk
                 for r, k in enumerate(rows):
                     out[:, k, y] = vals[r][ilat, ilon]
     return out

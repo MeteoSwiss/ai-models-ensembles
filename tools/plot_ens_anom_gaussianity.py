@@ -63,12 +63,19 @@ LABEL = {
     CLIM: "ERA5 climatology",
 }
 FEATURE = ["2m_temperature", "specific_humidity_850", "geopotential_500"]
-VAR_SHORT = {"2m_temperature": "T2m", "specific_humidity_850": "Q850", "geopotential_500": "Z500"}
+TEST_FEATURE = FEATURE + ["10m_wind_speed"]  # the single-ensemble tests
+VAR_SHORT = {
+    "2m_temperature": "T2m",
+    "specific_humidity_850": "Q850",
+    "geopotential_500": "Z500",
+    "10m_wind_speed": "WS10",
+}
 # native units -> display units; Z stays geopotential (see .claude/rules/plot-units.md)
 PHYS = {
     "2m_temperature": (1.0, "K"),
     "specific_humidity": (1000.0, "g/kg"),
     "geopotential": (1.0, "m²/s²"),
+    "10m_wind_speed": (1.0, "m/s"),
 }
 NULL_SEED = 1234
 NULL_COLOR = "#9AA0A6"
@@ -192,7 +199,7 @@ def plot_shapiro_rate() -> None:
         f = np.load(INDIR / f"{name}_{SW_TAG}.npz")
         labels, p = list(f["labels"]), f["p"]
         rates[name] = np.stack(
-            [[bh_share(p[labels.index(v), li]) for li in range(p.shape[1])] for v in FEATURE]
+            [[bh_share(p[labels.index(v), li]) for li in range(p.shape[1])] for v in TEST_FEATURE]
         )
         if name == SPW[0]:
             leads, n_init, npts = f["lead_hours"], f["inits"].size, p.shape[-1]
@@ -202,8 +209,8 @@ def plot_shapiro_rate() -> None:
     print(f"  Gaussian members {100 * size:.3f} %")
 
     with plt.rc_context(BIG_RC):
-        fig, axes = plt.subplots(1, len(FEATURE), figsize=(20, 7.8), sharey=True)
-        for k, (ax, var) in enumerate(zip(axes, FEATURE, strict=True)):
+        fig, axes = plt.subplots(1, len(TEST_FEATURE), figsize=(26, 7.8), sharey=True)
+        for k, (ax, var) in enumerate(zip(axes, TEST_FEATURE, strict=True)):
             for name, rate in rates.items():
                 r = rate[k]
                 boot = rng.integers(0, r.shape[1], (SW_BOOT, r.shape[1]))

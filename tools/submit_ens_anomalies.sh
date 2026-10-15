@@ -6,7 +6,7 @@
 #   sbatch tools/submit_ens_anomalies.sh                                   # all 7 baselines
 #   sbatch tools/submit_ens_anomalies.sh --baselines aurora_encoder fcn3   # a subset
 #   sbatch tools/submit_ens_anomalies.sh --baselines all era5_clim ifs_ens --init-stride 1 \
-#       --n-points 8192 --vars 2m_temperature specific_humidity_850 geopotential_500 \
+#       --n-points 8192 --vars 2m_temperature specific_humidity_850 geopotential_500 10m_wind_speed \
 #       --tag sw --p-only                       # Shapiro-Wilk sample (member_shapiro_rate)
 #
 # Output: $STORE/analysis/ens_anom_gaussianity/<baseline>[_<tag>].npz
