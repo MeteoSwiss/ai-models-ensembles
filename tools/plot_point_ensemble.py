@@ -329,7 +329,7 @@ def plot_member_qq(lead: int, point: str, init: str) -> None:
                 ax.text(
                     0.04,
                     0.96,
-                    f"adj. p = {fmt_p(qvals[r, c])}",
+                    f"p = {fmt_p(pvals[r, c])}, adj. p = {fmt_p(qvals[r, c])}",
                     transform=ax.transAxes,
                     va="top",
                     fontsize=14,
@@ -348,8 +348,8 @@ def plot_member_qq(lead: int, point: str, init: str) -> None:
             "Gaussian with the ensemble's own mean and std\n"
             "grey band: range of Gaussian samples of the same size, widened for testing "
             f"{int(ok.sum())} panels at once (Benjamini-Hochberg, FDR {SW_Q:.0%});   "
-            f"member outside the band = non-Gaussian;   adj. p: the same test as a "
-            "p-value (global envelope test, BH-adjusted)",
+            "member outside the band = non-Gaussian;   p: global envelope test of the panel, "
+            "adj. p: BH-adjusted",
             ha="center",
             va="top",
             fontsize=13,
