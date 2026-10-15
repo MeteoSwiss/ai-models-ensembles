@@ -11,8 +11,10 @@ day and hour, years as members):
   figures/ens_anom/band_grid_values_<lead>h.{png,pdf}
       four equal-area latitude bands pooled over the cos-lat point sample of
       tools/compute_ens_anomalies.py (28 inits), subsampled to BAND_MAX for the KDE.
+  figures/ens_anom/point_members_<point>_<init>_<lead>h.{png,pdf}
+      the 10 member values of each model at one point and one init on a value axis.
 
-Usage: python tools/plot_point_ensemble.py [--lead 240]
+Usage: python tools/plot_point_ensemble.py [--lead 240] [--member-point zurich --member-init 20230102_0000]
 """
 
 from __future__ import annotations
@@ -32,6 +34,7 @@ from plot_ens_anom_gaussianity import (
     FEATURE,
     FIGDIR,
     INDIR,
+    LABEL,
     SPW,
     TRAINED,
     VAR_SHORT,
@@ -181,11 +184,50 @@ def plot_bands(lead: int, n_max: int) -> None:
     )
 
 
+def plot_members(lead: int, point: str, init: str) -> None:
+    f = np.load(INDIR / f"point_{point}.npz")
+    li = int(np.flatnonzero(f["lead_hours"] == lead)[0])
+    j = list(f["inits"]).index(init)
+    title = dict(POINTS + OPPOSITE_POINTS)[point]
+    labels = list(f["labels"])
+    with plt.rc_context(BIG_RC):
+        names = SPW + TRAINED
+        fig, axes = plt.subplots(1, len(FEATURE), figsize=(20, 5.6), sharey=True)
+        for ax, var in zip(axes, FEATURE, strict=True):
+            scale, unit = phys(var)
+            k = labels.index(var)
+            for r, name in enumerate(names):
+                x = np.sort(f[name][k, li, j]) * scale
+                model_line(ax, name, x, np.full(x.size, r), lw=1.6)
+                ax.lines[-1].set_marker("o")
+                ax.lines[-1].set_markersize(8)
+            ax.set_title(VAR_SHORT[var])
+            ax.set_xlabel(f"{VAR_SHORT[var]} [{unit}]")
+            style_axes(ax)
+        axes[0].set_yticks(range(len(names)), [LABEL[n] for n in names])
+        axes[0].set_ylim(len(names) - 0.5, -0.5)
+        t0 = f"{init[:4]}-{init[4:6]}-{init[6:8]} {init[9:11]} UTC"
+        fig.suptitle(f"10 members, {title} ({coords(f)}), init {t0}, +{lead} h")
+        fig.tight_layout()
+        FIGDIR.mkdir(parents=True, exist_ok=True)
+        for ext in ("png", "pdf"):
+            out = FIGDIR / f"point_members_{point}_{init}_{lead}h.{ext}"
+            fig.savefig(out, dpi=200)
+            print(f"saved {out}")
+        plt.close(fig)
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--lead", type=int, default=240)
     ap.add_argument("--band-max", type=int, default=BAND_MAX)
+    ap.add_argument("--member-point", default="zurich")
+    ap.add_argument("--member-init", default="20230102_0000")
+    ap.add_argument("--members-only", action="store_true")
     args = ap.parse_args()
+    plot_members(args.lead, args.member_point, args.member_init)
+    if args.members_only:
+        return
     plot_points(args.lead, POINTS, f"point_grid_values_{args.lead}h")
     plot_points(
         args.lead, OPPOSITE_POINTS, f"point_grid_opposite_values_{args.lead}h", "opposite meridians"
