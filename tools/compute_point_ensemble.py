@@ -3,11 +3,13 @@
 Companion to compute_ens_anomalies.py (which samples 2048 points x 28 inits): here
 single locations, every init, so the member distribution at each point can be shown
 in physical units. Several points share one pass (every chunk read is a global field). Also stores the ERA5 probabilistic climatology there (1990-2019,
-years as members, matched by calendar month/day/hour, as in the headline CRPSS).
+years as members, matched by calendar month/day/hour, as in the headline CRPSS) and
+IFS-ENS (all 50 perturbed members, and members 0, 5, ..., 45; missing WB2 slabs are NaN).
 
 Output, per point: $AIENS_STORE/analysis/ens_anom_gaussianity/point_<name>.npz
   <baseline> (nvarlev, nlead, 112, M) float32 native units, era5_clim (nvarlev, nlead,
-  112, 30), labels, lead_hours, inits, lat, lon, clim_years.
+  112, 30), ifs_ens (..., 50), ifs_ens10 (..., 10), labels, lead_hours, inits, lat, lon,
+  clim_years.
 
 Default points: the four of figures/ens_anom/point_grid_values_* (north to south) and their
 opposite meridians (point_grid_opposite_values_*), see tools/plot_point_ensemble.py.
@@ -26,8 +28,17 @@ from datetime import datetime, timedelta
 import numpy as np
 import xarray as xr
 
-from _env import BASELINES, WB2_ORIGINAL
-from compute_ens_anomalies import ALL_BASELINES, CLIM_NAME, CLIM_YEARS, OUTDIR, VARS
+from _env import BASELINES, IFS_ENS, WB2_ORIGINAL
+from compute_ens_anomalies import (
+    ALL_BASELINES,
+    CLIM_NAME,
+    CLIM_YEARS,
+    IFS10_MEMBERS,
+    IFS10_NAME,
+    IFS_NAME,
+    OUTDIR,
+    VARS,
+)
 
 sys.stdout.reconfigure(line_buffering=True)
 
@@ -63,6 +74,19 @@ def process_init(path: str, lats, lons, leads: list[int]) -> np.ndarray:
             da = da.sel(level=lev)
         for j, h in enumerate(leads):
             x = da.isel(lead_time=int(np.flatnonzero(lead_h == h)[0]))
+            out[:, k, j] = x.transpose("ensemble", "latitude", "longitude").values[:, ilat, ilon].T
+    return out
+
+
+def process_ifs_init(init: str, lats, lons, leads: list[int]) -> np.ndarray:
+    """(npoint, nvarlev, nlead, 50) from the IFS-ENS zarr; missing slabs are NaN."""
+    ds = xr.open_zarr(IFS_ENS, chunks=None).sel(init_time=datetime.strptime(init, "%Y%m%d_%H%M"))
+    ilat, ilon = nearest(ds, lats, lons)
+    out = np.empty((len(lats), len(VARS), len(leads), ds.sizes["ensemble"]), np.float32)
+    for k, (var, lev) in enumerate(VARS):
+        da = ds[var] if lev is None else ds[var].sel(level=lev)
+        for j, h in enumerate(leads):
+            x = da.sel(lead_time=np.timedelta64(h, "h"))
             out[:, k, j] = x.transpose("ensemble", "latitude", "longitude").values[:, ilat, ilon].T
     return out
 
@@ -119,6 +143,14 @@ def main() -> None:
             res = {futs[f]: f.result() for f in as_completed(futs)}
             data[name] = np.stack([res[j] for j in range(len(inits))], axis=3)
             print(f"  {name}: done ({time.time() - t0:.0f}s)")
+
+        futs = {
+            ex.submit(process_ifs_init, it, lats, lons, args.leads): j for j, it in enumerate(inits)
+        }
+        res = {futs[f]: f.result() for f in as_completed(futs)}
+        data[IFS_NAME] = np.stack([res[j] for j in range(len(inits))], axis=3)
+        data[IFS10_NAME] = data[IFS_NAME][..., IFS10_MEMBERS]
+        print(f"  {IFS_NAME}: done ({time.time() - t0:.0f}s)")
 
         valid = {}
         for j, it in enumerate(inits):

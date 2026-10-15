@@ -14,10 +14,11 @@ day and hour, years as members):
   figures/ens_anom/point_members_<point>_<init>_<lead>h.{png,pdf}
       the 10 member values of each model at one point and one init on a value axis.
   figures/ens_anom/point_member_qq_<point>_<init>_<lead>h.{png,pdf}
-      normal Q-Q of the same 10 members per model with the 95% simultaneous envelope of
-      10 Gaussian members (the ensemble's own mean and std) and the Shapiro-Wilk p-value,
-      Benjamini-Hochberg adjusted over the panels (red: significant at FDR 5%); also the
-      fraction of the 112 inits whose ensemble at this point has p < 0.05.
+      normal Q-Q of the members per model, IFS-ENS (50 and 10 members) and the 30-year ERA5
+      climatology, with the 95% simultaneous envelope of a Gaussian sample of the same size
+      (the ensemble's own mean and std) and the Shapiro-Wilk p-value, Benjamini-Hochberg
+      adjusted over the panels (red: significant at FDR 5%); also the fraction of the 112
+      inits whose ensemble at this point has p < 0.05.
 
 Usage: python tools/plot_point_ensemble.py [--lead 240] [--member-point zurich --member-init 20230102_0000]
 """
@@ -33,12 +34,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.stats import false_discovery_control, gaussian_kde, shapiro
 
-from model_colors import color_for
 from plot_ens_anom_gaussianity import (
     BIG_RC,
     CLIM,
     FEATURE,
     FIGDIR,
+    IFS,
     INDIR,
     LABEL,
     NULL_COLOR,
@@ -49,6 +50,7 @@ from plot_ens_anom_gaussianity import (
     TRAINED,
     VAR_SHORT,
     gaussian_null,
+    line_color,
     model_line,
     phys,
     style_axes,
@@ -249,29 +251,51 @@ def plot_member_qq(lead: int, point: str, init: str) -> None:
     j = list(f["inits"]).index(init)
     title = dict(POINTS + OPPOSITE_POINTS)[point]
     labels = list(f["labels"])
-    names = SPW + TRAINED
-    M = f[names[0]].shape[-1]
-    ref, lo, hi = gaussian_order_stats(M)
+    names = SPW + TRAINED + IFS + [CLIM]
+    env = {M: gaussian_order_stats(M) for M in {f[n].shape[-1] for n in names}}
     pvals = np.array(
         [[shapiro(f[n][labels.index(v), li, j]).pvalue for n in names] for v in FEATURE]
     )
-    qvals = false_discovery_control(pvals.ravel()).reshape(pvals.shape)
+    qvals = np.full(pvals.shape, np.nan)
+    ok = np.isfinite(pvals)
+    qvals[ok] = false_discovery_control(pvals[ok])
     with plt.rc_context(BIG_RC):
         fig, axes = plt.subplots(
-            len(FEATURE), len(names), figsize=(28, 13), sharex=True, sharey="row"
+            len(FEATURE), len(names), figsize=(38, 13), sharex=True, sharey="row"
         )
         for r, var in enumerate(FEATURE):
             scale, unit = phys(var)
             k = labels.index(var)
             for c, name in enumerate(names):
                 ax = axes[r, c]
+                style_axes(ax)
+                if r == 0:
+                    M = f[name].shape[-1]
+                    head = LABEL[name] + (f", {M} years" if name == CLIM else "")
+                    ax.set_title(head, color=line_color(name), fontweight="bold")
+                if r == len(FEATURE) - 1:
+                    ax.set_xlabel("Gaussian quantile")
                 ens = f[name][k, li].astype(np.float64)
+                if not ok[r, c]:
+                    ax.text(
+                        0.5,
+                        0.5,
+                        "no data\n(WB2 gap)",
+                        transform=ax.transAxes,
+                        ha="center",
+                        va="center",
+                        fontsize=14,
+                        color="#5F6368",
+                    )
+                    continue
+                ref, lo, hi = env[ens.shape[-1]]
                 x = np.sort(ens[j]) * scale
                 mu, sd = x.mean(), x.std(ddof=1)
                 ax.fill_between(ref, mu + sd * lo, mu + sd * hi, color=NULL_COLOR, alpha=0.3, lw=0)
                 ax.plot(ref, mu + sd * ref, color=NULL_COLOR, lw=2)
-                ax.plot(ref, x, "o", color=color_for(name), ms=9, mec="white", mew=0.8)
-                rate = np.mean(shapiro(ens, axis=-1).pvalue < SW_ALPHA)
+                ax.plot(ref, x, "o", color=line_color(name), ms=8, mec="white", mew=0.8)
+                pv = shapiro(ens, axis=-1).pvalue
+                rate = np.mean(pv[np.isfinite(pv)] < SW_ALPHA)
                 ax.text(
                     0.04,
                     0.96,
@@ -282,20 +306,18 @@ def plot_member_qq(lead: int, point: str, init: str) -> None:
                     fontsize=13,
                     color="#B00020" if qvals[r, c] < SW_Q else "black",
                 )
-                style_axes(ax)
-                if r == 0:
-                    ax.set_title(LABEL[name], color=color_for(name), fontweight="bold")
-                if r == len(FEATURE) - 1:
-                    ax.set_xlabel("Gaussian quantile")
             axes[r, 0].set_ylabel(f"{VAR_SHORT[var]} [{unit}]")
         t0 = f"{init[:4]}-{init[4:6]}-{init[6:8]} {init[9:11]} UTC"
-        fig.suptitle(f"Normal Q-Q of the {M} members, {title} ({coords(f)}), init {t0}, +{lead} h")
+        fig.suptitle(
+            f"Normal Q-Q of the ensemble members, {title} ({coords(f)}), init {t0}, +{lead} h"
+        )
         fig.text(
             0.5,
             0.95,
-            f"dots: sorted members;   grey line and band: Gaussian with the ensemble's own mean "
-            f"and std, {QQ_LEVEL:.0%} simultaneous envelope for {M} Gaussian members\n"
-            f"p: Shapiro-Wilk, BH: Benjamini-Hochberg adjusted over the {pvals.size} panels "
+            "dots: sorted members (ERA5: the same calendar day and hour in each year);   grey line "
+            "and band: Gaussian with the ensemble's own mean and std, "
+            f"{QQ_LEVEL:.0%} simultaneous envelope for Gaussian samples of the same size\n"
+            f"p: Shapiro-Wilk, BH: Benjamini-Hochberg adjusted over the {int(ok.sum())} panels "
             f"(red if < {SW_Q});   all inits: share of the {f['inits'].size} inits at this "
             f"point with p < {SW_ALPHA} ({SW_ALPHA:.0%} if every ensemble is Gaussian)",
             ha="center",

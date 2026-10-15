@@ -216,7 +216,7 @@ def plot_shapiro_rate() -> None:
             style_axes(ax)
         axes[0].set_ylabel(f"ensembles non-Gaussian at FDR {SW_Q:.0%} [%]")
         axes[0].set_yscale("symlog", linthresh=1.0)  # 10-member shares are < 2%
-        axes[0].set_ylim(0, 100)
+        axes[0].set_ylim(-0.1, 100)  # keep the many lines at exactly 0 off the spine
         ticks = [0, 0.5, 1, 2, 5, 10, 20, 50, 100]
         axes[0].set_yticks(ticks, [f"{t:g}" for t in ticks])
         axes[0].yaxis.set_minor_locator(matplotlib.ticker.NullLocator())
@@ -225,14 +225,16 @@ def plot_shapiro_rate() -> None:
         fig.suptitle("How often is a single ensemble non-Gaussian?")
         fig.text(
             0.5,
-            0.905,
+            0.935,
             "Shapiro-Wilk test on the members at one init and one gridpoint, Benjamini-Hochberg "
             f"FDR {SW_Q:.0%} over the {n_init} inits x {npts} points per lead;   band: 95% "
-            f"bootstrap over inits;   10 Gaussian members: {100 * size:.0f}%",
+            f"bootstrap over inits;   10 Gaussian members: {100 * size:.0f}%\n"
+            "lines at 0: no single ensemble detected (overlapping)",
             ha="center",
+            va="top",
             fontsize=13,
         )
-        fig.tight_layout(rect=(0, 0.1, 1, 0.9))
+        fig.tight_layout(rect=(0, 0.1, 1, 0.88))
         for ext in ("png", "pdf"):
             out = FIGDIR / f"member_shapiro_rate.{ext}"
             fig.savefig(out, dpi=200)
