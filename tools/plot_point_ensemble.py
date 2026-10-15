@@ -15,10 +15,9 @@ day and hour, years as members):
       the 10 member values of each model at one point and one init on a value axis.
   figures/ens_anom/point_member_qq_<point>_<init>_<lead>h.{png,pdf}
       normal Q-Q of the members per model, IFS-ENS (50 and 10 members) and the 30-year ERA5
-      climatology, with the 95% simultaneous envelope of a Gaussian sample of the same size
-      (the ensemble's own mean and std) and the Shapiro-Wilk p-value, Benjamini-Hochberg
-      adjusted over the panels (red: significant at FDR 5%); also the fraction of the 112
-      inits whose ensemble at this point has p < 0.05.
+      climatology. One global envelope test per panel against Gaussian samples of the same
+      size (the ensemble's own mean and std), Benjamini-Hochberg over the panels; the band is
+      drawn at the BH level, so a member outside it marks a panel non-Gaussian at FDR 5%.
 
 Usage: python tools/plot_point_ensemble.py [--lead 240] [--member-point zurich --member-init 20231005_0000]
 """
@@ -32,7 +31,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.stats import false_discovery_control, gaussian_kde, shapiro
+from scipy.stats import false_discovery_control, gaussian_kde
 
 from plot_ens_anom_gaussianity import (
     BIG_RC,
@@ -45,7 +44,6 @@ from plot_ens_anom_gaussianity import (
     NULL_COLOR,
     NULL_SEED,
     SPW,
-    SW_ALPHA,
     SW_Q,
     TRAINED,
     VAR_SHORT,
@@ -58,7 +56,7 @@ from plot_ens_anom_gaussianity import (
 
 SEED = 2026
 QQ_SIMS = 200_000
-QQ_LEVEL = 0.95
+SIG_COLOR = "#B00020"
 POINTS = [
     ("ny_alesund", "Ny-Ålesund"),
     ("zurich", "Zurich"),
@@ -232,17 +230,39 @@ def plot_members(lead: int, point: str, init: str) -> None:
         plt.close(fig)
 
 
-def gaussian_order_stats(M: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Mean and QQ_LEVEL simultaneous envelope of the sorted standardized sample of M N(0,1)."""
-    z = np.sort(gaussian_null((QQ_SIMS, M, 1), NULL_SEED)[..., 0], axis=1)
-    lo_b, hi_b = 0.0, 1.0 - QQ_LEVEL
-    for _ in range(30):  # largest pointwise tail prob whose band still holds QQ_LEVEL of curves
-        b = 0.5 * (lo_b + hi_b)
-        lo, hi = np.quantile(z, [b / 2, 1 - b / 2], axis=0)
-        cover = np.mean(np.all((z >= lo) & (z <= hi), axis=1))
-        lo_b, hi_b = (b, hi_b) if cover >= QQ_LEVEL else (lo_b, b)
-    lo, hi = np.quantile(z, [lo_b / 2, 1 - lo_b / 2], axis=0)
-    return z.mean(axis=0), lo, hi
+class EnvelopeNull:
+    """Gaussian null of the global envelope test (Myllymaki et al. 2017) for M sorted members.
+
+    Members are standardized by their own mean and std (ddof=1), like QQ_SIMS Gaussian samples
+    of the same size. The statistic is the most extreme two-sided pointwise tail probability over
+    the order statistics, so a band built from the pointwise null quantiles at one level contains
+    a sample exactly when the test does not reject at the matching global level.
+    """
+
+    def __init__(self, M: int) -> None:
+        z = np.sort(gaussian_null((QQ_SIMS, M, 1), NULL_SEED)[..., 0], axis=1)
+        self.cols = np.sort(z, axis=0)  # null of each order statistic
+        self.ref = z.mean(axis=0)  # Q-Q x positions
+        self.e = np.sort(self.extreme(z))
+
+    def extreme(self, z: np.ndarray) -> np.ndarray:
+        n = self.cols.shape[0]
+        F = np.stack(
+            [np.searchsorted(self.cols[:, i], z[..., i], side="right") for i in range(z.shape[-1])],
+            axis=-1,
+        )
+        F = F / n
+        return np.min(2 * np.minimum(F, 1 - F + 1 / n), axis=-1)
+
+    def pvalue(self, x: np.ndarray) -> float:
+        z = (np.sort(x) - x.mean()) / x.std(ddof=1)
+        k = np.searchsorted(self.e, self.extreme(z), side="right")
+        return (1 + k) / (self.e.size + 1)
+
+    def band(self, alpha: float) -> tuple[np.ndarray, np.ndarray]:
+        """Standardized band that holds a Gaussian sample with probability 1 - alpha."""
+        b = np.quantile(self.e, alpha)
+        return np.quantile(self.cols, [b / 2, 1 - b / 2], axis=0)
 
 
 def fmt_p(p: float) -> str:
@@ -256,20 +276,28 @@ def plot_member_qq(lead: int, point: str, init: str) -> None:
     title = dict(POINTS + OPPOSITE_POINTS)[point]
     labels = list(f["labels"])
     names = SPW + TRAINED + IFS + [CLIM]
-    env = {M: gaussian_order_stats(M) for M in {f[n].shape[-1] for n in names}}
-    pvals = np.array(
-        [[shapiro(f[n][labels.index(v), li, j]).pvalue for n in names] for v in FEATURE]
-    )
-    qvals = np.full(pvals.shape, np.nan)
+    members = {
+        (r, c): f[n][labels.index(v), li, j].astype(np.float64)
+        for r, v in enumerate(FEATURE)
+        for c, n in enumerate(names)
+    }
+    nulls = {M: EnvelopeNull(M) for M in {x.size for x in members.values()}}
+    pvals = np.full((len(FEATURE), len(names)), np.nan)
+    for rc, x in members.items():
+        if np.isfinite(x).all():
+            pvals[rc] = nulls[x.size].pvalue(x)
     ok = np.isfinite(pvals)
+    qvals = np.full(pvals.shape, np.nan)
     qvals[ok] = false_discovery_control(pvals[ok])
+    # BH rejects exactly the p <= SW_Q * k / m, so one band level matches its decisions
+    alpha = SW_Q * max(int(np.sum(qvals[ok] < SW_Q)), 1) / int(ok.sum())
+    bands = {M: null.band(alpha) for M, null in nulls.items()}
     with plt.rc_context(BIG_RC):
         fig, axes = plt.subplots(
             len(FEATURE), len(names), figsize=(38, 13), sharex=True, sharey="row"
         )
         for r, var in enumerate(FEATURE):
             scale, unit = phys(var)
-            k = labels.index(var)
             for c, name in enumerate(names):
                 ax = axes[r, c]
                 style_axes(ax)
@@ -279,7 +307,6 @@ def plot_member_qq(lead: int, point: str, init: str) -> None:
                     ax.set_title(head, color=line_color(name), fontweight="bold")
                 if r == len(FEATURE) - 1:
                     ax.set_xlabel("Gaussian quantile")
-                ens = f[name][k, li].astype(np.float64)
                 if not ok[r, c]:
                     ax.text(
                         0.5,
@@ -292,23 +319,24 @@ def plot_member_qq(lead: int, point: str, init: str) -> None:
                         color="#5F6368",
                     )
                     continue
-                ref, lo, hi = env[ens.shape[-1]]
-                x = np.sort(ens[j]) * scale
+                x = np.sort(members[r, c]) * scale
+                ref, (lo, hi) = nulls[x.size].ref, bands[x.size]
                 mu, sd = x.mean(), x.std(ddof=1)
+                out = (x < mu + sd * lo) | (x > mu + sd * hi)
                 ax.fill_between(ref, mu + sd * lo, mu + sd * hi, color=NULL_COLOR, alpha=0.3, lw=0)
                 ax.plot(ref, mu + sd * ref, color=NULL_COLOR, lw=2)
                 ax.plot(ref, x, "o", color=line_color(name), ms=8, mec="white", mew=0.8)
-                pv = shapiro(ens, axis=-1).pvalue
-                rate = np.mean(pv[np.isfinite(pv)] < SW_ALPHA)
+                ax.plot(ref[out], x[out], "o", mfc="none", mec=SIG_COLOR, ms=13, mew=2.2)
+                sig = qvals[r, c] < SW_Q
                 ax.text(
                     0.04,
                     0.96,
-                    f"p = {fmt_p(pvals[r, c])}, BH {fmt_p(qvals[r, c])}\n"
-                    f"all inits: {100 * rate:.0f}% < {SW_ALPHA}",
+                    f"adj. p = {fmt_p(qvals[r, c])}",
                     transform=ax.transAxes,
                     va="top",
-                    fontsize=13,
-                    color="#B00020" if qvals[r, c] < SW_Q else "black",
+                    fontsize=14,
+                    color=SIG_COLOR if sig else "black",
+                    fontweight="bold" if sig else "normal",
                 )
             axes[r, 0].set_ylabel(f"{VAR_SHORT[var]} [{unit}]")
         t0 = f"{init[:4]}-{init[4:6]}-{init[6:8]} {init[9:11]} UTC"
@@ -318,12 +346,12 @@ def plot_member_qq(lead: int, point: str, init: str) -> None:
         fig.text(
             0.5,
             0.95,
-            "dots: sorted members (ERA5: the same calendar day and hour in each year);   grey line "
-            "and band: Gaussian with the ensemble's own mean and std, "
-            f"{QQ_LEVEL:.0%} simultaneous envelope for Gaussian samples of the same size\n"
-            f"p: Shapiro-Wilk, BH: Benjamini-Hochberg adjusted over the {int(ok.sum())} panels "
-            f"(red if < {SW_Q});   all inits: share of the {f['inits'].size} inits at this "
-            f"point with p < {SW_ALPHA} ({SW_ALPHA:.0%} if every ensemble is Gaussian)",
+            "dots: sorted members (ERA5: the same calendar day and hour in each year);   grey line: "
+            "Gaussian with the ensemble's own mean and std\n"
+            "grey band: range of Gaussian samples of the same size, widened for testing "
+            f"{int(ok.sum())} panels at once (Benjamini-Hochberg, FDR {SW_Q:.0%});   "
+            f"red ring: member outside the band = non-Gaussian;   adj. p: the same test as a "
+            "p-value (global envelope test, BH-adjusted)",
             ha="center",
             va="top",
             fontsize=13,
@@ -333,7 +361,7 @@ def plot_member_qq(lead: int, point: str, init: str) -> None:
         for ext in ("png", "pdf"):
             out = FIGDIR / f"point_member_qq_{point}_{init}_{lead}h.{ext}"
             fig.savefig(out, dpi=200)
-            print(f"saved {out}")
+            print(f"saved {out} (band level 1 - {alpha:.4f})")
         plt.close(fig)
 
 
