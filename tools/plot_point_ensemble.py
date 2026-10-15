@@ -15,8 +15,9 @@ day and hour, years as members):
       the 10 member values of each model at one point and one init on a value axis.
   figures/ens_anom/point_member_qq_<point>_<init>_<lead>h.{png,pdf}
       normal Q-Q of the same 10 members per model with the 95% simultaneous envelope of
-      10 Gaussian members (the ensemble's own mean and std) and the Shapiro-Wilk p-value;
-      also the fraction of the 112 inits whose ensemble at this point rejects at 5%.
+      10 Gaussian members (the ensemble's own mean and std) and the Shapiro-Wilk p-value,
+      Benjamini-Hochberg adjusted over the panels (red: significant at FDR 5%); also the
+      fraction of the 112 inits whose ensemble at this point has p < 0.05.
 
 Usage: python tools/plot_point_ensemble.py [--lead 240] [--member-point zurich --member-init 20230102_0000]
 """
@@ -30,7 +31,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.stats import gaussian_kde, shapiro
+from scipy.stats import false_discovery_control, gaussian_kde, shapiro
 
 from model_colors import color_for
 from plot_ens_anom_gaussianity import (
@@ -44,6 +45,7 @@ from plot_ens_anom_gaussianity import (
     NULL_SEED,
     SPW,
     SW_ALPHA,
+    SW_Q,
     TRAINED,
     VAR_SHORT,
     gaussian_null,
@@ -250,6 +252,10 @@ def plot_member_qq(lead: int, point: str, init: str) -> None:
     names = SPW + TRAINED
     M = f[names[0]].shape[-1]
     ref, lo, hi = gaussian_order_stats(M)
+    pvals = np.array(
+        [[shapiro(f[n][labels.index(v), li, j]).pvalue for n in names] for v in FEATURE]
+    )
+    qvals = false_discovery_control(pvals.ravel()).reshape(pvals.shape)
     with plt.rc_context(BIG_RC):
         fig, axes = plt.subplots(
             len(FEATURE), len(names), figsize=(28, 13), sharex=True, sharey="row"
@@ -265,16 +271,16 @@ def plot_member_qq(lead: int, point: str, init: str) -> None:
                 ax.fill_between(ref, mu + sd * lo, mu + sd * hi, color=NULL_COLOR, alpha=0.3, lw=0)
                 ax.plot(ref, mu + sd * ref, color=NULL_COLOR, lw=2)
                 ax.plot(ref, x, "o", color=color_for(name), ms=9, mec="white", mew=0.8)
-                p = shapiro(x).pvalue
                 rate = np.mean(shapiro(ens, axis=-1).pvalue < SW_ALPHA)
                 ax.text(
                     0.04,
                     0.96,
-                    f"p = {p:.2f}\nall inits: {100 * rate:.0f}% < {SW_ALPHA}",
+                    f"p = {pvals[r, c]:.2f}, BH {qvals[r, c]:.2f}\n"
+                    f"all inits: {100 * rate:.0f}% < {SW_ALPHA}",
                     transform=ax.transAxes,
                     va="top",
                     fontsize=13,
-                    color="#B00020" if p < SW_ALPHA else "black",
+                    color="#B00020" if qvals[r, c] < SW_Q else "black",
                 )
                 style_axes(ax)
                 if r == 0:
@@ -286,15 +292,17 @@ def plot_member_qq(lead: int, point: str, init: str) -> None:
         fig.suptitle(f"Normal Q-Q of the {M} members, {title} ({coords(f)}), init {t0}, +{lead} h")
         fig.text(
             0.5,
-            0.935,
+            0.95,
             f"dots: sorted members;   grey line and band: Gaussian with the ensemble's own mean "
-            f"and std, {QQ_LEVEL:.0%} simultaneous envelope for {M} Gaussian members;   "
-            f"p: Shapiro-Wilk;   all inits: share of the {f['inits'].size} inits at this point "
-            f"with p < {SW_ALPHA} ({SW_ALPHA:.0%} if every ensemble is Gaussian)",
+            f"and std, {QQ_LEVEL:.0%} simultaneous envelope for {M} Gaussian members\n"
+            f"p: Shapiro-Wilk, BH: Benjamini-Hochberg adjusted over the {pvals.size} panels "
+            f"(red if < {SW_Q});   all inits: share of the {f['inits'].size} inits at this "
+            f"point with p < {SW_ALPHA} ({SW_ALPHA:.0%} if every ensemble is Gaussian)",
             ha="center",
+            va="top",
             fontsize=13,
         )
-        fig.tight_layout(rect=(0, 0, 1, 0.925))
+        fig.tight_layout(rect=(0, 0, 1, 0.9))
         FIGDIR.mkdir(parents=True, exist_ok=True)
         for ext in ("png", "pdf"):
             out = FIGDIR / f"point_member_qq_{point}_{init}_{lead}h.{ext}"

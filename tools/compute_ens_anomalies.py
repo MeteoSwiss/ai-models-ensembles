@@ -17,13 +17,21 @@ smoothing) at the same valid times. Its 30 years are split into three disjoint
 10-member ensembles (year index mod 3) so the standardization uses the same M=10
 as the forecasts; the three groups are stacked on the init axis.
 
-Output: $AIENS_STORE/analysis/ens_anom_gaussianity/<baseline>.npz
+Reference "ifs_ens" / "ifs_ens10": the WB2 IFS-ENS zarr with all 50 perturbed members
+(no control) and with members 0, 5, ..., 45, from one read. Its missing slabs (whole
+init/lead/field, ~20%) stay NaN.
+
+Output: $AIENS_STORE/analysis/ens_anom_gaussianity/<baseline>[_<tag>].npz
   z (nvarlev, nlead, ninit, M, npoint) float32, mean / std (nvarlev, nlead, ninit, npoint)
-  float32 ensemble mean and ddof=1 std in native units (x_m = mean + z * std), labels,
-  lead_hours, inits, lat, lon.
-  For era5_clim ninit = 3 x 28 (init-major, year group minor).
+  float32 ensemble mean and ddof=1 std in native units (x_m = mean + z * std), p (nvarlev,
+  nlead, ninit, npoint) float32 Shapiro-Wilk p-value of the M members, labels, lead_hours,
+  inits, lat, lon.
+  For era5_clim ninit = 3 x ninit (init-major, year group minor).
 
 Usage (CPU sbatch): python tools/compute_ens_anomalies.py --baselines all era5_clim
+  Shapiro-Wilk sample (figures/ens_anom/member_shapiro_rate): --baselines all era5_clim ifs_ens
+  --init-stride 1 --n-points 8192 --vars 2m_temperature specific_humidity_850
+  geopotential_500 --tag sw --p-only
 """
 
 from __future__ import annotations
@@ -36,8 +44,9 @@ from datetime import datetime, timedelta
 
 import numpy as np
 import xarray as xr
+from scipy.stats import shapiro
 
-from _env import BASELINES, STORE, WB2_ORIGINAL
+from _env import BASELINES, IFS_ENS, STORE, WB2_ORIGINAL
 
 sys.stdout.reconfigure(line_buffering=True)
 
@@ -74,12 +83,16 @@ POINT_SEED = 0
 CLIM_NAME = "era5_clim"
 CLIM_YEARS = list(range(1990, 2020))
 CLIM_GROUPS = 3
+IFS_NAME = "ifs_ens"  # all 50 perturbed members of the WB2 IFS-ENS zarr (no control)
+IFS10_NAME = "ifs_ens10"
+IFS10_MEMBERS = list(range(0, 50, 5))  # the 10-member IFS-ENS of the CRPSS / SSR figures
+FIELDS = ("z", "mean", "std", "p")
 
 
-def sample_points(lat: np.ndarray, nlon: int) -> tuple[np.ndarray, np.ndarray]:
+def sample_points(lat: np.ndarray, nlon: int, n: int) -> tuple[np.ndarray, np.ndarray]:
     rng = np.random.default_rng(POINT_SEED)
     w = np.repeat(np.cos(np.deg2rad(lat)).clip(min=0.0), nlon)
-    flat = rng.choice(w.size, size=N_POINTS, replace=False, p=w / w.sum())
+    flat = rng.choice(w.size, size=n, replace=False, p=w / w.sum())
     return np.unravel_index(np.sort(flat), (lat.size, nlon))
 
 
@@ -97,61 +110,96 @@ def standardize(x: np.ndarray, axis: int) -> tuple[np.ndarray, np.ndarray, np.nd
     )
 
 
-def production_inits() -> list[str]:
+def sw_pvalue(z: np.ndarray, axis: int) -> np.ndarray:
+    """Shapiro-Wilk p-value of the members on `axis` (NaN where the members are constant)."""
+    return shapiro(np.moveaxis(z, axis, -1), axis=-1).pvalue.astype(np.float32)
+
+
+def var_label(var: str, lev) -> str:
+    return f"{var}" if lev is None else f"{var}_{lev}"
+
+
+def production_inits(stride: int) -> list[str]:
     root = BASELINES / ALL_BASELINES[0]
     inits = sorted(p.name for p in root.iterdir() if (p / "forecast.zarr").is_dir())
     if len(inits) != 112:
         raise RuntimeError(f"expected 112 inits, found {len(inits)}")
-    return inits[::INIT_STRIDE]
+    return inits[::stride]
 
 
-def save(name, z, mu, sd, inits: list[str], lat: np.ndarray, lon: np.ndarray) -> None:
+def save(name: str, arrays: dict, inits, lat, lon, vars_) -> None:
     OUTDIR.mkdir(parents=True, exist_ok=True)
     out = OUTDIR / f"{name}.npz"
     np.savez(
         out,
-        z=z,
-        mean=mu,
-        std=sd,
-        labels=np.array([f"{v}" if lev is None else f"{v}_{lev}" for v, lev in VARS]),
+        **arrays,
+        labels=np.array([var_label(v, lev) for v, lev in vars_]),
         lead_hours=np.array(LEAD_HOURS),
         inits=np.array(inits),
         lat=lat,
         lon=lon,
     )
-    nan_frac = float(np.isnan(z).mean())
-    print(f"{name}: wrote {out} shape={z.shape} nan_frac={nan_frac:.2e}")
+    nan_frac = float(np.isnan(arrays["p"]).mean())
+    print(f"{name}: wrote {out} p shape={arrays['p'].shape} p nan_frac={nan_frac:.2e}")
 
 
-def process_init(path: str, ilat: np.ndarray, ilon: np.ndarray) -> tuple[np.ndarray, ...]:
+def allocate(nv: int, ni: int, M: int, n_points: int, p_only: bool) -> dict[str, np.ndarray]:
+    """Output arrays (nvarlev, nlead, ninit, [M,] npoint), NaN-filled."""
+    shape = (nv, len(LEAD_HOURS), ni)
+    keep = ("p",) if p_only else FIELDS
+    return {
+        k: np.full(shape + ((M,) if k == "z" else ()) + (n_points,), np.nan, np.float32)
+        for k in keep
+    }
+
+
+def members_out(x: np.ndarray, axis: int) -> tuple[np.ndarray, ...]:
+    """z, mean, std, Shapiro-Wilk p of the members on `axis`."""
+    z, mu, sd = standardize(x, axis=axis)
+    return z, mu, sd, sw_pvalue(z, axis=axis)
+
+
+def process_init(path: str, ilat: np.ndarray, ilon: np.ndarray, vars_) -> tuple[np.ndarray, ...]:
     ds = xr.open_zarr(path, chunks=None)
     lead_h = (ds.lead_time.values / np.timedelta64(1, "h")).astype(int)
     li = [int(np.flatnonzero(lead_h == h)[0]) for h in LEAD_HOURS]
-    M = ds.sizes["ensemble"]
-    out = np.full((len(VARS), len(LEAD_HOURS), M, N_POINTS), np.nan, dtype=np.float32)
-    mu = np.full((len(VARS), len(LEAD_HOURS), N_POINTS), np.nan, dtype=np.float32)
-    sd = np.full_like(mu, np.nan)
-    for k, (var, lev) in enumerate(VARS):
+    x = np.empty((len(vars_), len(LEAD_HOURS), ds.sizes["ensemble"], ilat.size), np.float32)
+    for k, (var, lev) in enumerate(vars_):
         da = ds[var].isel(init_time=0)
         if lev is not None:
             da = da.sel(level=lev)
         for j, lt in enumerate(li):
-            x = da.isel(lead_time=lt).transpose("ensemble", "latitude", "longitude").values
-            out[k, j], mu[k, j], sd[k, j] = standardize(x[:, ilat, ilon], axis=0)
-    return out, mu, sd
+            v = da.isel(lead_time=lt).transpose("ensemble", "latitude", "longitude").values
+            x[k, j] = v[:, ilat, ilon]
+    return members_out(x, axis=2)
 
 
-def process_clim_day(
-    month: int, day: int, ilat: np.ndarray, ilon: np.ndarray
+def process_ifs_init(init: str, ilat: np.ndarray, ilon: np.ndarray, vars_) -> tuple:
+    """(all 50 members, IFS10_MEMBERS) outputs of one IFS-ENS init; missing slabs stay NaN."""
+    ds = xr.open_zarr(IFS_ENS, chunks=None).sel(
+        init_time=datetime.strptime(init, "%Y%m%d_%H%M"),
+        lead_time=[np.timedelta64(h, "h") for h in LEAD_HOURS],
+    )
+    x = np.empty((len(vars_), len(LEAD_HOURS), ds.sizes["ensemble"], ilat.size), np.float32)
+    for k, (var, lev) in enumerate(vars_):
+        da = ds[var] if lev is None else ds[var].sel(level=lev)
+        for j in range(len(LEAD_HOURS)):
+            v = da.isel(lead_time=j).transpose("ensemble", "latitude", "longitude").values
+            x[k, j] = v[:, ilat, ilon]
+    return members_out(x, axis=2), members_out(x[:, :, IFS10_MEMBERS], axis=2)
+
+
+def process_clim_time(
+    month: int, day: int, hour: int, ilat: np.ndarray, ilon: np.ndarray, vars_
 ) -> tuple[np.ndarray, ...]:
-    """z (nvarlev, CLIM_GROUPS, M, npoint), mean/std (nvarlev, CLIM_GROUPS, npoint), one day 00 UTC."""
+    """z (nvarlev, CLIM_GROUPS, M, npoint), mean/std/p (nvarlev, CLIM_GROUPS, npoint)."""
     ds = xr.open_zarr(WB2_ORIGINAL, consolidated=True, chunks=None)
-    x = np.empty((len(VARS), len(CLIM_YEARS), N_POINTS), np.float32)
+    x = np.empty((len(vars_), len(CLIM_YEARS), ilat.size), np.float32)
     for y, year in enumerate(CLIM_YEARS):
-        t = np.datetime64(f"{year}-{month:02d}-{day:02d}T00")
-        for var in dict.fromkeys(v for v, _ in VARS):
-            rows = [k for k, (v, _) in enumerate(VARS) if v == var]
-            levs = [VARS[k][1] for k in rows]
+        t = np.datetime64(f"{year}-{month:02d}-{day:02d}T{hour:02d}")
+        for var in dict.fromkeys(v for v, _ in vars_):
+            rows = [k for k, (v, _) in enumerate(vars_) if v == var]
+            levs = [vars_[k][1] for k in rows]
             da = ds[var].sel(time=t)
             if levs[0] is None:
                 x[rows[0], y] = da.values[ilat, ilon]
@@ -160,78 +208,108 @@ def process_clim_day(
                 for r, k in enumerate(rows):
                     x[k, y] = vals[r][ilat, ilon]
     groups = np.stack([x[:, g::CLIM_GROUPS] for g in range(CLIM_GROUPS)], axis=1)
-    return standardize(groups, axis=2)
+    return members_out(groups, axis=2)
 
 
-def run_climatology(workers: int) -> None:
-    inits = production_inits()
+def run_climatology(
+    workers: int, inits: list[str], vars_, n_points: int, tag: str, p_only: bool
+) -> None:
     valid = {}
     for j, it in enumerate(inits):
         t0 = datetime.strptime(it, "%Y%m%d_%H%M")
         for li, h in enumerate(LEAD_HOURS):
             t = t0 + timedelta(hours=h)
-            if t.hour != 0:
-                raise RuntimeError(f"valid time {t} is not 00 UTC")
-            valid[(j, li)] = (t.month, t.day)
-    days = sorted(set(valid.values()))
+            valid[(j, li)] = (t.month, t.day, t.hour)
+    times = sorted(set(valid.values()))
     ds0 = xr.open_zarr(WB2_ORIGINAL, consolidated=True)
     lat, lon = ds0.latitude.values, ds0.longitude.values
-    ilat, ilon = sample_points(lat, lon.size)
+    ilat, ilon = sample_points(lat, lon.size, n_points)
 
     res = {}
     t0 = time.time()
     with ProcessPoolExecutor(max_workers=workers) as ex:
-        futs = {ex.submit(process_clim_day, m, d, ilat, ilon): (m, d) for m, d in days}
+        futs = {ex.submit(process_clim_time, *mdh, ilat, ilon, vars_): mdh for mdh in times}
         for n, fut in enumerate(as_completed(futs), 1):
-            res[futs[fut]] = fut.result()
-            print(f"  {CLIM_NAME}: {n}/{len(days)} calendar days ({time.time() - t0:.0f}s)")
+            res[futs[fut]] = dict(zip(FIELDS, fut.result(), strict=True))
+            print(f"  {CLIM_NAME}: {n}/{len(times)} calendar times ({time.time() - t0:.0f}s)")
 
     M = len(CLIM_YEARS) // CLIM_GROUPS
-    z = np.empty((len(VARS), len(LEAD_HOURS), len(inits) * CLIM_GROUPS, M, N_POINTS), np.float32)
-    mu = np.empty((len(VARS), len(LEAD_HOURS), len(inits) * CLIM_GROUPS, N_POINTS), np.float32)
-    sd = np.empty_like(mu)
-    for (j, li), md in valid.items():
+    out = allocate(len(vars_), len(inits) * CLIM_GROUPS, M, n_points, p_only)
+    for (j, li), mdh in valid.items():
         g = slice(j * CLIM_GROUPS, (j + 1) * CLIM_GROUPS)
-        z[:, li, g], mu[:, li, g], sd[:, li, g] = res[md]
-    save(CLIM_NAME, z, mu, sd, inits, lat[ilat], lon[ilon])
+        for k, a in out.items():
+            a[:, li, g] = res[mdh][k]
+    save(CLIM_NAME + tag, out, inits, lat[ilat], lon[ilon], vars_)
 
 
-def run_baseline(name: str, workers: int) -> None:
+def run_baseline(
+    name: str, workers: int, inits: list[str], vars_, n_points: int, tag: str, p_only: bool
+) -> None:
     root = BASELINES / name
-    inits = production_inits()
     ds0 = xr.open_zarr(root / inits[0] / "forecast.zarr", chunks=None)
     lat = ds0.latitude.values
     lon = ds0.longitude.values
-    M = ds0.sizes["ensemble"]
-    ilat, ilon = sample_points(lat, lon.size)
+    ilat, ilon = sample_points(lat, lon.size, n_points)
 
-    z = np.full((len(VARS), len(LEAD_HOURS), len(inits), M, N_POINTS), np.nan, np.float32)
-    mu = np.full((len(VARS), len(LEAD_HOURS), len(inits), N_POINTS), np.nan, np.float32)
-    sd = np.full_like(mu, np.nan)
+    out = allocate(len(vars_), len(inits), ds0.sizes["ensemble"], n_points, p_only)
     t0 = time.time()
     with ProcessPoolExecutor(max_workers=workers) as ex:
         futs = {
-            ex.submit(process_init, str(root / it / "forecast.zarr"), ilat, ilon): j
+            ex.submit(process_init, str(root / it / "forecast.zarr"), ilat, ilon, vars_): j
             for j, it in enumerate(inits)
         }
         for n, fut in enumerate(as_completed(futs), 1):
-            j = futs[fut]
-            z[:, :, j], mu[:, :, j], sd[:, :, j] = fut.result()
+            r = dict(zip(FIELDS, fut.result(), strict=True))
+            for k, a in out.items():
+                a[:, :, futs[fut]] = r[k]
             print(f"  {name}: {n}/{len(inits)} inits ({time.time() - t0:.0f}s)")
-    save(name, z, mu, sd, inits, lat[ilat], lon[ilon])
+    save(name + tag, out, inits, lat[ilat], lon[ilon], vars_)
+
+
+def run_ifs(workers: int, inits: list[str], vars_, n_points: int, tag: str, p_only: bool) -> None:
+    """IFS_NAME (50 members) and IFS10_NAME from one read of the IFS-ENS zarr."""
+    ds0 = xr.open_zarr(IFS_ENS, chunks=None)
+    lat, lon = ds0.latitude.values, ds0.longitude.values
+    ilat, ilon = sample_points(lat, lon.size, n_points)
+    outs = [
+        allocate(len(vars_), len(inits), ds0.sizes["ensemble"], n_points, p_only),
+        allocate(len(vars_), len(inits), len(IFS10_MEMBERS), n_points, p_only),
+    ]
+    t0 = time.time()
+    with ProcessPoolExecutor(max_workers=workers) as ex:
+        futs = {ex.submit(process_ifs_init, it, ilat, ilon, vars_): j for j, it in enumerate(inits)}
+        for n, fut in enumerate(as_completed(futs), 1):
+            for out, res in zip(outs, fut.result(), strict=True):
+                r = dict(zip(FIELDS, res, strict=True))
+                for k, a in out.items():
+                    a[:, :, futs[fut]] = r[k]
+            print(f"  {IFS_NAME}: {n}/{len(inits)} inits ({time.time() - t0:.0f}s)")
+    for name, out in zip((IFS_NAME, IFS10_NAME), outs, strict=True):
+        save(name + tag, out, inits, lat[ilat], lon[ilon], vars_)
 
 
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--baselines", nargs="+", default=["all"])
     ap.add_argument("--workers", type=int, default=28)
+    ap.add_argument("--init-stride", type=int, default=INIT_STRIDE)
+    ap.add_argument("--n-points", type=int, default=N_POINTS)
+    ap.add_argument("--vars", nargs="+", default=None, help="labels, e.g. geopotential_500")
+    ap.add_argument("--tag", default="", help="output <baseline>_<tag>.npz")
+    ap.add_argument("--p-only", action="store_true", help="store only the Shapiro-Wilk p")
     args = ap.parse_args()
-    names = ALL_BASELINES if args.baselines == ["all"] else args.baselines
+    names = [n for b in args.baselines for n in (ALL_BASELINES if b == "all" else [b])]
+    labels = [var_label(*v) for v in VARS]
+    vars_ = VARS if args.vars is None else [VARS[labels.index(lab)] for lab in args.vars]
+    inits = production_inits(args.init_stride)
+    tag = f"_{args.tag}" if args.tag else ""
     for name in names:
         if name == CLIM_NAME:
-            run_climatology(args.workers)
+            run_climatology(args.workers, inits, vars_, args.n_points, tag, args.p_only)
+        elif name == IFS_NAME:
+            run_ifs(args.workers, inits, vars_, args.n_points, tag, args.p_only)
         else:
-            run_baseline(name, args.workers)
+            run_baseline(name, args.workers, inits, vars_, args.n_points, tag, args.p_only)
 
 
 if __name__ == "__main__":

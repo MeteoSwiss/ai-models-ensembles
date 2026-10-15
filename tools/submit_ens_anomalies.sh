@@ -3,10 +3,13 @@
 # (tools/compute_ens_anomalies.py). CPU sbatch: reads ~1.4 TB of production zarrs.
 #
 # Usage:
-#   sbatch tools/submit_ens_anomalies.sh                       # all 7 baselines
-#   sbatch tools/submit_ens_anomalies.sh aurora_encoder fcn3   # a subset
+#   sbatch tools/submit_ens_anomalies.sh                                   # all 7 baselines
+#   sbatch tools/submit_ens_anomalies.sh --baselines aurora_encoder fcn3   # a subset
+#   sbatch tools/submit_ens_anomalies.sh --baselines all era5_clim ifs_ens --init-stride 1 \
+#       --n-points 8192 --vars 2m_temperature specific_humidity_850 geopotential_500 \
+#       --tag sw --p-only                       # Shapiro-Wilk sample (member_shapiro_rate)
 #
-# Output: $STORE/analysis/ens_anom_gaussianity/<baseline>.npz
+# Output: $STORE/analysis/ens_anom_gaussianity/<baseline>[_<tag>].npz
 #
 #SBATCH --account=ab016
 #SBATCH --partition=normal
@@ -28,5 +31,5 @@ mkdir -p "$TMPDIR"
 
 cd ${AIENS_REPO:-/users/sadamov/pyprojects/ai-models-ensembles}/tools
 
-BASELINES=("${@:-all}")
-$PY -u compute_ens_anomalies.py --baselines "${BASELINES[@]}" --workers 28
+if [[ $# -eq 0 ]]; then set -- --baselines all; fi
+$PY -u compute_ens_anomalies.py --workers 28 "$@"
