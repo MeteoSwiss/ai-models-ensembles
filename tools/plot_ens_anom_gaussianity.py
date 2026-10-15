@@ -10,6 +10,10 @@ era5_clim):
       detrended Q-Q of the member anomaly a = x_m - ensemble mean against Gaussian
       members with the same per-gridpoint std: M iid N(0,1) draws standardized like the
       forecasts (sample mean, ddof=1 std) and rescaled by that std.
+  figures/ens_anom/member_zscore_qq_<lead>h.{png,pdf}
+      the same for the standardized anomaly z = (x_m - mean) / std against those Gaussian
+      members standardized the same way. z removes each forecast's location and scale, so
+      Gaussian members at every gridpoint and init give exactly 0 even after pooling.
 
 The styling helpers here are shared with tools/plot_point_ensemble.py.
 
@@ -61,6 +65,7 @@ NULL_COLOR = "#9AA0A6"
 QQ_PROBS = norm.cdf(np.linspace(-3.3, 3.3, 121))
 Z_POOL = "pooled over 28 inits x 2048 points x 10 members"
 A_EQ = r"$a_m = x_m - \bar{x}$"
+Z_EQ = r"$z_m = (x_m - \bar{x})\,/\,s_x$"
 BIG_RC = {
     "font.size": 14,
     "axes.titlesize": 17,
@@ -133,6 +138,20 @@ def panel_qq(ax, data, nulls, k: int, scale: float) -> None:
     style_axes(ax)
 
 
+def panel_qq_z(ax, data, nulls, k: int) -> None:
+    """Detrended Q-Q of the standardized anomaly z against standardized Gaussian members."""
+    x = norm.ppf(QQ_PROBS)
+    ax.axhline(0, color=NULL_COLOR, lw=3.6, label="Gaussian members")
+    for name, (z, _, _) in data.items():
+        a = z[k].ravel()
+        ok = np.isfinite(a)
+        y = np.quantile(a[ok], QQ_PROBS) - np.quantile(nulls[name][k].ravel(), QQ_PROBS)
+        model_line(ax, name, x, y, lw=2.4)
+    lim = max(abs(v) for v in ax.get_ylim())
+    ax.set_ylim(-lim, lim)
+    style_axes(ax)
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--lead", type=int, default=240)
@@ -150,7 +169,7 @@ def main() -> None:
 
     FIGDIR.mkdir(parents=True, exist_ok=True)
     with plt.rc_context(BIG_RC):
-        for kind in ("values", "qq"):
+        for kind in ("values", "qq", "qq_z"):
             fig, axes = plt.subplots(1, len(FEATURE), figsize=(20, 7.4))
             for k, (ax, var) in enumerate(zip(axes, FEATURE, strict=True)):
                 scale, unit = phys(var)
@@ -158,10 +177,14 @@ def main() -> None:
                 if kind == "values":
                     panel_values(ax, data, k, scale)
                     ax.set_xlabel(f"{VAR_SHORT[var]} [{unit}]")
-                else:
+                elif kind == "qq":
                     panel_qq(ax, data, nulls, k, scale)
                     ax.set_xlabel("standard normal quantile")
                     ax.set_ylabel(f"quantile minus Gaussian [{unit}]")
+                else:
+                    panel_qq_z(ax, data, nulls, k)
+                    ax.set_xlabel("standard normal quantile")
+                    ax.set_ylabel("quantile minus Gaussian [std]")
             if kind == "values":
                 axes[0].set_ylabel("density")
                 title = f"Ensemble member values at {args.lead} h"
@@ -170,13 +193,23 @@ def main() -> None:
                     "calendar day and hour, years as members"
                 )
                 stem = f"member_values_{args.lead}h"
-            else:
+            elif kind == "qq":
                 title = f"Member anomalies at {args.lead} h: detrended Q-Q against Gaussian members"
                 sub = (
                     f"{A_EQ},  " + r"$\bar{x}$" + f": mean over the 10 members per gridpoint;   "
                     f"{Z_POOL};   0 = Gaussian members with the same per-gridpoint std"
                 )
                 stem = f"member_anomaly_qq_{args.lead}h"
+            else:
+                title = (
+                    f"Standardized member anomalies at {args.lead} h: detrended Q-Q against "
+                    "Gaussian members"
+                )
+                sub = (
+                    f"{Z_EQ},  " + r"$\bar{x}$, $s_x$" + ": mean and std over the 10 members per "
+                    f"gridpoint;   {Z_POOL};   0 = 10 Gaussian members standardized the same way"
+                )
+                stem = f"member_zscore_qq_{args.lead}h"
             handles, names = axes[0].get_legend_handles_labels()
             fig.legend(handles, names, loc="lower center", ncol=len(handles), frameon=False)
             fig.suptitle(title)
