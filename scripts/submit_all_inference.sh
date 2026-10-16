@@ -34,6 +34,12 @@
 #   PER_INIT=1             Force per-init submission for all models.
 #   PER_INIT_TIME_LIMIT=T  Walltime per per-init job (default 01:00:00).
 #   WEEKS=YYYY-MM-DD,...   Comma-separated week_starts to limit scope.
+#   INITS=YYYYMMDD_HHMM,...  Only these inits within WEEKS (default: all 14 per week).
+#   LEAD_HOURS=N, NUM_MEMBERS=N  Override the production 360 h / 10 members.
+#   OUT_ROOT=DIR           Output root instead of \$STORE/baselines (bind-mounted if
+#                          outside \$STORE). Off-the-books runs, e.g. the 50-member
+#                          Zurich case (2026-10-15): WEEKS=2023-10-02 INITS=20231005_0000
+#                          LEAD_HOURS=240 NUM_MEMBERS=50 PER_INIT=1 OUT_ROOT=<scratch>.
 # ---------------------------------------------------------------------------
 set -euo pipefail
 
@@ -42,8 +48,10 @@ SRC_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 LOG_DIR="${LOG_DIR:-$STORE/baseline_logs}"
 WORKDIR=/workspace/ai-models-ensembles
 
-LEAD_HOURS=360
-NUM_MEMBERS=10
+LEAD_HOURS="${LEAD_HOURS:-360}"
+NUM_MEMBERS="${NUM_MEMBERS:-10}"
+OUT_ROOT="${OUT_ROOT:-$STORE/baselines}"
+INITS="${INITS:-}"
 OUTPUT_LEVELS="500,850"
 OUTPUT_VARS="10m_u_component_of_wind,10m_v_component_of_wind,2m_temperature,geopotential,mean_sea_level_pressure,specific_humidity,temperature,u_component_of_wind,v_component_of_wind"
 SEED=42
@@ -224,6 +232,10 @@ for model in $REQUESTED; do
     # The week-helper script is read from inside the container, so LOG_DIR has
     # to be visible there. Only $STORE is mounted by default, so an overridden
     # LOG_DIR (e.g. on iopsstor scratch) needs its own bind mount.
+    case "$OUT_ROOT" in
+        "$STORE"/*) ;;
+        *) mkdir -p "$OUT_ROOT"; mounts+=",${OUT_ROOT}:${OUT_ROOT}" ;;
+    esac
     case "$LOG_DIR" in
         "$STORE"/*) ;;
         *) mounts+=",${LOG_DIR}:${LOG_DIR}" ;;
@@ -244,7 +256,8 @@ for model in $REQUESTED; do
                 for hour in "00:00" "12:00"; do
                     init_time="${init_date}T${hour}"
                     init_tag="${init_date//-/}_${hour//:}"
-                    out_dir="$STORE/baselines/${model}/${init_tag}"
+                    [[ -n "$INITS" && ",$INITS," != *",$init_tag,"* ]] && continue
+                    out_dir="$OUT_ROOT/${model}/${init_tag}"
                     out_zarr="$out_dir/forecast.zarr"
 
                     if [[ -d "$out_zarr" ]]; then
@@ -305,8 +318,9 @@ SCRIPT
             for hour in "00:00" "12:00"; do
                 init_time="${init_date}T${hour}"
                 init_tag="${init_date//-/}_${hour//:}"
+                [[ -n "$INITS" && ",$INITS," != *",$init_tag,"* ]] && continue
 
-                out_dir="$STORE/baselines/${model}/${init_tag}"
+                out_dir="$OUT_ROOT/${model}/${init_tag}"
                 out_zarr="$out_dir/forecast.zarr"
 
                 if [[ -d "$out_zarr" ]]; then
@@ -395,4 +409,4 @@ echo "Monitor with: squeue -u \$USER | grep bl_"
 echo "Logs: $LOG_DIR/"
 echo ""
 echo "Output layout:"
-echo "  $STORE/baselines/<model>/<YYYYMMDD_HHMM>/forecast.zarr"
+echo "  $OUT_ROOT/<model>/<YYYYMMDD_HHMM>/forecast.zarr"

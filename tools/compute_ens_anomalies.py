@@ -32,6 +32,9 @@ Usage (CPU sbatch): python tools/compute_ens_anomalies.py --baselines all era5_c
   Shapiro-Wilk sample (figures/ens_anom/member_shapiro_rate): --baselines all era5_clim ifs_ens
   --init-stride 1 --n-points 8192 --vars 2m_temperature specific_humidity_850
   geopotential_500 10m_wind_speed --tag sw --p-only
+  50-member Zurich case (one init, 240 h; figures/ens_anom/member_shapiro_rate_m50_*): the same
+  with --baselines all ifs_ens --root $STORE/baselines_m50 --inits 20231005_0000 --tag sw_m50
+  (leads past the run's last one stay NaN)
 """
 
 from __future__ import annotations
@@ -41,6 +44,7 @@ import sys
 import time
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from datetime import datetime, timedelta
+from pathlib import Path
 
 import numpy as np
 import xarray as xr
@@ -169,10 +173,11 @@ def members_out(x: np.ndarray, axis: int) -> tuple[np.ndarray, ...]:
 
 
 def process_init(path: str, ilat: np.ndarray, ilon: np.ndarray, vars_) -> tuple[np.ndarray, ...]:
+    """Leads past the forecast's last one (a shorter run) stay NaN."""
     ds = xr.open_zarr(path, chunks=None).isel(init_time=0)
     lead_h = (ds.lead_time.values / np.timedelta64(1, "h")).astype(int)
-    li = [int(np.flatnonzero(lead_h == h)[0]) for h in LEAD_HOURS]
-    x = np.empty((len(vars_), len(LEAD_HOURS), ds.sizes["ensemble"], ilat.size), np.float32)
+    li = [int(np.flatnonzero(lead_h == h)[0]) for h in LEAD_HOURS if h <= lead_h.max()]
+    x = np.full((len(vars_), len(LEAD_HOURS), ds.sizes["ensemble"], ilat.size), np.nan, np.float32)
     for k, (var, lev) in enumerate(vars_):
         for j, lt in enumerate(li):
             da = field(ds.isel(lead_time=lt), var, lev)
@@ -247,9 +252,16 @@ def run_climatology(
 
 
 def run_baseline(
-    name: str, workers: int, inits: list[str], vars_, n_points: int, tag: str, p_only: bool
+    name: str,
+    workers: int,
+    inits: list[str],
+    vars_,
+    n_points: int,
+    tag: str,
+    p_only: bool,
+    root: Path = BASELINES,
 ) -> None:
-    root = BASELINES / name
+    root = root / name
     ds0 = xr.open_zarr(root / inits[0] / "forecast.zarr", chunks=None)
     lat = ds0.latitude.values
     lon = ds0.longitude.values
@@ -301,11 +313,13 @@ def main() -> None:
     ap.add_argument("--vars", nargs="+", default=None, help="labels, e.g. geopotential_500")
     ap.add_argument("--tag", default="", help="output <baseline>_<tag>.npz")
     ap.add_argument("--p-only", action="store_true", help="store only the Shapiro-Wilk p")
+    ap.add_argument("--root", type=Path, default=BASELINES, help="<root>/<baseline>/<init>")
+    ap.add_argument("--inits", nargs="+", default=None, help="init tags instead of --init-stride")
     args = ap.parse_args()
     names = [n for b in args.baselines for n in (ALL_BASELINES if b == "all" else [b])]
     labels = [var_label(*v) for v in VARS]
     vars_ = VARS if args.vars is None else [VARS[labels.index(lab)] for lab in args.vars]
-    inits = production_inits(args.init_stride)
+    inits = args.inits or production_inits(args.init_stride)
     tag = f"_{args.tag}" if args.tag else ""
     for name in names:
         if name == CLIM_NAME:
@@ -313,7 +327,9 @@ def main() -> None:
         elif name == IFS_NAME:
             run_ifs(args.workers, inits, vars_, args.n_points, tag, args.p_only)
         else:
-            run_baseline(name, args.workers, inits, vars_, args.n_points, tag, args.p_only)
+            run_baseline(
+                name, args.workers, inits, vars_, args.n_points, tag, args.p_only, args.root
+            )
 
 
 if __name__ == "__main__":

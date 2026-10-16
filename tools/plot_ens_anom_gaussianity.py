@@ -21,10 +21,13 @@ era5_clim):
       one forecast only, so a mixture over inits cannot raise it. IFS-ENS with all 50
       members and with 10 shows the effect of M on the test's power. The bootstrap band
       resamples inits at the FDR threshold of the full sample.
+  figures/ens_anom/member_shapiro_rate_m50_<init>.{png,pdf} (--case)
+      the same for the 50-member single-init case (--tag sw_m50 sample, 8192 points at one
+      init, leads the 240 h run reaches), with IFS-ENS at that init.
 
 The styling helpers here are shared with tools/plot_point_ensemble.py.
 
-Usage: python tools/plot_ens_anom_gaussianity.py [--lead 240] [--shapiro-only]
+Usage: python tools/plot_ens_anom_gaussianity.py [--lead 240] [--shapiro-only | --case]
 """
 
 from __future__ import annotations
@@ -83,6 +86,8 @@ SW_ALPHA = 0.05
 SW_Q = 0.05
 SW_TAG = "sw"  # compute_ens_anomalies.py --tag sw: all 112 inits x 8192 points, Shapiro-Wilk p
 SW_BOOT = 2000
+CASE_TAG = "m50"  # 50 members at one init (scripts/submit_all_inference.sh with OUT_ROOT)
+CASE_M = 50
 QQ_PROBS = norm.cdf(np.linspace(-3.3, 3.3, 121))
 Z_POOL = "pooled over 28 inits x 2048 points x 10 members"
 A_EQ = r"$a_m = x_m - \bar{x}$"
@@ -192,19 +197,25 @@ def bh_share(p: np.ndarray) -> np.ndarray:
     return np.divide(d.sum(axis=1), n, out=np.full(n.shape, np.nan), where=n > 0)
 
 
-def plot_shapiro_rate() -> None:
+def plot_shapiro_rate(case: bool = False) -> None:
+    """All 112 inits x 10 members, or with case the CASE_M-member single-init run."""
     rng = np.random.default_rng(NULL_SEED)
+    tag, M = (f"{SW_TAG}_{CASE_TAG}", CASE_M) if case else (SW_TAG, 10)
     rates = {}
-    for name in SPW + TRAINED + IFS + [CLIM]:
-        f = np.load(INDIR / f"{name}_{SW_TAG}.npz")
+    for name in SPW + TRAINED + IFS + ([] if case else [CLIM]):
+        f = np.load(INDIR / f"{name}_{tag}.npz")
         labels, p = list(f["labels"]), f["p"]
         rates[name] = np.stack(
             [[bh_share(p[labels.index(v), li]) for li in range(p.shape[1])] for v in TEST_FEATURE]
         )
         if name == SPW[0]:
-            leads, n_init, npts = f["lead_hours"], f["inits"].size, p.shape[-1]
-        print(f"  {name}: {np.round(100 * np.nanmean(rates[name][:, -1], -1), 2)} % at 360 h")
-    p0 = shapiro(rng.standard_normal((n_init * npts, 10)), axis=-1).pvalue
+            leads, inits, npts = f["lead_hours"], f["inits"], p.shape[-1]
+            keep = np.isfinite(rates[name]).any(axis=(0, 2))  # leads the run reaches
+    leads, n_init = leads[keep], inits.size
+    rates = {name: r[:, keep] for name, r in rates.items()}
+    for name, r in rates.items():
+        print(f"  {name}: {np.round(100 * np.nanmean(r[:, -1], -1), 2)} % at {leads[-1]} h")
+    p0 = shapiro(rng.standard_normal((n_init * npts, M)), axis=-1).pvalue
     size = np.mean(false_discovery_control(p0) < SW_Q)
     print(f"  Gaussian members {100 * size:.3f} %")
 
@@ -213,9 +224,12 @@ def plot_shapiro_rate() -> None:
         for k, (ax, var) in enumerate(zip(axes, TEST_FEATURE, strict=True)):
             for name, rate in rates.items():
                 r = rate[k]
-                boot = rng.integers(0, r.shape[1], (SW_BOOT, r.shape[1]))
-                lo, hi = np.percentile(np.nanmean(r[:, boot], -1), [2.5, 97.5], axis=1)
-                ax.fill_between(leads, 100 * lo, 100 * hi, color=line_color(name), alpha=0.12, lw=0)
+                if n_init > 1:
+                    boot = rng.integers(0, r.shape[1], (SW_BOOT, r.shape[1]))
+                    lo, hi = np.percentile(np.nanmean(r[:, boot], -1), [2.5, 97.5], axis=1)
+                    ax.fill_between(
+                        leads, 100 * lo, 100 * hi, color=line_color(name), alpha=0.12, lw=0
+                    )
                 model_line(ax, name, leads, 100 * np.nanmean(r, -1), lw=2.4)
             ax.set_title(VAR_SHORT[var])
             ax.set_xlabel("lead time [h]")
@@ -229,21 +243,29 @@ def plot_shapiro_rate() -> None:
         axes[0].yaxis.set_minor_locator(matplotlib.ticker.NullLocator())
         handles, names = axes[0].get_legend_handles_labels()
         fig.legend(handles, names, loc="lower center", ncol=5, frameon=False)
-        fig.suptitle("How often is a single ensemble non-Gaussian?")
-        fig.text(
-            0.5,
-            0.935,
-            "Shapiro-Wilk test on the members at one init and one gridpoint, Benjamini-Hochberg "
-            f"FDR {SW_Q:.0%} over the {n_init} inits x {npts} points per lead;   band: 95% "
-            f"bootstrap over inits;   10 Gaussian members: {100 * size:.0f}%\n"
-            "lines at 0: no single ensemble detected (overlapping)",
-            ha="center",
-            va="top",
-            fontsize=13,
-        )
+        if case:
+            it = str(inits[0])
+            t0 = f"{it[:4]}-{it[4:6]}-{it[6:8]} {it[9:11]} UTC"
+            fig.suptitle(f"How often is a single ensemble non-Gaussian? {M} members, one init")
+            sub = (
+                f"Shapiro-Wilk test on the members at one gridpoint, init {t0}, Benjamini-Hochberg "
+                f"FDR {SW_Q:.0%} over the {npts} points per lead;   {M} Gaussian members: "
+                f"{100 * size:.0f}%\nIFS-ENS at the same init;   lines at 0: no single ensemble "
+                "detected (overlapping)"
+            )
+        else:
+            fig.suptitle("How often is a single ensemble non-Gaussian?")
+            sub = (
+                "Shapiro-Wilk test on the members at one init and one gridpoint, Benjamini-Hochberg "
+                f"FDR {SW_Q:.0%} over the {n_init} inits x {npts} points per lead;   band: 95% "
+                f"bootstrap over inits;   10 Gaussian members: {100 * size:.0f}%\n"
+                "lines at 0: no single ensemble detected (overlapping)"
+            )
+        fig.text(0.5, 0.935, sub, ha="center", va="top", fontsize=13)
         fig.tight_layout(rect=(0, 0.1, 1, 0.88))
+        stem = f"member_shapiro_rate_{CASE_TAG}_{inits[0]}" if case else "member_shapiro_rate"
         for ext in ("png", "pdf"):
-            out = FIGDIR / f"member_shapiro_rate.{ext}"
+            out = FIGDIR / f"{stem}.{ext}"
             fig.savefig(out, dpi=200)
             print(f"saved {out}")
         plt.close(fig)
@@ -253,8 +275,12 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--lead", type=int, default=240)
     ap.add_argument("--shapiro-only", action="store_true")
+    ap.add_argument("--case", action="store_true", help=f"only the {CASE_M}-member case figure")
     args = ap.parse_args()
     FIGDIR.mkdir(parents=True, exist_ok=True)
+    if args.case:
+        plot_shapiro_rate(case=True)
+        return
     plot_shapiro_rate()
     if args.shapiro_only:
         return

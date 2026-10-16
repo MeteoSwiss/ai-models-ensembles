@@ -15,6 +15,9 @@ Default points: the four of figures/ens_anom/point_grid_values_* (north to south
 opposite meridians (point_grid_opposite_values_*), see tools/plot_point_ensemble.py.
 
 Usage (CPU sbatch): python tools/compute_point_ensemble.py [--points name,lat,lon ...]
+  50-member Zurich case (one init, 240 h, scripts/submit_all_inference.sh with OUT_ROOT):
+  --points zurich,47.5,8.5 --root $STORE/baselines_m50 --inits 20231005_0000 --tag m50
+  -> point_zurich_m50.npz
 """
 
 from __future__ import annotations
@@ -24,6 +27,7 @@ import sys
 import time
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from datetime import datetime, timedelta
+from pathlib import Path
 
 import numpy as np
 import xarray as xr
@@ -112,15 +116,21 @@ def main() -> None:
     ap.add_argument("--points", nargs="+", default=POINTS, help="name,lat,lon")
     ap.add_argument("--leads", type=int, nargs="+", default=[240])
     ap.add_argument("--workers", type=int, default=28)
+    ap.add_argument("--root", type=Path, default=BASELINES, help="<root>/<baseline>/<init>")
+    ap.add_argument("--inits", nargs="+", default=None, help="default: all 112 production inits")
+    ap.add_argument("--tag", default="", help="output point_<name>_<tag>.npz")
     args = ap.parse_args()
     names = [p.split(",")[0] for p in args.points]
     lats = [float(p.split(",")[1]) for p in args.points]
     lons = [float(p.split(",")[2]) for p in args.points]
 
-    root0 = BASELINES / ALL_BASELINES[0]
-    inits = sorted(p.name for p in root0.iterdir() if (p / "forecast.zarr").is_dir())
-    if len(inits) != 112:
-        raise RuntimeError(f"expected 112 inits, found {len(inits)}")
+    if args.inits:
+        inits = args.inits
+    else:
+        root0 = args.root / ALL_BASELINES[0]
+        inits = sorted(p.name for p in root0.iterdir() if (p / "forecast.zarr").is_dir())
+        if len(inits) != 112:
+            raise RuntimeError(f"expected 112 inits, found {len(inits)}")
 
     data: dict[str, np.ndarray] = {}
     t0 = time.time()
@@ -129,7 +139,7 @@ def main() -> None:
             futs = {
                 ex.submit(
                     process_init,
-                    str(BASELINES / name / it / "forecast.zarr"),
+                    str(args.root / name / it / "forecast.zarr"),
                     lats,
                     lons,
                     args.leads,
@@ -164,10 +174,10 @@ def main() -> None:
         data[CLIM_NAME] = clim
         print(f"  {CLIM_NAME}: {len(times)} calendar times ({time.time() - t0:.0f}s)")
 
-    ds0 = xr.open_zarr(BASELINES / ALL_BASELINES[1] / inits[0] / "forecast.zarr", chunks=None)
+    ds0 = xr.open_zarr(args.root / ALL_BASELINES[1] / inits[0] / "forecast.zarr", chunks=None)
     ilat, ilon = nearest(ds0, lats, lons)
     for i, pname in enumerate(names):
-        out = OUTDIR / f"point_{pname}.npz"
+        out = OUTDIR / f"point_{pname}{'_' + args.tag if args.tag else ''}.npz"
         np.savez(
             out,
             labels=np.array([f"{v}" if lev is None else f"{v}_{lev}" for v, lev in VARS]),

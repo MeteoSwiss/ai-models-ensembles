@@ -18,8 +18,10 @@ day and hour, years as members):
       climatology. One global envelope test per panel against Gaussian samples of the same
       size (the ensemble's own mean and std), Benjamini-Hochberg over the panels; the band is
       drawn at the BH level, so a member outside it marks a panel non-Gaussian at FDR 5%.
+  figures/ens_anom/point_members_*_m50.{png,pdf}, point_member_qq_*_m50.{png,pdf} (--case)
+      the same two from the 50-member single-init run (point_<point>_m50.npz).
 
-Usage: python tools/plot_point_ensemble.py [--lead 240] [--member-point zurich --member-init 20231005_0000]
+Usage: python tools/plot_point_ensemble.py [--lead 240] [--member-point zurich --member-init 20231005_0000] [--case]
 """
 
 from __future__ import annotations
@@ -35,6 +37,7 @@ from scipy.stats import false_discovery_control, gaussian_kde
 
 from plot_ens_anom_gaussianity import (
     BIG_RC,
+    CASE_TAG,
     CLIM,
     FEATURE,
     FIGDIR,
@@ -198,8 +201,9 @@ def plot_bands(lead: int, n_max: int) -> None:
     )
 
 
-def plot_members(lead: int, point: str, init: str) -> None:
-    f = np.load(INDIR / f"point_{point}.npz")
+def plot_members(lead: int, point: str, init: str, tag: str = "") -> None:
+    sfx = f"_{tag}" if tag else ""
+    f = np.load(INDIR / f"point_{point}{sfx}.npz")
     li = int(np.flatnonzero(f["lead_hours"] == lead)[0])
     j = list(f["inits"]).index(init)
     title = dict(POINTS + OPPOSITE_POINTS)[point]
@@ -221,11 +225,12 @@ def plot_members(lead: int, point: str, init: str) -> None:
         axes[0].set_yticks(range(len(names)), [LABEL[n] for n in names])
         axes[0].set_ylim(len(names) - 0.5, -0.5)
         t0 = f"{init[:4]}-{init[4:6]}-{init[6:8]} {init[9:11]} UTC"
-        fig.suptitle(f"10 members, {title} ({coords(f)}), init {t0}, +{lead} h")
+        M = f[names[0]].shape[-1]
+        fig.suptitle(f"{M} members, {title} ({coords(f)}), init {t0}, +{lead} h")
         fig.tight_layout()
         FIGDIR.mkdir(parents=True, exist_ok=True)
         for ext in ("png", "pdf"):
-            out = FIGDIR / f"point_members_{point}_{init}_{lead}h.{ext}"
+            out = FIGDIR / f"point_members_{point}_{init}_{lead}h{sfx}.{ext}"
             fig.savefig(out, dpi=200)
             print(f"saved {out}")
         plt.close(fig)
@@ -270,8 +275,9 @@ def fmt_p(p: float) -> str:
     return f"{p:.2f}" if p >= 0.01 else f"{p:.0e}"
 
 
-def plot_member_qq(lead: int, point: str, init: str) -> None:
-    f = np.load(INDIR / f"point_{point}.npz")
+def plot_member_qq(lead: int, point: str, init: str, tag: str = "") -> None:
+    sfx = f"_{tag}" if tag else ""
+    f = np.load(INDIR / f"point_{point}{sfx}.npz")
     li = int(np.flatnonzero(f["lead_hours"] == lead)[0])
     j = list(f["inits"]).index(init)
     title = dict(POINTS + OPPOSITE_POINTS)[point]
@@ -339,8 +345,10 @@ def plot_member_qq(lead: int, point: str, init: str) -> None:
                 )
             axes[r, 0].set_ylabel(f"{VAR_SHORT[var]} [{unit}]")
         t0 = f"{init[:4]}-{init[4:6]}-{init[6:8]} {init[9:11]} UTC"
+        per_model = f", {f[SPW[0]].shape[-1]} members per model" if tag else ""
         fig.suptitle(
-            f"Normal Q-Q of the ensemble members, {title} ({coords(f)}), init {t0}, +{lead} h"
+            f"Normal Q-Q of the ensemble members{per_model}, {title} ({coords(f)}), init {t0}, "
+            f"+{lead} h"
         )
         fig.text(
             0.5,
@@ -358,7 +366,7 @@ def plot_member_qq(lead: int, point: str, init: str) -> None:
         fig.tight_layout(rect=(0, 0, 1, 0.925))
         FIGDIR.mkdir(parents=True, exist_ok=True)
         for ext in ("png", "pdf"):
-            out = FIGDIR / f"point_member_qq_{point}_{init}_{lead}h.{ext}"
+            out = FIGDIR / f"point_member_qq_{point}_{init}_{lead}h{sfx}.{ext}"
             fig.savefig(out, dpi=200)
             print(f"saved {out} (band level 1 - {alpha:.4f})")
         plt.close(fig)
@@ -371,10 +379,12 @@ def main() -> None:
     ap.add_argument("--member-point", default="zurich")
     ap.add_argument("--member-init", default="20231005_0000")
     ap.add_argument("--members-only", action="store_true")
+    ap.add_argument("--case", action="store_true", help="only the 50-member single-init case")
     args = ap.parse_args()
-    plot_members(args.lead, args.member_point, args.member_init)
-    plot_member_qq(args.lead, args.member_point, args.member_init)
-    if args.members_only:
+    tag = CASE_TAG if args.case else ""
+    plot_members(args.lead, args.member_point, args.member_init, tag)
+    plot_member_qq(args.lead, args.member_point, args.member_init, tag)
+    if args.members_only or args.case:
         return
     plot_points(args.lead, POINTS, f"point_grid_values_{args.lead}h")
     plot_points(
