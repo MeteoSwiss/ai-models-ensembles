@@ -75,5 +75,6 @@ e2s_cache_backup/aifs-ens-1.0,cache,AIFS-ENS 1.0 checkpoint package from hf://ec
 e2s_cache_backup/aifs-single-1.1,cache,AIFS single 1.1 checkpoint package from hf://ecmwf/aifs-single-1.1.
 e2s_cache_backup/aifs-single-1.1_interpolation_matrix,cache,AIFS grid interpolation matrix (earth2studio download).
 e2s_cache_backup/aifs-single-1.1_inverse_interpolation_matrix,cache,AIFS inverse interpolation matrix (earth2studio download).
+e2s_cache_backup/graphcast,cache,"GraphCast operational package from gs://dm_graphcast (weights, normalisation stats, static fields), copied 2026-11-02 so the handover demo needs no download."
 e2s_cache_backup/ifs-opendata,cache,Small ECMWF open-data cache used by AIFS.
 earth2studio_cache/sfno,cache,SFNO checkpoint package (ngc://models/nvidia/modulus/sfno_73ch_small@0.1.0) used for the weight audit.

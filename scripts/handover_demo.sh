@@ -4,15 +4,20 @@
 # (2023-01-02 00 UTC), 2 members, 24 h, through the production submitter; then the
 # SwissClim deterministic + probabilistic modules against ERA5; then a comparison with
 # the production run of the same init (same seeds, so the members should agree up to
-# GPU nondeterminism). See docs/HANDOVER.md, section 3.
+# GPU nondeterminism and the IC source). See docs/HANDOVER.md, section 3.
+#
+# All data comes from Clariden: the initial condition from the local ERA5 zarr (production
+# used the same ERA5 from ARCO on GCS), the GraphCast weights from $STORE/e2s_cache_backup,
+# the truth from the same ERA5 zarr, the reference from $STORE. Only the venv step downloads
+# Python packages.
 #
 #   bash scripts/handover_demo.sh venv      # once: .venv in this checkout, built on a compute node (~2 min)
-#   bash scripts/handover_demo.sh infer     # GPU job, ~8 min incl. the GraphCast weight download
+#   bash scripts/handover_demo.sh infer     # GPU job, ~4 min
 #   bash scripts/handover_demo.sh eval      # after infer: SwissClim on the demo forecast (CPU job, ~7 min)
 #   bash scripts/handover_demo.sh compare   # after infer: demo vs production, members 0-1 at +24 h
 #
-# Needs Unix groups s83 (store, container images) and weatherbench (ERA5 truth, eval only),
-# a Slurm account (AIENS_ACCOUNT, default ab016) and `uv` on PATH for the venv step.
+# Needs Unix groups s83 (store, container images, weights) and weatherbench (ERA5), a Slurm
+# account (AIENS_ACCOUNT, default ab016) and `uv` on PATH for the venv step.
 # Outputs go to DEMO_ROOT (default $AIENS_SCRATCH/aiens_demo, purgeable).
 
 set -euo pipefail
@@ -42,6 +47,7 @@ venv)
     ;;
 infer)
     PER_INIT=1 WEEKS=2023-01-02 INITS="$INIT_TAG" LEAD_HOURS=24 NUM_MEMBERS=2 \
+        DATA_SOURCE="swissclim:$WB2" E2S_CACHE="$STORE/e2s_cache_backup" \
         PARTITION="$PARTITION" PER_INIT_TIME_LIMIT=00:45:00 \
         OUT_ROOT="$DEMO_ROOT/baselines" LOG_DIR="$DEMO_ROOT/logs" \
         bash "$SRC_DIR/scripts/submit_all_inference.sh" graphcast_all

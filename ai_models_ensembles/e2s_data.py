@@ -85,7 +85,11 @@ class XarrayDataSource:
 
         stacked = xr.concat(chans, dim="variable")
         stacked = stacked.assign_coords(variable=("variable", var_list))
-        return stacked
+        # earth2studio sources return (time, variable, lat, lon); the concat puts
+        # 'variable' first, which breaks the IO write of the initial state.
+        canonical = [d for d in ("time", "variable", "lat", "lon") if d in stacked.dims]
+        extras = [d for d in stacked.dims if d not in canonical]
+        return stacked.transpose(*canonical, *extras)
 
 
 def fetch_initial_conditions(
@@ -228,12 +232,17 @@ def build_data_source(spec: str, materialise: bool = False) -> Any:
       * "ifs_ens"            - ECMWF IFS ensemble open data
       * "wb2"                - WeatherBench2 ERA5 zarr
       * "file:PATH"          - local zarr/netCDF (raw xr.open_dataset/open_zarr)
+      * "swissclim:PATH"     - local SwissClim/WB2-format zarr with a 'time' dim
+                               (ECMWF long names, 'level' dim), e.g. the ERA5
+                               truth zarrs on Clariden
       * "ifs_analysis:PATH"  - SwissClim-format IFS zarr; serves lead_time=0
                                slice as the analysis IC (recommended for fair
                                cross-model comparison).
     """
     if spec.startswith("ifs_analysis:"):
         return _ifs_analysis_source(spec[len("ifs_analysis:") :])
+    if spec.startswith("swissclim:"):
+        return XarrayDataSource.from_swissclim(xr.open_zarr(spec[len("swissclim:") :]))
     if spec.startswith("file:"):
         path = spec[len("file:") :]
         return XarrayDataSource(

@@ -50,13 +50,14 @@ reorganise or delete anything, ask CSCS (or the `s83` project PI) to transfer ow
 3. On Clariden: get the groups and the Slurm account listed in [HPC.md](HPC.md#accounts-partitions-limits)
    (`s83` for the store, `ab016` for the IFS data and the allocation, `weatherbench` for the ERA5 truth).
    Clone the repo, build your own venv (the shared one works only for the author) and run the small
-   end-to-end check, which goes through the production submitter and SwissClim:
+   end-to-end check, which goes through the production submitter and SwissClim and reads only Clariden
+   data (initial condition from the local ERA5 zarr, GraphCast weights from `$STORE/e2s_cache_backup`):
 
    ```bash
    git clone https://github.com/MeteoSwiss/ai-models-ensembles.git && cd ai-models-ensembles
    export AIENS_REPO=$PWD AIENS_PY=$PWD/.venv/bin/python AIENS_ACCOUNT=ab016
    bash scripts/handover_demo.sh venv      # once, ~2 min
-   bash scripts/handover_demo.sh infer     # GraphCast graphcast_all, 2023-01-02 00 UTC, 2 members, 24 h (~8 min)
+   bash scripts/handover_demo.sh infer     # GraphCast graphcast_all, 2023-01-02 00 UTC, 2 members, 24 h (~4 min)
    bash scripts/handover_demo.sh eval      # SwissClim deterministic + probabilistic vs ERA5 (~7 min)
    bash scripts/handover_demo.sh compare   # demo vs production run of the same init
    ```

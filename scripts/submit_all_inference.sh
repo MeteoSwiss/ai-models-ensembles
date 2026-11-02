@@ -40,6 +40,10 @@
 #                          outside \$STORE). Off-the-books runs, e.g. the 50-member
 #                          Zurich case (2026-10-15): WEEKS=2023-10-02 INITS=20231005_0000
 #                          LEAD_HOURS=240 NUM_MEMBERS=50 PER_INIT=1 OUT_ROOT=<scratch>.
+#   DATA_SOURCE=SPEC       IC source instead of the per-model default, e.g.
+#                          swissclim:<local ERA5 zarr> (bind-mounted automatically).
+#   E2S_CACHE=DIR          earth2studio cache (model weights, downloaded ICs) instead of
+#                          the default (scratch; \$STORE/e2s_cache_backup for CDS models).
 # ---------------------------------------------------------------------------
 set -euo pipefail
 
@@ -188,7 +192,7 @@ for model in $REQUESTED; do
     fi
 
     container="$STORE/${CONTAINER_BASE[$model]}.sqsh"
-    dsrc="${DATA_SRC[$model]}"
+    dsrc="${DATA_SOURCE:-${DATA_SRC[$model]}}"
     extra_flags="${EXTRA_FLAGS[$model]:-}"
     n_members="${MEMBERS[$model]:-$NUM_MEMBERS}"
     # Per-init mode (default 0 / week-helper). Opt in via PER_INIT=1.
@@ -220,7 +224,9 @@ for model in $REQUESTED; do
     # (var, time) has to queue against the CDS API. The scratch copy gets
     # purged (down to 898 entries by 2026-08-26), so it is only safe for the
     # ARCO-bound models.
-    if [[ "$dsrc" == "cds" ]]; then
+    if [[ -n "${E2S_CACHE:-}" ]]; then
+        E2S_CACHE_DIR="$E2S_CACHE"
+    elif [[ "$dsrc" == "cds" ]]; then
         E2S_CACHE_DIR="$STORE/e2s_cache_backup"
     else
         E2S_CACHE_DIR="${AIENS_SCRATCH:-/iopsstor/scratch/cscs/$USER}/e2s_cache"
@@ -230,6 +236,11 @@ for model in $REQUESTED; do
     # Perturbed-analysis store for the --ic-zarr runs.
     IC_DIR=$(dirname "$IC_ZARR")
     [[ -d "$IC_DIR" ]] && mounts+=",${IC_DIR}:${IC_DIR}"
+    # Local IC zarr given as DATA_SOURCE=<prefix>:PATH.
+    if [[ "$dsrc" == *:/* ]]; then
+        SRC_PATH="${dsrc#*:}"
+        mounts+=",${SRC_PATH}:${SRC_PATH}"
+    fi
     # The week-helper script is read from inside the container, so LOG_DIR has
     # to be visible there. Only $STORE is mounted by default, so an overridden
     # LOG_DIR (e.g. on iopsstor scratch) needs its own bind mount.

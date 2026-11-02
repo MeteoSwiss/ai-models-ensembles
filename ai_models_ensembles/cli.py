@@ -116,7 +116,7 @@ def cli_infer(
     data_source: str = typer.Option(
         "arco",
         "--data-source",
-        help="ARCO | CDS | GFS | IFS | IFS_ENS | WB2 | file:PATH (case-insensitive).",
+        help="ARCO | CDS | GFS | IFS | IFS_ENS | WB2 | file:PATH | swissclim:PATH (case-insensitive).",
     ),
     ic_zarr: Optional[str] = typer.Option(
         None,
