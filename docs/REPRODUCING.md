@@ -40,14 +40,15 @@ the `CreationDate` stamp removed).
 | Figs. bivariate T-q and geostrophic | `bivariate_Tq_500hPa_7way.pdf`, `bivariate_geostrophic_500hPa.pdf` | `python tools/plot_bivariate.py` | yes (needs `swissclim-evaluations`) | verified |
 | Fig. spectrogram delta z500 | `spectrogram_delta_z500_7way.pdf` | `python tools/plot_spectrogram_delta_2row.py` | yes | verified |
 | Fig. spread-error | `spread_error.pdf` | `python tools/plot_spread_error.py` | yes | verified |
-| Fig. rank histograms | `rank_histograms_240h.pdf` | `python tools/plot_rank_histograms.py` | yes, after vendoring `analysis/rank_histograms/` | inputs regenerated 2026-11-02 (job 3833540), see section 4 |
+| Fig. rank histograms | `rank_histograms_240h.pdf` | `python tools/plot_rank_histograms.py` | yes | verified (inputs regenerated 2026-11-02, job 3833540) |
 | Tab. C1 production metrics | `table_c1_production_metrics.tex` | `python tools/assemble_production_metrics_table.py` | yes, after vendoring `analysis/table_metrics_fixedscale/` | inputs regenerated 2026-11-02 (job 3833541), see section 4 |
 | Tab. calibration basis | `calibration_basis_table.tex` | `python tools/assemble_calibration_table.py` (prints the body; pasted by hand) + `python tools/patch_calibration_lsd.py --write` (LSD cells) | yes, same | LSD patch verified; body as Tab. C1 |
 | Tab. IC decomposition | `ic_decomp_table.tex` | `python tools/make_ic_decomp_table.py` | yes | verified |
 | Tab. rival validation | `rival_validation_table.tex` | `python tools/make_rival_validation_table.py` | yes | verified |
-| Fig. Milton F1 tracks | `milton_F1_track_spaghetti.pdf` | see note 2 | yes | verified |
-| Figs. Milton F2, F5, F9 + Tab. Milton summary | `milton_F2_*`, `milton_F5_*`, `milton_F9_*`, `milton_summary_table.tex` | `tools/milton/figures_milton.py`, `plot_aifs_wt_vs_ic_spread.py` | no | intermediates scratch-purged, see section 5 |
-| Figs. Milton F3, F4 | `milton_F3_cascading_combined.pdf`, `milton_F4_storm_relative_composite.pdf` | `tools/milton/figures_milton.py` | no (reads forecast zarrs) | HPC only; F4 also needs the regenerated ERA5 window |
+| Figs. Milton F1, F2, F5 | `milton_F1_track_spaghetti.pdf`, `milton_F2_intensity_vs_lead.pdf`, `milton_F5_verification_vs_lead.pdf` | see note 2 | yes | verified (tracks rebuilt 2026-11-02, job 3833735) |
+| Fig. Milton F9 | `milton_F9_aifs_wt_vs_ic_spread.pdf` | `python tools/milton/plot_aifs_wt_vs_ic_spread.py` | yes | corrected 2026-11-02, see note 3 |
+| Tab. Milton summary | `milton_summary_table.tex` | `python tools/milton/aggregate_tracks.py && python tools/milton/analyze_milton_stats.py`, then transcribe `milton_per_baseline_summary.csv` | yes | verified: all 40 values reproduce |
+| Figs. Milton F3, F4 | `milton_F3_cascading_combined.pdf`, `milton_F4_storm_relative_composite.pdf` | `tools/milton/submit_milton_rebuild.sh` (calls `figures_milton.py`) | no (reads forecast zarrs) | verified on Clariden 2026-11-02 |
 | Fig. Milton F8 member/spread maps | `milton_F8_member_spread_maps_96h.pdf` | `python tools/plot_milton_member_spread_maps.py` | no (reads zarrs) | HPC only |
 | Tab. experiment design | `experiments_tables.tex` | hand-written | - | static |
 | Tab. inference cost | `inference_cost_table.tex` | hand-written from Slurm accounting (`sacct`) | - | static |
@@ -58,12 +59,27 @@ by the repo tool. The two differ by at most 0.0008 in SSR (mean 0.00008), invisi
 the script now (vendored or on `$STORE`) gives the canonical version; vendored and `$STORE` runs are
 byte-identical.
 
-Note 2: `figures_milton.main()` first loads the purged master CSVs, so draw F1 alone:
+Note 2: `figures_milton.main()` also draws F3/F4 (and nine unpublished per-baseline F3 variants), which read
+the forecast zarrs. Off-HPC, draw the others directly:
 
 ```bash
-AIENS_SCRATCH=$PWD/tools/data/store/analysis python -c "import sys; sys.path[:0]=['tools/milton','tools']; \
-import figures_milton as fm, aggregate_tracks as at; fm.f1_track_spaghetti(at.load_master())"
+python -c "import sys; sys.path[:0]=['tools/milton','tools']; import pandas as pd, figures_milton as fm; \
+m=pd.read_csv(fm.BASE/'milton_master_tracks.csv',parse_dates=['time']); \
+v=pd.read_csv(fm.BASE/'milton_verification.csv',parse_dates=['time']); \
+fm.f1_track_spaghetti(m); fm.f2_intensity_vs_lead(m); fm.f5_track_intensity_err_vs_lead(v)"
 ```
+
+`aggregate_tracks.py` concatenates the track CSVs in file-system order, so a rerun on another machine writes
+the same rows in a different order (statistics equal to 1e-9, figures identical).
+
+Note 3: the F9 in the repo up to `v1.0.0` and in the submitted paper was drawn on 2026-09-01, the day before
+the IFS-ENS double member-filter fix, so its IFS-ENS reference curve uses only 2 of the 10 members (verified:
+re-applying the old filter reproduces the old PDF byte for byte). The corrected figure is committed here;
+the paper copy still needs replacing at revision. With all members the IFS-ENS track cone is 163, 104, 95,
+131, 193, 228 km over the six day-bins (old: 162, 79, 84, 118, 172, 71) and the MSL spread 3.3, 4.5, 6.2, 7.4,
+8.8, 8.3 hPa (old: 2.4, 3.4, 4.5, 9.3, 5.6, 4.8). The AIFS curves and every number in the caption and the body
+text are unaffected; the caption's "both reference ensembles carry larger intensity spread than any AIFS SPW
+configuration at every lead" still holds.
 
 ### Talk, slide and diagnostic figures (not in the paper)
 
@@ -123,7 +139,11 @@ ES/VS/SIGK columns of Tab. C1 and the calibration table. Both jobs were rerun wi
 - `sbatch tools/submit_rank_histograms.sh all` -> `$STORE/analysis/rank_histograms/rank_hist_<baseline>.npz`
 - `sbatch tools/submit_table_metrics_fixedscale.sh` -> `$STORE/analysis/table_metrics_fixedscale/{esvs,sigk}_<label>_fixed_L{120,240}.csv`
 
-## 5. Milton F2 / F5 / F9 and the summary table (HPC recipe)
+## 5. Milton case study on Clariden
+
+Rebuilt on 2026-11-02 (job 3833735, 35 min on one node): all 224 (baseline, init) pairs, 0 failures; the
+summary table reproduces (IFS-ENS 99/140 = 71%), F1-F5 are byte-identical, F9 corrected (note 3). The tracks
+and tables are in `$STORE/analysis/milton_case_study/` and vendored in `tools/data/store/`.
 
 One command rebuilds everything on a single node (all 224 (baseline, init) pairs 20 at a time, ERA5 control,
 tables, summary CSV, F1-F5 and F9; about one node-hour):

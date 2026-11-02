@@ -60,8 +60,9 @@ For the revision (details in [EXPERIMENTS.md](EXPERIMENTS.md#known-open-issues-f
 - GraphCast "architecture excludes the weight-space refresh" is overstated; `baselines/graphcast_p6c_reseed`
   gives the number (spatial-mean SSR 3.20 -> 2.97 at 240 h).
 - Milton F3 and F4 rasters are below 300 dpi; regenerate with `savefig(dpi>=300)` (needs Clariden).
-- Milton F2/F5/F9 and the Milton summary table cannot be regenerated until the tracks are rebuilt
-  ([REPRODUCING.md](REPRODUCING.md#5-milton-f2--f5--f9-and-the-summary-table-hpc-recipe)).
+- Replace the Milton F9 in the paper with the corrected one in `figures/`: the submitted F9 draws its IFS-ENS
+  reference curve from 2 of 10 members (stale double member filter; text and caption unaffected).
+  [REPRODUCING.md](REPRODUCING.md) note 3.
 - The paper link in the top-level README still needs the arXiv/DOI URL; Zenodo DOIs for code and data after
   acceptance.
 

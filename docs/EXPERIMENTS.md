@@ -129,6 +129,8 @@ detection rate is 71% (a 14% figure seen in some notes was a double member-filte
 - "Architecture excludes the weight-space refresh" for GraphCast is overstated: a refresh-every-20 GraphCast
   run exists (`baselines/graphcast_p6c_reseed`, 240 h spatial-mean SSR 3.20 -> 2.97, same "barely moves" result).
 - Raster DPI of `milton_F3` (~261) and `milton_F4` (~279) is below the AMS 300 dpi bar.
+- The submitted Milton F9 draws IFS-ENS from 2 of its 10 members (it predates the 2026-09-02 member-filter
+  fix); the corrected figure is in `figures/`, the caption and text numbers are unaffected.
 - No cited source for sigma = 0.01-0.03; it is empirical (span of the Phase 1 winners).
 - Code-level: `evaluate_ablation.sh` has no guard against evaluating with fewer than 4 inits present;
   `e2s_data.py` `MergedDataSource` silently falls back to CDS on `KeyError`.

@@ -42,10 +42,13 @@ rebuild did. IFS-ENS uses the 10 stratified members 0,5,...,45 and keeps its WB2
 
 ## State at handover (2026-11-02)
 
-- Only the 12 tracks behind F1 exist (rebuilt 2026-10-07 into `$STORE/analysis/milton_case_study/tracks/`,
-  vendored in `tools/data/store/analysis/milton_case_study/`). F1 rebuilds anywhere
-  ([docs/REPRODUCING.md](../../docs/REPRODUCING.md), note 2).
-- F2, F5, F9 and the summary table need steps 1-5 for all arms first; F3 and F4 read forecast zarrs directly.
+- Fully rebuilt 2026-11-02 with `submit_milton_rebuild.sh` (job 3833735, 35 min, 224 pairs, 0 failures):
+  tracks, ERA5 control, master/verification tables and summary in `$STORE/analysis/milton_case_study/`; all but
+  the ERA5 window netCDF vendored in `tools/data/store/analysis/milton_case_study/`. F1, F2, F5, F9 and the
+  summary table rebuild anywhere ([docs/REPRODUCING.md](../../docs/REPRODUCING.md), note 2); F3 and F4 read
+  forecast zarrs. Summary table: all 40 values reproduce; F1-F5 byte-identical.
+- F9 corrected: the version up to `v1.0.0` (and in the submitted paper) drew IFS-ENS from 2 of 10 members
+  (REPRODUCING.md note 3).
 - Correct IFS-ENS detection rate: 71% (140-pair denominator). A 14% figure in older notes was a double member
   filter in `aggregate_tracks.py`, fixed 2026-09-02.
 - F3 and F4 are rasterised below 300 dpi; regenerate with a higher `savefig` dpi for the revision.

@@ -44,3 +44,19 @@ dataset documented, every environment pinned, most figures/tables rebuildable of
 - Check `.gitignore` patterns against the scripts directory (`git ls-files -o -i --exclude-standard`); a broad
   data pattern silently kept a pipeline script out of git for months.
 - Any job whose output a figure needs must write to the store, not scratch.
+
+## Follow-up the same day: Milton rebuilt, F9 bug found, TB table
+- `tools/milton/submit_milton_rebuild.sh` (new): all 224 (baseline, init) pairs 20-parallel on ONE node, then
+  ERA5 control, aggregate, stats, F1-F5, F9. Job 3833735: 35 min, 0 failures (the per-pair array of
+  `submit_milton_tracker.sh` would have held an exclusive node per 2-4 min task, ~11 node-hours).
+- Summary table: all 40 values reproduce (IFS-ENS 99/140 = 71%, 316.5 / 172.7 / +36.55 / 251.6). F1-F5 and the
+  rank-histogram figure (job 3833540) byte-identical to the committed PDFs.
+- F9 BUG: the committed/submitted `milton_F9_aifs_wt_vs_ic_spread.pdf` (2026-09-01, paper `e1bd121`, also in the
+  submitted `69e077e`) was drawn before the 09-02 double-member-filter fix: re-applying the filter (IFS-ENS members
+  {0,5} only) reproduces the old PDF byte for byte. Its IFS-ENS curve is wrong (cone at 120-144 h 71 km instead
+  of 228 km). AIFS curves, caption and body numbers unaffected. Corrected F9 committed in the code repo; the
+  paper copy is a revision item (not replaced in the paper repo).
+- Off-HPC re-aggregation writes the same rows in a different order (rglob order is file-system dependent):
+  statistics equal to 1e-9, figures identical.
+- `docs/data/LARGE_DATASETS.md` (inventory `--external`): 29.6 TB deletable, mostly the a122 IFS duplicates
+  (23 TB) and the pre-fix `*_p6c` runs; the Clariden copy also lists the a122 duplicates of the neural-LAM data.
