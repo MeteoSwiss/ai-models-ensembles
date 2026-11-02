@@ -1,6 +1,6 @@
 # Store inventory (generated)
 
-Generated 2026-11-02 11:15 UTC by `python tools/inventory_store.py` from `/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles`.
+Generated 2026-11-02 11:19 UTC by `python tools/inventory_store.py` from `/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles`.
 Do not edit by hand: change [catalog.csv](catalog.csv) (descriptions) and rerun. Narrative documentation of every dataset: [../DATA.md](../DATA.md).
 
 Columns: `zarrs` = number of `forecast.zarr` stores; `inits` = distinct init dates; `schema` = members x leads (first..last h, step) and grid of one representative store; `products` = evaluation outputs stored next to the forecasts.
@@ -228,7 +228,7 @@ Total size: 2 GB
 | `analysis/milton_z500_plume` | 25 | 367 MB | Extracted z500 landfall-box series for figures/slides/milton_z500_plume_* (tools/milton/plot_z500_plume.py). |
 | `analysis/per_init_crps_ifsens.csv` | 1 | 1 MB | Per-init CRPS of IFS-ENS (tools/compute_per_init_crps.py); block bootstrap and common-sample checks. |
 | `analysis/per_init_crps_production_v2.csv` | 1 | 8 MB | Per-init CRPS of all production baselines (tools/compute_per_init_crps.py); input of the rival-validation table and the bootstrap CIs. |
-| `analysis/rank_histograms` | 3 |  | Rank (Talagrand) histogram NPZs at 240 h (tools/submit_rank_histograms.sh). Input of Fig. rank_histograms_240h. |
+| `analysis/rank_histograms` | 4 |  | Rank (Talagrand) histogram NPZs at 240 h (tools/submit_rank_histograms.sh). Input of Fig. rank_histograms_240h. |
 | `analysis/spread_error_all.csv` | 1 | 3 MB | spread_error_binned.csv + spread_error_ifsens.csv concatenated; the only input of Fig. spread_error (tools/plot_spread_error.py). |
 | `analysis/spread_error_binned.csv` | 1 | 3 MB | Binned spread-error pairs of the 7 non-IFS production baselines (default output of tools/spread_error_binned.py via tools/submit_spread_error.sh). |
 | `analysis/spread_error_ifsens.csv` | 1 | 1 MB | Same binning for IFS-ENS (run separately because of its NaN slabs). |

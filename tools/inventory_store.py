@@ -223,6 +223,8 @@ def main() -> None:
         if not base.exists():
             continue
         for p in sorted(base.iterdir()):
+            if p.name == "README.md":  # written by --publish
+                continue
             nfiles = sum(len(f) for _, _, f in os.walk(p)) if p.is_dir() else 1
             key = str(p.relative_to(STORE))
             others.append(

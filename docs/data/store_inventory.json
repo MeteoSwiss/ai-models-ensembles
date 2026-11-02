@@ -1,5 +1,5 @@
 {
- "generated": "2026-11-02 11:15 UTC",
+ "generated": "2026-11-02 11:19 UTC",
  "store": "/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles",
  "experiments": [
   {
@@ -6457,16 +6457,15 @@
     ],
     "dims": {
      "ensemble": 10,
-     "level": 2,
      "init_time": 1,
      "lead_time": 61,
      "latitude": 721,
-     "longitude": 1440
+     "longitude": 1440,
+     "level": 2
     },
     "dtype": "float32",
     "dim_order": [
      "ensemble",
-     "level",
      "init_time",
      "lead_time",
      "latitude",
@@ -8881,7 +8880,7 @@
   },
   {
    "key": "analysis/rank_histograms",
-   "files": 3,
+   "files": 4,
    "size": "",
    "catalog": {
     "key": "analysis/rank_histograms",
