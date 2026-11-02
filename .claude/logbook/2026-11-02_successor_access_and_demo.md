@@ -27,4 +27,6 @@ mode 700 and is deleted with the account. Everyone else builds a venv from `env/
   (spread 42 Pa), i.e. GPU nondeterminism only.
 - Private notes and the pre-handover agent memory copied to `/capstor/store/cscs/mch/s83/sadamov/handover-private/`
   (owner + `olifu` only; `group::---` had to be set explicitly, the parent's default ACL gives s83 rwx).
-- Cross-paper overview `HANDOVER.md` in the thesis repo, copy `/capstor/store/cscs/mch/s83/sadamov/HANDOVER.md`.
+- Cross-paper overview (status, code versions, checkpoints, data, reproduction per paper) merged into the
+  MeteoSwiss Confluence page of the PhD; its source is the local-only `scripts/confluence.md` (in
+  `.git/info/exclude`). A first version in the thesis repo and on the store was removed again the same day.

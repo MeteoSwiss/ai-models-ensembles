@@ -36,7 +36,7 @@ CSCS access then.
 | IFS-ENS reference and perturbed analyses | Clariden `/capstor/store/cscs/swissai/ab016/IFS/` | group `ab016` |
 | Private handover note (journal process, reviewer-question material; also `HANDOVER.md` in the paper repo) + local-only agent memory | Clariden `/capstor/store/cscs/swissai/ab016/sadamov/ai-models-ensembles/` (`HANDOVER.md`, `agent-memory-local-2026-11-02/`) | group `ab016` |
 | Copy of that note and memory, plus the pre-handover agent memory (full `MEMORY.md` versions of 2026-06 and 2026-10, the per-fact notes they replaced) | Clariden `/capstor/store/cscs/mch/s83/sadamov/handover-private/` | the author and the co-author taking over (`olifu`) |
-| Overview of all of the author's papers and the thesis (status, code versions, data, checkpoints, how to reproduce) | Clariden `/capstor/store/cscs/mch/s83/sadamov/HANDOVER.md`, also `HANDOVER.md` in the private thesis repo `sadamov/thesis` | group `s83` |
+| Overview of all of the author's papers and the thesis (status, code versions, data, checkpoints, how to reproduce) | MeteoSwiss Confluence page "PhD Simon Adamov" | MeteoSwiss |
 | Host venv, conda tools | Clariden `/capstor/store/cscs/mch/s83/sadamov/{venvs/ai-models-ensembles,miniforge3}` | group `s83`; the venv works only for the author ([ENVIRONMENT.md](ENVIRONMENT.md)) |
 
 Everything on Clariden stays owned by the author's (soon deactivated) user. Group members can read it. To
