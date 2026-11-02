@@ -1,6 +1,6 @@
 # Store inventory (generated)
 
-Generated 2026-11-02 13:05 UTC by `python tools/inventory_store.py` from `/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles`.
+Generated 2026-11-02 13:12 UTC by `python tools/inventory_store.py` from `/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles`.
 Do not edit by hand: change [catalog.csv](catalog.csv) (descriptions) and rerun. Narrative documentation of every dataset: [../DATA.md](../DATA.md).
 
 Columns: `zarrs` = number of `forecast.zarr` stores; `inits` = distinct init dates; `schema` = members x leads (first..last h, step) and grid of one representative store; `products` = evaluation outputs stored next to the forecasts.

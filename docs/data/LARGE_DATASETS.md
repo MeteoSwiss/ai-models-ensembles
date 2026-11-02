@@ -1,6 +1,6 @@
 # Datasets of 1 TB or more
 
-Generated 2026-11-02 13:05 UTC by `python tools/inventory_store.py --sizes ... --external ...` (sizes from `du`, disk usage). Status and descriptions come from [catalog.csv](catalog.csv) and `EXTERNAL` in the script; details per dataset in [STORE_INVENTORY.md](STORE_INVENTORY.md) and [../DATA.md](../DATA.md).
+Generated 2026-11-02 13:12 UTC by `python tools/inventory_store.py --sizes ... --external ...` (sizes from `du`, disk usage). Status and descriptions come from [catalog.csv](catalog.csv) and `EXTERNAL` in the script; details per dataset in [STORE_INVENTORY.md](STORE_INVENTORY.md) and [../DATA.md](../DATA.md).
 
 Verdicts: `keep` = needed to reproduce the paper (or the only copy of something expensive); `optional` = not in the paper, delete once nobody needs it for the revision or talks; `delete` = safe to remove (superseded, failed, duplicate). Nothing has been deleted. The files stay owned by the original account after it is closed: deleting needs the owner, or CSCS / the project PI.
 

@@ -95,6 +95,34 @@ OWNER_ROOTS = [
     "/capstor/store/cscs/swissai/a01/sadamov",
 ]
 OTHER_MB = 100_000  # the owner's non-project data is listed from 100 GB (full version only)
+# Owner's data on file systems Clariden does not mount (Balfrin /scratch/mch), from a manual scan
+# on Balfrin (2026-11-02, du in GiB converted to MB); cannot be re-measured from here.
+REMOTE_ROWS = [
+    (
+        599_000,
+        "balfrin:/scratch/mch/sadamov/temp",
+        "sadamov:s83",
+        "last changed 2024-03-27; contents not inspected",
+    ),
+    (
+        510_000,
+        "balfrin:/scratch/mch/sadamov/pyprojects_data",
+        "sadamov:s83",
+        "last changed 2025-11-02; contents not inspected",
+    ),
+    (
+        236_000,
+        "balfrin:/scratch/mch/sadamov/cosmo_e.zarr",
+        "sadamov:s83",
+        "COSMO-E forecasts (neural-LAM baseline), 2025-02; ab016 keeps archives",
+    ),
+    (
+        115_000,
+        "balfrin:/scratch/mch/sadamov/20010100_205",
+        "sadamov:s83",
+        "date-named run directory; contents not inspected",
+    ),
+]
 
 OTHER_ROOTS = ["analysis", "diagnostics", "e2s_cache_backup", "earth2studio_cache"]
 LOG_ROOTS = ["ablation_logs", "baseline_logs", "baseline_eval_logs", "logs", "model_test_logs"]
@@ -442,14 +470,15 @@ def _large_tables(sizes, catalog, external, stamp) -> tuple[str, str]:
             "`/capstor/store/cscs/swissai/ab016/sadamov/HANDOVER.md`) in the swissai trees, earlier MeteoSwiss "
             "work (ICON, pollen, aldernet, gwen, FourCastNet) in `/capstor/store/mch/msopr`. Listed so the "
             "owner's data can be cleared in one go. Searched 2026-11-02 on every Clariden mount "
-            "(`/capstor/store/{cscs,mch}`, `/iopsstor`, `/ritom`); file systems only Balfrin/Linard mount "
-            "were not checked.",
+            "(`/capstor/store/{cscs,mch}`, `/iopsstor`, `/ritom`) and, by a manual scan, on Balfrin "
+            "(`/store_new/mch` there is the same file system as `/capstor/store/mch`; only `/scratch/mch` "
+            "is Balfrin-only, rows marked `balfrin:`). Linard not checked.",
             "",
             "| size (TB) | path | owner | note |",
             "|---|---|---|---|",
             *[
                 f"| {fmt(mb)} | `{path}` | {owner} | {note} |"
-                for mb, path, owner, note in sorted(other, key=lambda r: -r[0])
+                for mb, path, owner, note in sorted(other + REMOTE_ROWS, key=lambda r: -r[0])
             ],
         ]
     return "\n".join(public) + "\n", "\n".join(full) + "\n"
