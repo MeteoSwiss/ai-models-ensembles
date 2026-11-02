@@ -17,7 +17,7 @@ dependencies = [
     "chex",
     "graphcast @ git+https://github.com/google-deepmind/graphcast",
     "earth2studio",
-    "swissclim-evaluations @ git+https://github.com/swiss-ai/SwissClim_Evaluations.git@research",
+    "swissclim-evaluations @ git+https://github.com/swiss-ai/SwissClim_Evaluations.git@9d3a7fde10361c7136b78d97b91b0e08085fc54d",
     "pytest>=8.0",
 ]
 

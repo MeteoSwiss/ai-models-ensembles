@@ -1,5 +1,7 @@
 # Atlas model container for GH200 (aarch64).
 # Base: NGC PyTorch 26.01 (needed for natten 0.21.5 compatibility)
+# Git dependencies are pinned to the commits found in the built image; the full
+# package freeze of that image is containers/locks/atlas.txt (python containers/freeze_sqsh.py).
 FROM nvcr.io/nvidia/pytorch:26.01-py3
 
 COPY --from=ghcr.io/astral-sh/uv:0.9.26 /uv /uvx /bin/
@@ -30,7 +32,7 @@ ENV FORCE_CUDA_EXTENSION=1
 RUN uv pip install --system --break-system-packages --no-deps --no-build-isolation --reinstall torch-harmonics
 
 RUN uv pip install --system --break-system-packages --no-build-isolation \
-    "earth2studio[atlas,data]@git+https://github.com/NVIDIA/earth2studio.git@main"
+    "earth2studio[atlas,data]@git+https://github.com/NVIDIA/earth2studio.git@cbcb0ec0e91059ecacba7714ca42946531cbc0ad"
 
 # physicsnemo uses wp.context.Device which was removed in warp-lang 1.13
 RUN uv pip install --system --break-system-packages "warp-lang<1.13"

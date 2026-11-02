@@ -1,3 +1,5 @@
+# tools/data/store/ mirrors files of the project store byte for byte; never rewrite them.
+exclude: ^tools/data/store/
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.6.0

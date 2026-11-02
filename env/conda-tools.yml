@@ -1,0 +1,18 @@
+# Non-Python command-line tools used by this project, pinned to the builds in the shared
+# Clariden miniforge base (/capstor/store/cscs/mch/s83/sadamov/miniforge3, conda 26.5.3, aarch64).
+#
+#   conda env create -f env/conda-tools.yml && conda activate aiens-tools
+#   export AIENS_MILTON_CONDA=$CONDA_PREFIX          # tools/milton/env.sh picks it up
+#
+# Build strings are linux-aarch64; drop them (keep name=version) on x86_64.
+name: aiens-tools
+channels:
+  - conda-forge
+dependencies:
+  - tempest-extremes=2.4.2=nompi_h008fe3d_102   # DetectNodes / StitchNodes, Milton TC tracking
+  - udunits2=2.2.28=h5798299_3                  # runtime dep of TempestExtremes (UDUNITS2_XML_PATH)
+  - libnetcdf=4.10.0=nompi_h441b98c_104
+  - hdf5=2.1.0=nompi_h02c88d6_107
+  - ffmpeg=8.1.1=gpl_hef17b83_904               # tools/milton/plot_wind_frames.py (talk animation)
+  - tectonic=0.16.9=h9c1a3b4_0                  # LaTeX build of the paper / table previews
+  - perl=5.32.1                                 # texcount.pl (word counts; copied by hand from CTAN)

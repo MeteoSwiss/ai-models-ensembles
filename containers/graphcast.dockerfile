@@ -1,5 +1,7 @@
 # GraphCast model container for GH200 (aarch64).
 # Base: NGC PyTorch 25.12
+# Git dependencies are pinned to the commits found in the built image; the full
+# package freeze of that image is containers/locks/graphcast.txt (python containers/freeze_sqsh.py).
 FROM nvcr.io/nvidia/pytorch:25.12-py3
 
 COPY --from=ghcr.io/astral-sh/uv:0.9.26 /uv /uvx /bin/
@@ -16,7 +18,7 @@ RUN uv pip install --system --break-system-packages \
     hatchling wheel_stub py-cpuinfo setuptools-scm Cython
 
 RUN uv pip install --system --break-system-packages --no-build-isolation \
-    "earth2studio[graphcast,data]@git+https://github.com/NVIDIA/earth2studio.git@main"
+    "earth2studio[graphcast,data]@git+https://github.com/NVIDIA/earth2studio.git@cbcb0ec0e91059ecacba7714ca42946531cbc0ad"
 
 # earth2studio's graphcast uses xr.Dataset(dataset) which became a TypeError
 # in xarray 2026.04. Pin to avoid the breakage until upstream fixes it.
@@ -26,7 +28,7 @@ RUN uv pip install --system --break-system-packages "xarray<2026.4"
 # chex is a missing transitive dep for graphcast model loading.
 RUN uv pip uninstall --system --break-system-packages graphcast \
     && uv pip install --system --break-system-packages \
-        chex "graphcast @ git+https://github.com/google-deepmind/graphcast"
+        chex "graphcast @ git+https://github.com/google-deepmind/graphcast@08cf73625c9d12bd9aaa038868bcb2fe488f2a22"
 
 # Install this project
 COPY pyproject.toml ./

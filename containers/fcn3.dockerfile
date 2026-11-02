@@ -2,6 +2,8 @@
 # Base: NGC PyTorch 25.12
 #
 # Same torch-harmonics fix as sfno, plus extra build deps for makani.
+# Git dependencies are pinned to the commits found in the built image; the full
+# package freeze of that image is containers/locks/fcn3.txt (python containers/freeze_sqsh.py).
 FROM nvcr.io/nvidia/pytorch:25.12-py3
 
 COPY --from=ghcr.io/astral-sh/uv:0.9.26 /uv /uvx /bin/
@@ -18,7 +20,7 @@ RUN uv pip install --system --break-system-packages \
     hatchling wheel_stub py-cpuinfo setuptools-scm Cython
 
 RUN uv pip install --system --break-system-packages --no-build-isolation \
-    "earth2studio[fcn3,data]@git+https://github.com/NVIDIA/earth2studio.git@main"
+    "earth2studio[fcn3,data]@git+https://github.com/NVIDIA/earth2studio.git@cbcb0ec0e91059ecacba7714ca42946531cbc0ad"
 
 RUN uv pip install --system --break-system-packages nvidia-ml-py
 # physicsnemo uses wp.context.Device which was removed in warp-lang 1.13
@@ -29,7 +31,7 @@ ENV CUDA_HOME=/usr/local/cuda
 ENV FORCE_CUDA_EXTENSION=1
 RUN uv pip install --system --break-system-packages scipy sympy networkx
 RUN uv pip install --system --break-system-packages --no-deps --no-build-isolation --reinstall \
-    "torch-harmonics @ git+https://github.com/NVIDIA/torch-harmonics.git"
+    "torch-harmonics @ git+https://github.com/NVIDIA/torch-harmonics.git@8f08a221ce50593af1202ef9833de0bde178efe1"
 RUN uv pip install --system --break-system-packages --no-deps --no-build-isolation --reinstall \
     "makani @ git+https://github.com/NVIDIA/makani.git@b38fcb2799d7dbc146fa60459f3f9823394a8bf1"
 

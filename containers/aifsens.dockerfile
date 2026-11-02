@@ -1,6 +1,8 @@
 # AIFS-ENS model container for GH200 (aarch64).
 # Base: NGC PyTorch 25.12
 # Uses earth2studio[aifs] extra which pulls anemoi-models, earthkit-regrid, ecmwf-opendata.
+# Git dependencies are pinned to the commits found in the built image; the full
+# package freeze of that image is containers/locks/aifsens.txt (python containers/freeze_sqsh.py).
 FROM nvcr.io/nvidia/pytorch:25.12-py3
 
 COPY --from=ghcr.io/astral-sh/uv:0.9.26 /uv /uvx /bin/
@@ -16,7 +18,7 @@ RUN uv pip install --system --break-system-packages \
     hatchling py-cpuinfo setuptools-scm Cython
 
 RUN uv pip install --system --break-system-packages --no-build-isolation \
-    "earth2studio[aifs,data,perturbation]@git+https://github.com/NVIDIA/earth2studio.git@main"
+    "earth2studio[aifs,data,perturbation]@git+https://github.com/NVIDIA/earth2studio.git@9c93a55679db17b5f654a9b5a81a41626d805dc0"
 
 # Install this project
 COPY pyproject.toml ./

@@ -1,5 +1,7 @@
 # Aurora model container for GH200 (aarch64).
 # Base: NGC PyTorch 25.12
+# Git dependencies are pinned to the commits found in the built image; the full
+# package freeze of that image is containers/locks/aurora.txt (python containers/freeze_sqsh.py).
 FROM nvcr.io/nvidia/pytorch:25.12-py3
 
 COPY --from=ghcr.io/astral-sh/uv:0.9.26 /uv /uvx /bin/
@@ -13,7 +15,7 @@ ENV PIP_CONSTRAINT= \
 
 RUN uv pip install --system --break-system-packages hatchling
 RUN uv pip install --system --break-system-packages --no-build-isolation \
-    "earth2studio[aurora,data,perturbation]@git+https://github.com/NVIDIA/earth2studio.git@main"
+    "earth2studio[aurora,data,perturbation]@git+https://github.com/NVIDIA/earth2studio.git@c82844eafee1c9f6a78d3980d07831fc2435bbf1"
 
 # Install this project (editable so mounted code at runtime takes precedence)
 COPY pyproject.toml ./
