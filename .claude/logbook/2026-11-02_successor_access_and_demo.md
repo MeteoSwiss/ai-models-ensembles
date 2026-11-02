@@ -1,0 +1,30 @@
+Successor access audit (user `olifu`), shared-venv home dependency found, per-user script defaults, and an end-to-end demo verified under a fresh venv.
+
+## Access state of a new user (checked 2026-11-02 for `olifu`)
+- In `s83`: reaches `$STORE` (s83 ACL), the container images and the conda base. Read/write user ACL on the
+  whole store granted (job 3834319, xfer).
+- Not in `ab016`: no IFS reference (`ab016/IFS`), no COSMO/neural-LAM data, no Slurm allocation.
+  `/capstor/store/cscs/swissai/ab016` is `root:ab016` mode 770, so user ACLs below it do not help; the
+  `ab016` PI has to add the user in the CSCS account portal.
+- Not in `weatherbench`: `/capstor/store/cscs/swissai/weatherbench` (ERA5 truth of every evaluation) is
+  `root:weatherbench` with ACLs for `a122`, `uba03`, `g34`, NOT `ab016`. The author reads it through `a122`.
+  Every new user needs `weatherbench` (or CSCS adds `ab016` to that ACL).
+
+## Shared host venv works only for the author
+`venvs/ai-models-ensembles` has its base interpreter in `/users/sadamov/.local/share/uv/python/` and
+editable installs of this package and SwissClim pointing into `/users/sadamov/pyprojects/...`. The home is
+mode 700 and is deleted with the account. Everyone else builds a venv from `env/host-requirements.txt`
+(`scripts/handover_demo.sh venv`, 1.5 min on a debug node from an empty uv cache and Python install dir).
+
+## Changes
+- Scratch defaults `/iopsstor/scratch/cscs/sadamov` -> `$USER` in all submit scripts and `tools/_env.py`;
+  `#SBATCH --output` paths use `%u`.
+- Script comments pointing at "MEMORY.md" / `[[calibration-winners]]` now name the `.claude/` files.
+- `scripts/handover_demo.sh` (venv / infer / eval / compare). Reference run in
+  `/capstor/store/cscs/mch/s83/sadamov/handover-demo/run/` (clean clone, fresh venv): inference 3834344
+  (8:20, debug), SwissClim deterministic + probabilistic 3834409 (7:04). Demo vs production
+  `graphcast_all/20230102_0000`, +24 h: 2m temperature RMS diff 0.037 K (member spread 0.29 K), MSL 3.6 Pa
+  (spread 42 Pa), i.e. GPU nondeterminism only.
+- Private notes and the pre-handover agent memory copied to `/capstor/store/cscs/mch/s83/sadamov/handover-private/`
+  (owner + `olifu` only; `group::---` had to be set explicitly, the parent's default ACL gives s83 rwx).
+- Cross-paper overview `HANDOVER.md` in the thesis repo, copy `/capstor/store/cscs/mch/s83/sadamov/HANDOVER.md`.

@@ -39,10 +39,10 @@ PARTITION="${PARTITION:-normal}"
 # backup (the scratch e2s_cache purges and does not hold the CDS inits, so a live
 # CDS fetch is needed otherwise); sfno/aurora use the scratch arco cache.
 case "$MODEL" in
-  sfno)   MEM=800G; TIME=01:00:00; DSRC=arco; E2S_CACHE=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/e2s_cache; FRESH_ENV="SFNO_FRESH=1 SFNO_FRESH_SIGMA=0.35 SFNO_FRESH_MODE_CUT=10 SFNO_FRESH_REFRESH_EVERY=20"; EXTRA_CLI="--coarse-mode-cut 10"; NEED_SSL=0 ;;
-  aurora) MEM=800G; TIME=03:00:00; DSRC=arco; E2S_CACHE=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/e2s_cache; FRESH_ENV="AURORA_FRESH=1 AURORA_FRESH_SIGMA=0.025 AURORA_FRESH_REFRESH_EVERY=20"; EXTRA_CLI=""; NEED_SSL=0 ;;
+  sfno)   MEM=800G; TIME=01:00:00; DSRC=arco; E2S_CACHE=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/$USER}/e2s_cache; FRESH_ENV="SFNO_FRESH=1 SFNO_FRESH_SIGMA=0.35 SFNO_FRESH_MODE_CUT=10 SFNO_FRESH_REFRESH_EVERY=20"; EXTRA_CLI="--coarse-mode-cut 10"; NEED_SSL=0 ;;
+  aurora) MEM=800G; TIME=03:00:00; DSRC=arco; E2S_CACHE=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/$USER}/e2s_cache; FRESH_ENV="AURORA_FRESH=1 AURORA_FRESH_SIGMA=0.025 AURORA_FRESH_REFRESH_EVERY=20"; EXTRA_CLI=""; NEED_SSL=0 ;;
   aifs)   MEM=800G; TIME=03:00:00; DSRC=cds;  E2S_CACHE=$STORE/e2s_cache_backup;                  FRESH_ENV="AIFS_FRESH=1 AIFS_FRESH_SIGMA=0.0275 AIFS_FRESH_REFRESH_EVERY=20"; EXTRA_CLI=""; NEED_SSL=1 ;;
-  graphcast) MEM=800G; TIME=01:00:00; DSRC=arco; E2S_CACHE=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/e2s_cache; FRESH_ENV="GRAPHCAST_FRESH=1 GRAPHCAST_FRESH_SIGMA=0.01 GRAPHCAST_FRESH_REFRESH_EVERY=20"; EXTRA_CLI=""; NEED_SSL=1; MODEL_ID=graphcast_operational ;;
+  graphcast) MEM=800G; TIME=01:00:00; DSRC=arco; E2S_CACHE=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/$USER}/e2s_cache; FRESH_ENV="GRAPHCAST_FRESH=1 GRAPHCAST_FRESH_SIGMA=0.01 GRAPHCAST_FRESH_REFRESH_EVERY=20"; EXTRA_CLI=""; NEED_SSL=1; MODEL_ID=graphcast_operational ;;
   *) echo "unknown model '$MODEL' (want sfno|aurora|aifs|graphcast)"; exit 1 ;;
 esac
 MODEL_ID="${MODEL_ID:-$MODEL}"

@@ -19,14 +19,14 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --job-name=tbl_fixedscale
-#SBATCH --output=/iopsstor/scratch/cscs/sadamov/tbl_fixedscale_%j.log
+#SBATCH --output=/iopsstor/scratch/cscs/%u/tbl_fixedscale_%j.log
 
 set -uo pipefail
 
 PY=${AIENS_PY:-/capstor/store/cscs/mch/s83/sadamov/venvs/ai-models-ensembles/bin/python}
 export PYTHONUNBUFFERED=1
-export TMPDIR=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/tmp
-export DASK_TEMPORARY_DIRECTORY=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/tmp
+export TMPDIR=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/$USER}/tmp
+export DASK_TEMPORARY_DIRECTORY=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/$USER}/tmp
 export OMP_NUM_THREADS=12
 export OPENBLAS_NUM_THREADS=12
 export MKL_NUM_THREADS=12

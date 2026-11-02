@@ -39,7 +39,7 @@ HOST_PY=${AIENS_PY:-/capstor/store/cscs/mch/s83/sadamov/venvs/ai-models-ensemble
 
 IC_ZARR=/capstor/store/cscs/swissai/ab016/IFS/ifs_analysis_perturbed_ic.zarr
 IC_DIR=$(dirname "$IC_ZARR")
-E2S_CACHE_DIR="${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/e2s_cache"
+E2S_CACHE_DIR="${AIENS_SCRATCH:-/iopsstor/scratch/cscs/$USER}/e2s_cache"
 
 LEAD_HOURS=240
 NUM_MEMBERS=10

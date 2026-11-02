@@ -10,7 +10,7 @@
 #   sbatch tools/submit_compute_persistence.sh
 #
 # Output:
-#   ${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/persistence_mae_112inits.json
+#   ${AIENS_SCRATCH:-/iopsstor/scratch/cscs/$USER}/persistence_mae_112inits.json
 #
 #SBATCH --account=ab016
 #SBATCH --partition=normal
@@ -20,14 +20,14 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --job-name=persistence_112inits
-#SBATCH --output=/iopsstor/scratch/cscs/sadamov/persistence_112inits_%j.log
+#SBATCH --output=/iopsstor/scratch/cscs/%u/persistence_112inits_%j.log
 
 set -euo pipefail
 
 PY=${AIENS_PY:-/capstor/store/cscs/mch/s83/sadamov/venvs/ai-models-ensembles/bin/python}
 export SSL_CERT_FILE=$($PY -c 'import certifi; print(certifi.where())')
-export TMPDIR=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/tmp
-export DASK_TEMPORARY_DIRECTORY=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/tmp
+export TMPDIR=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/$USER}/tmp
+export DASK_TEMPORARY_DIRECTORY=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/$USER}/tmp
 export PYTHONUNBUFFERED=1
 mkdir -p "$TMPDIR"
 

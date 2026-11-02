@@ -79,7 +79,7 @@ fi
 
 # Probabilistic baselines + post-hoc perturbation baselines (one per det model).
 # Perturbation recipes are the user's picks after inspecting all phase
-# (1, 2, 2c, 3, 3b) ablation intercomps. See [[calibration-winners]] in memory.
+# (1, 2, 2c, 3, 3b) ablation intercomps. See .claude/logbook/calibration_winners.md.
 #   aurora_encoder: layer-group encoder,    sigma=0.025  (Phase 2b)
 #   graphcast_all:  layer all (no targeting), sigma=0.01 (Phase 1)
 #   sfno_modes10:   coarse-modes l<10,      sigma=0.25   (Phase 3)
@@ -158,7 +158,8 @@ declare -A EXTRA_FLAGS=(
 )
 # PER_INIT mode (env var, default 0 for all models): submit one sbatch per init
 # instead of a 14-init week-helper. Use when a model exhibits multiprocessing
-# state-accumulation SIGSEGVs across sequential inits (see MEMORY.md, e.g. SFNO).
+# state-accumulation SIGSEGVs across sequential inits (e.g. SFNO; see
+# .claude/reference/project-conventions.md).
 # Opt in with `PER_INIT=1 bash scripts/submit_all_inference.sh ...`.
 REQUESTED="${@:-$MODELS}"
 # Single-job per-init walltime (used by PER_INIT mode). Each init is ~12 min for
@@ -222,7 +223,7 @@ for model in $REQUESTED; do
     if [[ "$dsrc" == "cds" ]]; then
         E2S_CACHE_DIR="$STORE/e2s_cache_backup"
     else
-        E2S_CACHE_DIR="${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/e2s_cache"
+        E2S_CACHE_DIR="${AIENS_SCRATCH:-/iopsstor/scratch/cscs/$USER}/e2s_cache"
     fi
     mkdir -p "$E2S_CACHE_DIR"
     mounts="${SRC_DIR}:${WORKDIR},${SRC_DIR}/ai_models_ensembles:/usr/local/lib/python3.12/dist-packages/ai_models_ensembles,${STORE}:${STORE},${E2S_CACHE_DIR}:/workspace/.cache/earth2studio"

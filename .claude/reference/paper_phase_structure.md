@@ -37,7 +37,7 @@ classical IFS ENS where possible.
   sqrt(N_full / N_partial) variance scaling.
 - 3 models x 3 groups x 4 inits = 36 runs. Reuses Phase 1 layer=all
   result.
-- Cost ~55 NH. See current MEMORY.md "Phase 2 ablation plan" section.
+- Cost ~55 NH. Plan and results: `docs/EXPERIMENTS.md` and `.claude/logbook/phase2_aurora_findings.md` (the plan was in the pre-handover MEMORY.md, archived in `memory/`).
 
 ## Phase 3 -- physical-scale targeting (physical prior, PLANNED)
 

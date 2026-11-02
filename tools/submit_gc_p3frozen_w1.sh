@@ -10,13 +10,13 @@
 #SBATCH --cpus-per-task=128
 #SBATCH --mem=320G
 #SBATCH --time=03:00:00
-#SBATCH --output=/iopsstor/scratch/cscs/sadamov/gcp3frz_w1_%j.log
+#SBATCH --output=/iopsstor/scratch/cscs/%u/gcp3frz_w1_%j.log
 set -euo pipefail
 STORE="${AIENS_STORE:-/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles}"
 SRC_DIR="${AIENS_REPO:-/users/sadamov/pyprojects/ai-models-ensembles}"
 export PYTHONUNBUFFERED=1
-export TMPDIR="${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/tmp"
-export DASK_TEMPORARY_DIRECTORY="${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/tmp"
+export TMPDIR="${AIENS_SCRATCH:-/iopsstor/scratch/cscs/$USER}/tmp"
+export DASK_TEMPORARY_DIRECTORY="${AIENS_SCRATCH:-/iopsstor/scratch/cscs/$USER}/tmp"
 mkdir -p "$TMPDIR"
 source "${SRC_DIR}/.venv/bin/activate"
 export SSL_CERT_FILE="$(python -c 'import certifi; print(certifi.where())')"

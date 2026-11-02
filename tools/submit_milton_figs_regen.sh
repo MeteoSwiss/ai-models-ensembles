@@ -19,7 +19,7 @@
 #SBATCH --cpus-per-task=64
 #SBATCH --mem=400G
 #SBATCH --time=04:00:00
-#SBATCH --output=/users/sadamov/pyprojects/ai-models-ensembles/logs/milton_figs_regen_%j.log
+#SBATCH --output=/iopsstor/scratch/cscs/%u/milton_figs_regen_%j.log
 
 set -euo pipefail
 
@@ -27,7 +27,7 @@ REPO="${AIENS_REPO:-/users/sadamov/pyprojects/ai-models-ensembles}"
 PY="${AIENS_PY:-/capstor/store/cscs/mch/s83/sadamov/venvs/ai-models-ensembles/bin/python}"
 
 export PYTHONUNBUFFERED=1
-export TMPDIR="${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/tmp"
+export TMPDIR="${AIENS_SCRATCH:-/iopsstor/scratch/cscs/$USER}/tmp"
 export DASK_TEMPORARY_DIRECTORY="$TMPDIR"
 mkdir -p "$TMPDIR"
 # cartopy may fetch coastline/border shapefiles on first run on a compute node.

@@ -26,7 +26,7 @@ STORE=${AIENS_STORE:-/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles}
 SRC_DIR=${AIENS_REPO:-/users/sadamov/pyprojects/ai-models-ensembles}
 LOG_DIR=$STORE/baseline_logs
 WORKDIR=/workspace/ai-models-ensembles
-E2S_CACHE_DIR=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/e2s_cache
+E2S_CACHE_DIR=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/$USER}/e2s_cache
 mkdir -p "$LOG_DIR" "$E2S_CACHE_DIR"
 
 MOUNTS="${SRC_DIR}:${WORKDIR},${SRC_DIR}/ai_models_ensembles:/usr/local/lib/python3.12/dist-packages/ai_models_ensembles,${STORE}:${STORE},${E2S_CACHE_DIR}:/workspace/.cache/earth2studio"

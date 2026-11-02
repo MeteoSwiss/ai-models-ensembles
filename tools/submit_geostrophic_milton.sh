@@ -45,7 +45,7 @@ STORE="${AIENS_STORE:-/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles}"
 SRC_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 PY="$SRC_DIR/.venv/bin/python3"
 LOG_DIR="$STORE/baseline_eval_logs"
-SCRATCH_TMP="${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/tmp"
+SCRATCH_TMP="${AIENS_SCRATCH:-/iopsstor/scratch/cscs/$USER}/tmp"
 mkdir -p "$LOG_DIR" "$SCRATCH_TMP"
 
 PARTITION="${PARTITION:-normal}"

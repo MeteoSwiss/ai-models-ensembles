@@ -6,7 +6,7 @@
 # Usage:
 #   sbatch tools/submit_compute_climatology.sh
 #
-# Outputs land in ${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/:
+# Outputs land in ${AIENS_SCRATCH:-/iopsstor/scratch/cscs/$USER}/:
 #   sigma_clim_1990_2019.json
 #   empirical_crps_clim_1990_2019.json
 #   climatology_1990_2019_provenance.json
@@ -19,14 +19,14 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --job-name=clim1990
-#SBATCH --output=/iopsstor/scratch/cscs/sadamov/clim1990_%j.log
+#SBATCH --output=/iopsstor/scratch/cscs/%u/clim1990_%j.log
 
 set -euo pipefail
 
 PY=${AIENS_PY:-/capstor/store/cscs/mch/s83/sadamov/venvs/ai-models-ensembles/bin/python}
 export SSL_CERT_FILE=$($PY -c 'import certifi; print(certifi.where())')
-export TMPDIR=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/tmp
-export DASK_TEMPORARY_DIRECTORY=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/tmp
+export TMPDIR=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/$USER}/tmp
+export DASK_TEMPORARY_DIRECTORY=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/$USER}/tmp
 export UV_CACHE_DIR=/capstor/scratch/cscs/sadamov/uv_cache
 mkdir -p "$TMPDIR"
 

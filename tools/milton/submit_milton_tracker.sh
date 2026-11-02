@@ -31,7 +31,7 @@ done
 N=${#PAIRS[@]}
 echo "arm=$ARM  submitting $N array tasks (${#BASELINES[@]} baselines x 7 days x 2 hours)"
 
-SCRATCH=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}
+SCRATCH=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/$USER}
 STORE=${AIENS_STORE:-/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles}
 REPO=${AIENS_REPO:-/users/sadamov/pyprojects/ai-models-ensembles}
 PY=${AIENS_PY:-/capstor/store/cscs/mch/s83/sadamov/venvs/ai-models-ensembles/bin/python}

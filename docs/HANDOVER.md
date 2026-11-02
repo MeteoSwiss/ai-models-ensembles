@@ -35,7 +35,9 @@ CSCS access then.
 | Forecasts, evaluations, analysis caches, container images | Clariden `/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles` (92 TB) | Unix group `s83` |
 | IFS-ENS reference and perturbed analyses | Clariden `/capstor/store/cscs/swissai/ab016/IFS/` | group `ab016` |
 | Private handover note (journal process, reviewer-question material; also `HANDOVER.md` in the paper repo) + local-only agent memory | Clariden `/capstor/store/cscs/swissai/ab016/sadamov/ai-models-ensembles/` (`HANDOVER.md`, `agent-memory-local-2026-11-02/`) | group `ab016` |
-| Host venv, conda tools | Clariden `/capstor/store/cscs/mch/s83/sadamov/{venvs/ai-models-ensembles,miniforge3}` | group `s83` |
+| Copy of that note and memory, plus the pre-handover agent memory (full `MEMORY.md` versions of 2026-06 and 2026-10, the per-fact notes they replaced) | Clariden `/capstor/store/cscs/mch/s83/sadamov/handover-private/` | the author and the co-author taking over (`olifu`) |
+| Overview of all of the author's papers and the thesis (status, code versions, data, checkpoints, how to reproduce) | Clariden `/capstor/store/cscs/mch/s83/sadamov/HANDOVER.md`, also `HANDOVER.md` in the private thesis repo `sadamov/thesis` | group `s83` |
+| Host venv, conda tools | Clariden `/capstor/store/cscs/mch/s83/sadamov/{venvs/ai-models-ensembles,miniforge3}` | group `s83`; the venv works only for the author ([ENVIRONMENT.md](ENVIRONMENT.md)) |
 
 Everything on Clariden stays owned by the author's (soon deactivated) user. Group members can read it. To
 reorganise or delete anything, ask CSCS (or the `s83` project PI) to transfer ownership.
@@ -45,10 +47,24 @@ reorganise or delete anything, ask CSCS (or the `s83` project PI) to transfer ow
 1. Read [EXPERIMENTS.md](EXPERIMENTS.md) (what was done), then [DATA.md](DATA.md) (where it is).
 2. On any machine: install the host environment and regenerate a figure from the vendored data
    ([REPRODUCING.md](REPRODUCING.md), section 1). This needs nothing but the repo.
-3. On Clariden: get into group `s83` (store) and, for new jobs, a Slurm account (`ab016` or your own; set
-   `AIENS_ACCOUNT`). Clone the repo, point `AIENS_REPO` at your checkout and `AIENS_SCRATCH` at your scratch
-   ([HPC.md](HPC.md)). Write new outputs to a store location you own (`AIENS_STORE`), or ask for write
-   access to the existing one.
+3. On Clariden: get the groups and the Slurm account listed in [HPC.md](HPC.md#accounts-partitions-limits)
+   (`s83` for the store, `ab016` for the IFS data and the allocation, `weatherbench` for the ERA5 truth).
+   Clone the repo, build your own venv (the shared one works only for the author) and run the small
+   end-to-end check, which goes through the production submitter and SwissClim:
+
+   ```bash
+   git clone https://github.com/MeteoSwiss/ai-models-ensembles.git && cd ai-models-ensembles
+   export AIENS_REPO=$PWD AIENS_PY=$PWD/.venv/bin/python AIENS_ACCOUNT=ab016
+   bash scripts/handover_demo.sh venv      # once, ~2 min
+   bash scripts/handover_demo.sh infer     # GraphCast graphcast_all, 2023-01-02 00 UTC, 2 members, 24 h (~8 min)
+   bash scripts/handover_demo.sh eval      # SwissClim deterministic + probabilistic vs ERA5 (~7 min)
+   bash scripts/handover_demo.sh compare   # demo vs production run of the same init
+   ```
+
+   Outputs go to `$AIENS_SCRATCH/aiens_demo` (`/iopsstor/scratch/cscs/$USER/aiens_demo`). A reference run
+   of the same commands is in `/capstor/store/cscs/mch/s83/sadamov/handover-demo/run/`. Write new results to
+   a store location you own (`AIENS_STORE`) or into the existing store (write ACL for `olifu` since
+   2026-11-02).
 4. For AIFS/AIFS-ENS reruns create your own CDS key (`~/.cdsapirc`).
 5. If you use Claude Code: the repo's `CLAUDE.md` and `.claude/` load automatically ([.claude/README.md](../.claude/README.md)).
 
@@ -91,5 +107,9 @@ with owner and verdict; the copy on Clariden, `$STORE/LARGE_DATASETS.md`, also c
   `$STORE/analysis/`. IFS paths moved from the frozen a122 tree to the verified ab016 copies. Slurm account
   overridable via `AIENS_ACCOUNT`. `tools/milton/era5_control.py`, which an over-broad `.gitignore` pattern had
   kept out of git, is now tracked.
-- Access: read ACLs for `s83` (and `ab016`) on the whole store (`tools/grant_group_read.sh`).
+- Access: read ACLs for `s83` (and `ab016`) on the whole store (`tools/grant_group_read.sh`); read/write
+  ACL for `olifu` on the whole store.
+- Runs under another user: scratch paths default to `/iopsstor/scratch/cscs/$USER` (`#SBATCH` logs use
+  `%u`), comments point to the `.claude/` files instead of the author's private memory, and
+  `scripts/handover_demo.sh` checks the whole chain (venv, inference, evaluation) end to end.
 - Agent memory split: technical notes public in `.claude/` (sanitised), paper-process notes local-only.

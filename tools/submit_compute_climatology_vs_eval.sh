@@ -11,7 +11,7 @@
 # (default: production -- the 112-init headline grid; ablation = 4 mid-season
 #  inits at 240 h for the calibration table)
 #
-# Outputs in ${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/:
+# Outputs in ${AIENS_SCRATCH:-/iopsstor/scratch/cscs/$USER}/:
 #   crps_clim_eval_<tag>.json
 #   crps_clim_eval_<tag>_provenance.json
 # plus a versioned copy at tools/data/crps_clim_eval_<tag>.json
@@ -24,14 +24,14 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --job-name=crps_clim_eval
-#SBATCH --output=/iopsstor/scratch/cscs/sadamov/crps_clim_eval_%j.log
+#SBATCH --output=/iopsstor/scratch/cscs/%u/crps_clim_eval_%j.log
 
 set -euo pipefail
 
 PY=${AIENS_PY:-/capstor/store/cscs/mch/s83/sadamov/venvs/ai-models-ensembles/bin/python}
 export PYTHONUNBUFFERED=1
-export TMPDIR=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/tmp
-export DASK_TEMPORARY_DIRECTORY=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/tmp
+export TMPDIR=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/$USER}/tmp
+export DASK_TEMPORARY_DIRECTORY=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/$USER}/tmp
 export UV_CACHE_DIR=/capstor/scratch/cscs/sadamov/uv_cache
 mkdir -p "$TMPDIR"
 

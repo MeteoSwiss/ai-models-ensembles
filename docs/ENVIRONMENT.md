@@ -14,8 +14,12 @@ from PyPI, while every run used earth2studio 0.15.0a0 from git.
 
 ## Host analysis venv
 
-- On Clariden: `/capstor/store/cscs/mch/s83/sadamov/venvs/ai-models-ensembles` (the repo's `.venv` symlink;
-  readable by `s83`). Python 3.11.9.
+- On Clariden: `/capstor/store/cscs/mch/s83/sadamov/venvs/ai-models-ensembles` (the repo's `.venv` symlink).
+  Python 3.11.9. It works only for the original author: its interpreter
+  (`/users/sadamov/.local/share/uv/python/...`) and the editable installs of this package and SwissClim
+  point into the author's home, which is private and is deleted with the account. Everyone else builds
+  their own, as below; on Clariden `bash scripts/handover_demo.sh venv` does it on a compute node (about
+  2 min, verified 2026-11-02 from an empty uv cache).
 - Fresh install anywhere (Linux or macOS, x86_64 or aarch64):
 
   ```bash

@@ -8,7 +8,7 @@
 # Usage:
 #   sbatch tools/submit_signature_kernel_score.sh
 #
-# Outputs in ${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/ai-models-ensembles/scratch/sigk/:
+# Outputs in ${AIENS_SCRATCH:-/iopsstor/scratch/cscs/$USER}/ai-models-ensembles/scratch/sigk/:
 #   <baseline>.csv  (one row each) + sigk_combined.csv after aggregation.
 #
 #SBATCH --account=ab016
@@ -19,14 +19,14 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --job-name=sigk_score
-#SBATCH --output=/iopsstor/scratch/cscs/sadamov/sigk_score_%j.log
+#SBATCH --output=/iopsstor/scratch/cscs/%u/sigk_score_%j.log
 
 set -euo pipefail
 
 PY=${AIENS_PY:-/capstor/store/cscs/mch/s83/sadamov/venvs/ai-models-ensembles/bin/python}
 export PYTHONUNBUFFERED=1
-export TMPDIR=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/tmp
-export DASK_TEMPORARY_DIRECTORY=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/tmp
+export TMPDIR=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/$USER}/tmp
+export DASK_TEMPORARY_DIRECTORY=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/$USER}/tmp
 # cap per-process threads so 7 parallel baselines (7x8=56) stay under 64 cpus
 export OMP_NUM_THREADS=8
 export OPENBLAS_NUM_THREADS=8
@@ -38,7 +38,7 @@ cd ${AIENS_REPO:-/users/sadamov/pyprojects/ai-models-ensembles}
 STORE=${AIENS_STORE:-/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles}
 WB2A=${AIENS_WB2_22:-/capstor/store/cscs/swissai/weatherbench/weatherbench2_2022_2023.zarr}
 WB2B=${AIENS_WB2_24:-/capstor/store/cscs/swissai/weatherbench/weatherbench2_2024_2025.zarr}
-OUT=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/ai-models-ensembles/scratch/sigk
+OUT=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/$USER}/ai-models-ensembles/scratch/sigk
 mkdir -p "$OUT"
 
 VARS="2m_temperature mean_sea_level_pressure geopotential temperature \

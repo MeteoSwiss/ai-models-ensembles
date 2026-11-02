@@ -31,7 +31,7 @@ How to apply: When summarizing baseline comparisons or paper-ready numbers, incl
 
 ## Chain layout (final state, 2026-05-26 evening)
 
-Inference required multiple rounds. Failure pattern was SFNO multi-GPU SIGSEGV in round 2/3 of a later init within the same week-helper process tree (root cause: multiprocessing state accumulation; see MEMORY.md "SFNO inference recurring..." section). Final job IDs:
+Inference required multiple rounds. Failure pattern was SFNO multi-GPU SIGSEGV in round 2/3 of a later init within the same week-helper process tree (root cause: multiprocessing state accumulation; see `.claude/reference/project-conventions.md`, section "SFNO / multi-GPU SIGSEGV"). Final job IDs:
 
 - **Initial batch** (8 week-helpers, 2381461-68): 4 completed cleanly (2381463, 2381466, 2381467, 2381750 incl. retry), 4 partial-then-SIGSEGV.
 - **Retry batches** (cursed weeks): 2381733, 2385273, 2385603, 2386373 all SIGSEGV'd at varying init# of week 20230102.

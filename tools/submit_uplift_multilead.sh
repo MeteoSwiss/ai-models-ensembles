@@ -18,14 +18,14 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --job-name=uplift_ml
-#SBATCH --output=/iopsstor/scratch/cscs/sadamov/uplift_multilead_%j.log
+#SBATCH --output=/iopsstor/scratch/cscs/%u/uplift_multilead_%j.log
 
 set -uo pipefail
 
 PY=${AIENS_PY:-/capstor/store/cscs/mch/s83/sadamov/venvs/ai-models-ensembles/bin/python}
 export PYTHONUNBUFFERED=1
-export TMPDIR=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/tmp
-export DASK_TEMPORARY_DIRECTORY=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/tmp
+export TMPDIR=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/$USER}/tmp
+export DASK_TEMPORARY_DIRECTORY=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/$USER}/tmp
 export OMP_NUM_THREADS=8
 export OPENBLAS_NUM_THREADS=8
 export MKL_NUM_THREADS=8
@@ -33,7 +33,7 @@ mkdir -p "$TMPDIR"
 
 cd ${AIENS_REPO:-/users/sadamov/pyprojects/ai-models-ensembles}
 
-OUT=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/ai-models-ensembles/scratch/uplift_multilead
+OUT=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/$USER}/ai-models-ensembles/scratch/uplift_multilead
 mkdir -p "$OUT"
 
 for L in 24 120 240; do

@@ -358,7 +358,7 @@ declare -A PHASE3_SQRTN_TAG=(
 
 # Per-(model, phase) argmin-CRPS winner at lead 240h (own-phase runs only).
 # Used by `run_allphases_intercompare` to build a single cross-phase view.
-# Updated 2026-05-27 after the full ablation; see [[calibration-winners]].
+# Updated 2026-05-27 after the full ablation; see .claude/logbook/calibration_winners.md.
 declare -A ALLPHASES_PHASE1=(
     [aurora]=mag_0.03_layer_all
     [graphcast]=mag_0.01_layer_all

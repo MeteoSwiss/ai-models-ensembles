@@ -15,14 +15,14 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --job-name=tbl_metrics
-#SBATCH --output=/iopsstor/scratch/cscs/sadamov/tbl_metrics_%j.log
+#SBATCH --output=/iopsstor/scratch/cscs/%u/tbl_metrics_%j.log
 
 set -uo pipefail
 
 PY=${AIENS_PY:-/capstor/store/cscs/mch/s83/sadamov/venvs/ai-models-ensembles/bin/python}
 export PYTHONUNBUFFERED=1
-export TMPDIR=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/tmp
-export DASK_TEMPORARY_DIRECTORY=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/tmp
+export TMPDIR=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/$USER}/tmp
+export DASK_TEMPORARY_DIRECTORY=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/$USER}/tmp
 export OMP_NUM_THREADS=12
 export OPENBLAS_NUM_THREADS=12
 export MKL_NUM_THREADS=12
@@ -33,7 +33,7 @@ cd ${AIENS_REPO:-/users/sadamov/pyprojects/ai-models-ensembles}
 STORE=${AIENS_STORE:-/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles}
 WB2A=${AIENS_WB2_22:-/capstor/store/cscs/swissai/weatherbench/weatherbench2_2022_2023.zarr}
 WB2B=${AIENS_WB2_24:-/capstor/store/cscs/swissai/weatherbench/weatherbench2_2024_2025.zarr}
-OUT=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/ai-models-ensembles/scratch/table_metrics
+OUT=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/$USER}/ai-models-ensembles/scratch/table_metrics
 mkdir -p "$OUT"
 
 VARS="2m_temperature mean_sea_level_pressure geopotential temperature \

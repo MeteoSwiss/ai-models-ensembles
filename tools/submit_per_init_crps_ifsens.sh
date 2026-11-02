@@ -14,18 +14,18 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --job-name=per_init_ifsens
-#SBATCH --output=/iopsstor/scratch/cscs/sadamov/per_init_ifsens_%j.log
+#SBATCH --output=/iopsstor/scratch/cscs/%u/per_init_ifsens_%j.log
 
 set -euo pipefail
 PY=${AIENS_PY:-/capstor/store/cscs/mch/s83/sadamov/venvs/ai-models-ensembles/bin/python}
 export PYTHONUNBUFFERED=1
-export TMPDIR=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/tmp
-export DASK_TEMPORARY_DIRECTORY=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/tmp
+export TMPDIR=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/$USER}/tmp
+export DASK_TEMPORARY_DIRECTORY=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/$USER}/tmp
 mkdir -p "$TMPDIR"
 cd ${AIENS_REPO:-/users/sadamov/pyprojects/ai-models-ensembles}
 
-OUT=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/per_init_crps_ifsens.csv
-MAIN=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/per_init_crps_production.csv
+OUT=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/$USER}/per_init_crps_ifsens.csv
+MAIN=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/$USER}/per_init_crps_production.csv
 
 $PY -u tools/compute_per_init_crps.py --baselines ifs_ens --leads 24 72 120 240 360 --out "$OUT"
 

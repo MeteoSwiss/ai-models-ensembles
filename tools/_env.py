@@ -18,6 +18,7 @@ need an override.
 
 from __future__ import annotations
 
+import getpass
 import os
 from pathlib import Path
 
@@ -28,7 +29,7 @@ DATA = REPO / "tools" / "data"
 STORE = Path(
     os.environ.get("AIENS_STORE", "/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles")
 )
-SCRATCH = Path(os.environ.get("AIENS_SCRATCH", "/iopsstor/scratch/cscs/sadamov"))
+SCRATCH = Path(os.environ.get("AIENS_SCRATCH", f"/iopsstor/scratch/cscs/{getpass.getuser()}"))
 
 BASELINES = STORE / "baselines"
 # Durable intermediates (CSV/NPZ caches of the compute jobs). Lives on the store, not on

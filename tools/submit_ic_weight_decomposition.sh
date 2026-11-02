@@ -13,13 +13,13 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --job-name=ic_decomp
-#SBATCH --output=/iopsstor/scratch/cscs/sadamov/ic_decomp_%j.log
+#SBATCH --output=/iopsstor/scratch/cscs/%u/ic_decomp_%j.log
 
 set -euo pipefail
 PY=${AIENS_PY:-/capstor/store/cscs/mch/s83/sadamov/venvs/ai-models-ensembles/bin/python}
 export PYTHONUNBUFFERED=1
-export TMPDIR=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/tmp
-export DASK_TEMPORARY_DIRECTORY=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/tmp
+export TMPDIR=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/$USER}/tmp
+export DASK_TEMPORARY_DIRECTORY=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/$USER}/tmp
 mkdir -p "$TMPDIR"
 cd ${AIENS_REPO:-/users/sadamov/pyprojects/ai-models-ensembles}
 

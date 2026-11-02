@@ -25,7 +25,7 @@ set -uo pipefail
 
 REPO=${AIENS_REPO:-/users/sadamov/pyprojects/ai-models-ensembles}
 STORE=${AIENS_STORE:-/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles}
-TMP_ROOT=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}
+TMP_ROOT=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/$USER}
 PAR=${PAR:-20}
 
 cd "$REPO"

@@ -32,8 +32,12 @@ half), `logbook/calibration_winners.md` (why the production picks), and the most
 - Logbook entries are history: they describe the state at their date and are not rewritten later. When a
   later entry corrects an earlier one, the earlier one gets a short "SUPERSEDED" banner (example:
   `2026-09-01_milton_pipeline_regen_ifsens_detection_fix.md`).
-- `[[slug]]` links point to other notes by their `name:` slug. Some targets are in the local-only paper notes
-  or were never written; treat those as references, not broken files.
+- `[[slug]]` links point to other notes by their `name:` slug, usually the file name with `-` for `_`
+  (`[[calibration-winners]]` = `logbook/calibration_winners.md`; find any with
+  `grep -rl "name: <slug>" .claude/`). Some targets are in the local-only paper notes or were never
+  written; treat those as references, not broken files.
+- Older entries cite "MEMORY.md" sections: that is the pre-handover per-user memory, archived with the
+  local-only notes in `/capstor/store/cscs/mch/s83/sadamov/handover-private/ai-models-ensembles/`.
 - Entries mention paths on Clariden (`/capstor/...`, `/iopsstor/...`) and Slurm job IDs; job logs are in
   `$STORE/*_logs/`.
 - One internal-review logbook entry was renamed for the public copy

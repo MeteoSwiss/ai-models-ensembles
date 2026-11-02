@@ -21,7 +21,7 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --job-name=pp_ssr
-#SBATCH --output=/iopsstor/scratch/cscs/sadamov/pp_ssr_%j.log
+#SBATCH --output=/iopsstor/scratch/cscs/%u/pp_ssr_%j.log
 
 set -uo pipefail
 
@@ -29,8 +29,8 @@ MODEL="${1:?usage: sbatch tools/submit_perpixel_ssr.sh <model_label>}"
 
 PY=${AIENS_PY:-/capstor/store/cscs/mch/s83/sadamov/venvs/ai-models-ensembles/bin/python}
 export PYTHONUNBUFFERED=1
-export TMPDIR=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/tmp
-export DASK_TEMPORARY_DIRECTORY=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/tmp
+export TMPDIR=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/$USER}/tmp
+export DASK_TEMPORARY_DIRECTORY=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/$USER}/tmp
 export OMP_NUM_THREADS=8
 mkdir -p "$TMPDIR"
 

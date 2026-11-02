@@ -20,7 +20,7 @@ Snapshot: 2026-11-02. A copy of this page is placed as `README.md` at the root o
 | IFS control analyses | `/capstor/store/cscs/swissai/ab016/IFS/ifs_control.zarr` | `ab016` | 0.8 TB |
 | ERA5 truth, WeatherBench 2 layout | `/capstor/store/cscs/swissai/weatherbench/weatherbench2_2022_2023.zarr`, `.../weatherbench2_2024_2025.zarr`, `.../weatherbench2_original` | `weatherbench` | shared dataset, not ours |
 | Handover note with private details + local-only agent memory | `/capstor/store/cscs/swissai/ab016/sadamov/ai-models-ensembles/` | `ab016` | < 1 MB |
-| Host Python venv / conda tools | `/capstor/store/cscs/mch/s83/sadamov/venvs/ai-models-ensembles`, `/capstor/store/cscs/mch/s83/sadamov/miniforge3` | `s83` | |
+| Host Python venv / conda tools | `/capstor/store/cscs/mch/s83/sadamov/venvs/ai-models-ensembles`, `/capstor/store/cscs/mch/s83/sadamov/miniforge3` | `s83` (the venv works only for the author, see [ENVIRONMENT.md](ENVIRONMENT.md)) | |
 | Small inputs of the figures and tables (vendored) | this repo, `tools/data/` | public | 60 MB |
 
 Notes on access:
@@ -246,6 +246,14 @@ configuration of any run.
 | IFS-ENS perturbed analyses (`ifs_analysis_perturbed_ic.zarr`) | Phase 5 per-member ICs | group `ab016` |
 | IBTrACS (NHC best track, fetched by `huracanpy`) | Milton verification | public; cached in `analysis/milton_case_study/milton_2024_ibtracs.nc` |
 | Model checkpoints | see [ENVIRONMENT.md](ENVIRONMENT.md#model-checkpoints) | public (Hugging Face, NGC, GCS) |
+
+The three IFS zarrs were downloaded with the tooling in `/capstor/store/cscs/swissai/ab016/IFS/tools/`:
+`download_ifs_ens_wb2.py` (IFS-ENS from the WB2 archive) and `repo-download-ifs/` (MARS downloads:
+`download_ic_perturbed.py` + `submit_ic_perturbed.sh` for the perturbed analyses, `download_ifs_range.py` +
+`submit_combine.sh` for the control analyses; README there). github.com/sadamov/ifs_download is an older
+version of the same tooling. These scripts still carry `#SBATCH --account=a122` and `a122` output paths
+from the time of the download: rerun them with `sbatch -A ab016` and point `OUT_ZARR` / `OUTPUT_DIR` at
+`ab016` or your own store.
 
 ## 8. Data vendored in this repository
 

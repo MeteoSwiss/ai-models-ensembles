@@ -5,8 +5,19 @@ Clariden. This page collects what you need to run it again and the failure modes
 
 ## Accounts, partitions, limits
 
-- Slurm account: `ab016`. The older allocation `a122` is frozen (QOS `stop`): submitting with it fails with
-  `AssocMaxSubmitJobLimit`. Check yours with `sacctmgr show assoc user=$USER format=account,qos`.
+- Slurm account: `ab016`. The older allocation `a122` is frozen (QOS `stop`) since 2026-08-24: submitting
+  with it fails with `AssocMaxSubmitJobLimit`. `a122` paths in `.claude/logbook/` are history (the data was
+  copied to `ab016`); no script in this repo uses `a122`. Check yours with
+  `sacctmgr show assoc user=$USER format=account,qos`.
+- Access a new user needs (check with `id`):
+
+  | For | Unix group or account | Granted by |
+  |---|---|---|
+  | `$STORE` (forecasts, evaluations, container images), conda tools | group `s83` | `s83` PI |
+  | IFS-ENS reference and perturbed analyses (`/capstor/store/cscs/swissai/ab016/IFS`), Slurm allocation | project `ab016` (group and Slurm account) | `ab016` PI, in the CSCS account portal |
+  | ERA5 truth for every evaluation (`/capstor/store/cscs/swissai/weatherbench`) | group `weatherbench`; the directory also has ACLs for `a122`, `uba03`, `g34`, but not `ab016` | dataset owner or CSCS support |
+
+  Any other Slurm account works too (`AIENS_ACCOUNT=<account>`).
 - The submitters pass `--account="${AIENS_ACCOUNT:-ab016}"`; scripts that carry `#SBATCH --account=ab016`
   are overridden on the command line: `sbatch -A <account> tools/submit_x.sh`.
 - Partitions: `normal` (12 h max, the default for everything), `debug` (1.5 h, one job per user), `xfer`
@@ -22,8 +33,8 @@ Clariden. This page collects what you need to run it again and the failure modes
 | Variable | Default | Meaning |
 |---|---|---|
 | `AIENS_STORE` | `/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles` | project store (forecasts, evals, images) |
-| `AIENS_SCRATCH` | `/iopsstor/scratch/cscs/sadamov` | scratch for TMPDIR, dask spill, earth2studio cache (purged without notice) |
-| `AIENS_PY` | `/capstor/store/cscs/mch/s83/sadamov/venvs/ai-models-ensembles/bin/python` | host interpreter used by the Slurm scripts |
+| `AIENS_SCRATCH` | `/iopsstor/scratch/cscs/$USER` | scratch for TMPDIR, dask spill, earth2studio cache (purged without notice) |
+| `AIENS_PY` | `/capstor/store/cscs/mch/s83/sadamov/venvs/ai-models-ensembles/bin/python` | host interpreter used by the Slurm scripts (the default works only for the original author, see [ENVIRONMENT.md](ENVIRONMENT.md)) |
 | `AIENS_REPO` | `/users/sadamov/pyprojects/ai-models-ensembles` | repo checkout that jobs `cd` into and bind-mount |
 | `AIENS_ACCOUNT` | `ab016` | Slurm account |
 | `AIENS_IFS_ENS` | `/capstor/store/cscs/swissai/ab016/IFS/ifs_ens.zarr` | IFS-ENS reference |
@@ -31,8 +42,8 @@ Clariden. This page collects what you need to run it again and the failure modes
 | `AIENS_MILTON_CONDA` | `/capstor/store/cscs/mch/s83/sadamov/miniforge3` | TempestExtremes + udunits for Milton |
 | `AIENS_MILTON_GAPFILL` | `0` | `1` reconstructs IFS-ENS NaN leads in the tracker (paper setting: off) |
 
-A successor working from their own checkout sets at least `AIENS_REPO` and `AIENS_SCRATCH` (and
-`AIENS_STORE` if writing to a copy). Always redirect temp files to scratch: the scripts export
+A successor working from their own checkout sets at least `AIENS_REPO` and `AIENS_PY`
+(`$AIENS_REPO/.venv/bin/python`), and `AIENS_STORE` if writing to a copy. Always redirect temp files to scratch: the scripts export
 `TMPDIR=$AIENS_SCRATCH/tmp` and `DASK_TEMPORARY_DIRECTORY` (never `/tmp`).
 
 HTTPS from compute nodes needs `export SSL_CERT_FILE=$(python -c 'import certifi; print(certifi.where())')`.

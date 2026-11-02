@@ -90,7 +90,7 @@ REGISTRY: dict[str, ModelSpec] = {
     # central question. Same earth2studio[aifs] container as aifsens
     # (anemoi-models==0.5.1). AIFS v2 / AIFS2ENS skipped 2026-05-29 because
     # CDS lexicon in earth2studio is missing the wave-period-band heights
-    # (h1012-h2530) that AIFS v2 requires -- see MEMORY.md.
+    # (h1012-h2530) that AIFS v2 requires -- see .claude/reference/project-conventions.md.
     "aifs": ModelSpec(
         name="aifs",
         e2s_class="earth2studio.models.px:AIFS",
