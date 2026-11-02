@@ -1,0 +1,12 @@
+lead_time_hours,variable,level,SSR
+0,u_component_of_wind,850,0.003554388295214496
+24,u_component_of_wind,850,0.10197999236204827
+48,u_component_of_wind,850,0.1269665390123204
+72,u_component_of_wind,850,0.14681541147660548
+96,u_component_of_wind,850,0.15891017470580296
+120,u_component_of_wind,850,0.17573340008499982
+144,u_component_of_wind,850,0.19928647684506876
+168,u_component_of_wind,850,0.2204120028577717
+192,u_component_of_wind,850,0.26132085439875136
+216,u_component_of_wind,850,0.3103165419032836
+240,u_component_of_wind,850,0.37089857706748586
