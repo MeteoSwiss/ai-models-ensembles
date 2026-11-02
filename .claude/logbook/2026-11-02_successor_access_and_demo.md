@@ -41,3 +41,17 @@ mode 700 and is deleted with the account. Everyone else builds a venv from `env/
   Fixed in `XarrayDataSource.__call__`. Rerun 3835133 (3:42, no new files in the cache, no downloads), eval
   3835163 (7:29): demo vs production 0.037 K at +24 h, same as with ARCO ICs, so the WB2 and ARCO ERA5 agree.
   The ARCO-IC reference run of the morning is in `handover-demo/_arco-ic-2026-11-02/`.
+- Notebooks: `notebooks/spw_quickstart.ipynb` (pip env, one GPU, public data) and `notebooks/spw_clariden.ipynb`
+  (wraps `handover_demo.sh`, new `plot` step). The generic one was executed on a GH200 node outside the
+  containers (jobs 3835530, 3837594): GraphCast 2 members 24 h from ARCO, SwissClim vs ARCO ERA5,
+  T2m RMSE 0.92 K at +24 h, the same as the Clariden run. Three install traps on the way, all now in
+  `env/graphcast-overrides.txt` (`uv pip install -e ".[graphcast]" --override ...`): (1) the unpinned
+  `graphcast` git dependency now resolves to DeepMind's renamed `weathernext` package, and earth2studio
+  `cbcb0ec` pins its own older graphcast commit, so the container's override (`08cf736`) must be explicit;
+  (2) an override `jax==...` drops the `[cuda13]` extra (CPU-only JAX), write `jax[cuda13]==0.10.0`;
+  (3) pandas 3 breaks SwissClim's by-lead pivot (`astype(str)` no longer yields "<NA>", all surface
+  variables get the same key: "Index contains duplicate entries"), so pandas is pinned to 2.3.3 like the
+  container and the host venv. `pyproject.toml` now pins earth2studio to `cbcb0ec` and no longer lists
+  graphcast directly (only the Phase 3 module imports it).
+- SwissClim against the ARCO zarr over the network took > 2 h per module from Clariden; the notebook
+  first copies the 5 scored valid times, 5 variables, 2 levels (150 MB) and evaluates against that.

@@ -40,10 +40,19 @@ Release `v1.0.0` is the code that produced the submitted results.
 | [containers/](containers/README.md) | one Dockerfile per model, build scripts, package locks of the built images |
 | [env/](env/README.md) | pinned host venv and conda tools |
 | [config/](config/README.md) | example SwissClim configurations |
+| `notebooks/` | end-to-end examples: a generic pip-environment quickstart and a Clariden version |
 | [docs/](docs/) | documentation above |
 | `tests/` | schema-bridge and CLI tests (`pytest -q`) |
 
 ## Quick start
+
+Two notebooks run a small ensemble end to end (GraphCast with the production perturbation, 2 members,
+24 h) and score it with SwissClim:
+
+- [notebooks/spw_quickstart.ipynb](notebooks/spw_quickstart.ipynb): any Linux machine with one NVIDIA
+  GPU, a pip environment and the public data on Google Cloud.
+- [notebooks/spw_clariden.ipynb](notebooks/spw_clariden.ipynb): CSCS Clariden, the production containers
+  and local data only, compared with the production run of the same init.
 
 Regenerate a paper figure on any machine from the vendored data:
 

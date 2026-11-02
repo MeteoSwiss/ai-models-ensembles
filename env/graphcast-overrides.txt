@@ -1,0 +1,11 @@
+# uv overrides that reproduce the GraphCast container (containers/graphcast.dockerfile) in a pip
+# environment: earth2studio pins an older graphcast commit, the container replaces it with this one;
+# cfgrib is earth2studio's own git pin, which uv needs listed directly; SwissClim at the pinned commit
+# needs pandas 2 (pandas 3 breaks its by-lead tables), the version of the container and the host venv.
+# Use: uv pip install -e ".[graphcast]" --override env/graphcast-overrides.txt
+graphcast @ git+https://github.com/google-deepmind/graphcast@08cf73625c9d12bd9aaa038868bcb2fe488f2a22
+cfgrib @ git+https://github.com/NickGeneva/cfgrib.git@6a9af3173d7050b5fa5d221755f97e6ecb8c3433
+jax[cuda13]==0.10.0
+jaxlib==0.10.0
+xarray==2026.2.0
+pandas==2.3.3

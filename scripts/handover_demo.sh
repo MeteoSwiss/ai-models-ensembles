@@ -15,6 +15,7 @@
 #   bash scripts/handover_demo.sh infer     # GPU job, ~4 min
 #   bash scripts/handover_demo.sh eval      # after infer: SwissClim on the demo forecast (CPU job, ~7 min)
 #   bash scripts/handover_demo.sh compare   # after infer: demo vs production, members 0-1 at +24 h
+#   bash scripts/handover_demo.sh plot      # after eval: summary figure $DEMO_ROOT/demo_summary.png
 #
 # Needs Unix groups s83 (store, container images, weights) and weatherbench (ERA5), a Slurm
 # account (AIENS_ACCOUNT, default ab016) and `uv` on PATH for the venv step.
@@ -144,8 +145,38 @@ for var in ["2m_temperature", "mean_sea_level_pressure"]:
         print(f"  member {m}: RMS(demo - production) = {d:.4g}")
 PY
     ;;
+plot)
+    "$SRC_DIR/.venv/bin/python" - "$FORECAST" "$DEMO_ROOT/eval" "$DEMO_ROOT/demo_summary.png" <<'PY'
+import sys
+from pathlib import Path
+
+import matplotlib
+
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+import pandas as pd
+import xarray as xr
+
+forecast, ev, png = sys.argv[1], Path(sys.argv[2]), sys.argv[3]
+t2m = xr.open_zarr(forecast)["2m_temperature"].isel(init_time=0).sel(lead_time=pd.Timedelta(hours=24))
+fig, axes = plt.subplots(1, 3, figsize=(17, 3.6))
+t2m.sel(ensemble=0).plot(ax=axes[0], cmap="RdYlBu_r")
+axes[0].set_title("2m temperature, member 0, +24 h")
+(t2m.sel(ensemble=0) - t2m.sel(ensemble=1)).plot(ax=axes[1], cmap="RdBu_r", robust=True)
+axes[1].set_title("member 0 - member 1 (spread from the weight noise)")
+crps = pd.read_csv(ev / "probabilistic" / "crps_line_2m_temperature_by_lead_ensprob.csv")
+rmse = pd.read_csv(next((ev / "deterministic").glob("det_line_2m_temperature_RMSE_by_lead_*.csv")))
+axes[2].plot(crps.lead_time_hours, crps.CRPS, marker="o", label="CRPS")
+axes[2].plot(rmse.lead_time_hours, rmse.RMSE, marker="o", label="RMSE of the ensemble mean")
+axes[2].set(xlabel="lead time (h)", ylabel="K", title="2m temperature vs ERA5 (SwissClim)")
+axes[2].legend()
+fig.tight_layout()
+fig.savefig(png, dpi=100)
+print(png)
+PY
+    ;;
 *)
-    sed -n '2,17p' "$0"
+    sed -n '2,22p' "$0"
     exit 1
     ;;
 esac

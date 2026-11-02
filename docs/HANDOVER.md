@@ -62,10 +62,12 @@ reorganise or delete anything, ask CSCS (or the `s83` project PI) to transfer ow
    bash scripts/handover_demo.sh compare   # demo vs production run of the same init
    ```
 
-   Outputs go to `$AIENS_SCRATCH/aiens_demo` (`/iopsstor/scratch/cscs/$USER/aiens_demo`). A reference run
-   of the same commands is in `/capstor/store/cscs/mch/s83/sadamov/handover-demo/run/`. Write new results to
-   a store location you own (`AIENS_STORE`) or into the existing store (write ACL for `olifu` since
-   2026-11-02).
+   The same steps as a notebook: [notebooks/spw_clariden.ipynb](../notebooks/spw_clariden.ipynb); without
+   Clariden, [notebooks/spw_quickstart.ipynb](../notebooks/spw_quickstart.ipynb) runs a pip environment on
+   any machine with one GPU. Outputs go to `$AIENS_SCRATCH/aiens_demo`
+   (`/iopsstor/scratch/cscs/$USER/aiens_demo`). A reference run of the same commands is in
+   `/capstor/store/cscs/mch/s83/sadamov/handover-demo/run/`. Write new results to a store location you own
+   (`AIENS_STORE`) or into the existing store (write ACL for `olifu` since 2026-11-02).
 4. For AIFS/AIFS-ENS reruns create your own CDS key (`~/.cdsapirc`).
 5. If you use Claude Code: the repo's `CLAUDE.md` and `.claude/` load automatically ([.claude/README.md](../.claude/README.md)).
 

@@ -15,8 +15,7 @@ dependencies = [
     "numpy>=2.0",
     "pyyaml>=6.0",
     "chex",
-    "graphcast @ git+https://github.com/google-deepmind/graphcast",
-    "earth2studio",
+    "earth2studio @ git+https://github.com/NVIDIA/earth2studio.git@cbcb0ec0e91059ecacba7714ca42946531cbc0ad",
     "swissclim-evaluations @ git+https://github.com/swiss-ai/SwissClim_Evaluations.git@9d3a7fde10361c7136b78d97b91b0e08085fc54d",
     "pytest>=8.0",
 ]
@@ -25,7 +24,7 @@ dependencies = [
 dev = ["pre-commit>=3.7", "ruff>=0.6"]
 # Per-model extras (each container installs only what it needs)
 aurora = ["earth2studio[aurora,data,perturbation]"]
-graphcast = ["earth2studio[graphcast,data]", "chex", "graphcast @ git+https://github.com/google-deepmind/graphcast"]
+graphcast = ["earth2studio[graphcast,data]", "chex"]
 sfno = ["earth2studio[sfno,data]"]
 fcn3 = ["earth2studio[fcn3,data]"]
 atlas = ["earth2studio[atlas,data]"]
