@@ -8,16 +8,16 @@ Everything of 1 TB or more, with owner and a keep/optional/delete verdict for cl
 Experiment design (what each run tests) is in [EXPERIMENTS.md](EXPERIMENTS.md).
 
 Snapshot: 2026-11-02. A copy of this page is placed as `README.md` at the root of the store
-(`python tools/inventory_store.py --publish`), so it can be found from the data side too.
+(`python tools/inventory_store.py --dust --publish`), so it can be found from the data side too.
 
 ## 1. Locations and access
 
 | What | Path on CSCS Alps (Clariden) | Unix group with read access | Size |
 |---|---|---|---|
-| Project store (`$STORE`): forecasts, evaluations, analysis caches, container images | `/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles` | `s83` (ACL, granted 2026-11-02 by `tools/grant_group_read.sh`), `a122` (owning group, allocation frozen) | ~86 TB |
-| IFS-ENS reference forecasts (WB2 archive, 0.25 deg) | `/capstor/store/cscs/swissai/ab016/IFS/ifs_ens.zarr` | `ab016` | 20.3 TB |
-| IFS-ENS perturbed analyses (Phase 5 ICs) | `/capstor/store/cscs/swissai/ab016/IFS/ifs_analysis_perturbed_ic.zarr` | `ab016` | 2.1 TB |
-| IFS control analyses | `/capstor/store/cscs/swissai/ab016/IFS/ifs_control.zarr` | `ab016` | 0.7 TB |
+| Project store (`$STORE`): forecasts, evaluations, analysis caches, container images | `/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles` | `s83` (ACL, granted 2026-11-02 by `tools/grant_group_read.sh`), `a122` (owning group, allocation frozen) | 92 TB |
+| IFS-ENS reference forecasts (WB2 archive, 0.25 deg) | `/capstor/store/cscs/swissai/ab016/IFS/ifs_ens.zarr` | `ab016` | 21.3 TB |
+| IFS-ENS perturbed analyses (Phase 5 ICs) | `/capstor/store/cscs/swissai/ab016/IFS/ifs_analysis_perturbed_ic.zarr` | `ab016` | 2.2 TB |
+| IFS control analyses | `/capstor/store/cscs/swissai/ab016/IFS/ifs_control.zarr` | `ab016` | 0.8 TB |
 | ERA5 truth, WeatherBench 2 layout | `/capstor/store/cscs/swissai/weatherbench/weatherbench2_2022_2023.zarr`, `.../weatherbench2_2024_2025.zarr`, `.../weatherbench2_original` | `weatherbench` | shared dataset, not ours |
 | Handover note with private details + local-only agent memory | `/capstor/store/cscs/swissai/ab016/sadamov/ai-models-ensembles/` | `ab016` | < 1 MB |
 | Host Python venv / conda tools | `/capstor/store/cscs/mch/s83/sadamov/venvs/ai-models-ensembles`, `/capstor/store/cscs/mch/s83/sadamov/miniforge3` | `s83` | |
@@ -171,11 +171,11 @@ paper), `talk only`, `diagnostic` (post-submission analysis), `superseded`, `smo
 `external`, `cache`, `archive`, `debug`. Descriptions per experiment are in
 [data/catalog.csv](data/catalog.csv).
 
-### baselines/ (78 TB)
+### baselines/ (82 TB)
 
 - Headline 8-way comparison: `aurora_encoder`, `graphcast_all`, `sfno_modes10`, `aifs_perturbed` (SPW) vs
   `aifsens`, `atlas`, `fcn3` (trained probabilistic) and `ifs_ens` (physics reference; evaluation outputs only,
-  forecasts come from the IFS-ENS zarr). 112 inits x 10 members, 0-360 h each, ~3.2 TB per experiment.
+  forecasts come from the IFS-ENS zarr). 112 inits x 10 members, 0-360 h each, ~3.4 TB per experiment.
 - Phase 5 (IC vs weight spread): `*_ic` (weight + IC, 0-240 h) and `*_ic_only` (IC only, 0-360 h) for all four
   backbones.
 - Rival validation: six runner-up configurations on the production grid.
@@ -202,19 +202,19 @@ Evaluation outputs per experiment (SwissClim modules, one sbatch per module via
 | `energy_variogram_score/score.csv` | ES/VS at the old per-init scale (superseded by `analysis/table_metrics_fixedscale/`) |
 | `eval_milton/` | evaluation restricted to the Milton box |
 
-### baselines_m50/ (668 GB)
+### baselines_m50/ (699 GB)
 
 Seven production picks rerun with 50 members for one init (2023-10-05 00 UTC, 0-240 h) for the
 member-distribution diagnostics in `figures/ens_anom/*_m50*` (`.claude/logbook/2026-10-16_m50_single_init_gaussianity.md`).
 
-### ablation/ (8.4 TB) and ablation_seed43/ (305 GB)
+### ablation/ (8.8 TB) and ablation_seed43/ (319 GB)
 
 Four-init ablation grid, 10 members, 0-240 h; see [EXPERIMENTS.md](EXPERIMENTS.md) for what each phase
 tests and which cell won. Phase 6 SFNO refresh runs are in `ablation/phase3/sfno/` (they reuse the Phase 3
 tag convention); `phase6_family*/sfno/` hold only intercomparisons. `phase2c/` holds only evaluation leftovers
 from before it was renamed to `phase2b/`. `ablation_seed43/` reruns the four production picks with seed 43.
 
-### analysis/ (11 GB), diagnostics/
+### analysis/ (12 GB), diagnostics/
 
 Durable outputs of the `tools/compute_*` and `tools/submit_*` jobs; each entry is described in the
 inventory. `analysis/rank_histograms/` and `analysis/table_metrics_fixedscale/` were regenerated on
@@ -260,11 +260,13 @@ configuration of any run.
 ## 9. Regenerating the inventory
 
 ```bash
-python tools/inventory_store.py                        # facts only, ~1 min
-du -s --block-size=1M $STORE/*/* > sizes.tsv           # optional, ~15 min on 86 TB
-python tools/inventory_store.py --sizes sizes.tsv      # + sizes
-python tools/inventory_store.py --publish              # + copy DATA.md and the inventory into $STORE
+python tools/inventory_store.py                  # facts only, ~1 min
+python tools/inventory_store.py --dust           # + sizes (dust, ~1 min for 92 TB) and data/LARGE_DATASETS.md
+python tools/inventory_store.py --dust --publish # + copy DATA.md, the inventory and the large-dataset table into $STORE
 ```
+
+Sizes are disk usage measured with [dust](https://github.com/bootandy/dust) (`~/.cargo/bin/dust` on Clariden),
+in decimal units (1 TB = 10^12 bytes).
 
 New experiments show up as "Not in catalog.csv yet" until a line is added to
 [data/catalog.csv](data/catalog.csv) (prefix keys are inherited by sub-paths).

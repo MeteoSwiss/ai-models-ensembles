@@ -58,5 +58,6 @@ dataset documented, every environment pinned, most figures/tables rebuildable of
   paper copy is a revision item (not replaced in the paper repo).
 - Off-HPC re-aggregation writes the same rows in a different order (rglob order is file-system dependent):
   statistics equal to 1e-9, figures identical.
-- `docs/data/LARGE_DATASETS.md` (inventory `--external`): 29.6 TB deletable, mostly the a122 IFS duplicates
-  (23 TB) and the pre-fix `*_p6c` runs; the Clariden copy also lists the a122 duplicates of the neural-LAM data.
+- `docs/data/LARGE_DATASETS.md` (`inventory_store.py --dust`): 31.0 TB deletable, mostly the a122 IFS duplicates
+  (24.3 TB) and the pre-fix `*_p6c` runs (6.7 TB); sizes now from dust (decimal, 2.5 min for everything; the
+  first du-based version mixed MiB and decimal and read ~5% low); the Clariden copy also lists the a122 duplicates of the neural-LAM data.

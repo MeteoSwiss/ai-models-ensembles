@@ -88,7 +88,8 @@ On Clariden they live in the shared miniforge base `/capstor/store/cscs/mch/s83/
 (`source .../etc/profile.d/conda.sh && conda activate base`), which also provides `gh`. Elsewhere:
 `conda env create -f env/conda-tools.yml` and `export AIENS_MILTON_CONDA=$CONDA_PREFIX`. Pinned:
 tempest-extremes 2.4.2, udunits2 2.2.28, libnetcdf 4.10.0, hdf5 2.1.0, ffmpeg 8.1.1, tectonic 0.16.9.
-`texcount` (word counts) is the CTAN perl script copied into that base.
+`texcount` (word counts) is the CTAN perl script copied into that base. `dust` (folder sizes for `tools/inventory_store.py --dust`) is a single binary from
+`cargo install du-dust` or the GitHub releases (version 1.1.1 on Clariden, `~/.cargo/bin/dust`).
 
 ## Services and credentials
 

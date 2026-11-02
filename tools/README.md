@@ -86,9 +86,8 @@ One-to-one wrappers (`sbatch tools/<wrapper>`; each has its usage in the header)
 
 | Script | Use |
 |---|---|
-| `inventory_store.py [--sizes F] [--du] [--publish]` | regenerates the dataset inventory `docs/data/STORE_INVENTORY.md` from the store and `docs/data/catalog.csv`; `--publish` copies the data docs into the store |
+| `inventory_store.py [--dust] [--publish]` | regenerates the dataset inventory `docs/data/STORE_INVENTORY.md` from the store and `docs/data/catalog.csv`; `--dust` adds sizes (via `dust`, ~2 min) and `docs/data/LARGE_DATASETS.md` (every dataset >= 1 TB, owner, keep/optional/delete); `--publish` copies the data docs into the store |
 | `grant_group_read.sh` | read ACLs for one or more groups on the store (xfer partition, run by the owner) |
-| `inventory_store.py --external F` | additionally writes `docs/data/LARGE_DATASETS.md` (every dataset >= 1 TB, owner, keep/optional/delete) |
 | `check_gpu.py` | CUDA / GPU visibility inside a container |
 | `inspect_weights.py` | dump checkpoint tensor names/shapes/dtypes (source of `_MODEL_LAYER_GROUPS`) |
 | `reshard_zarr.py` + `submit_reshard.sh` | rewrite a zarr to the SwissClim chunk/shard layout |

@@ -81,7 +81,7 @@ and `.claude/` (see `.claude/README.md`) hold the condensed conventions and the 
 - NEVER delete a `forecast.zarr` (hours of GPU each). Superseded runs: keep or move to `_archived/`.
   `_e2s_work/` is a temporary merge workspace (deletable only when no inference runs on that init).
 - Every dataset is described in `docs/DATA.md` + `docs/data/catalog.csv`; after creating a new experiment add a
-  catalog line and rerun `python tools/inventory_store.py --sizes ... --publish`.
+  catalog line and rerun `python tools/inventory_store.py --dust --publish` (sizes via `dust`, ~2 min).
 - Figure/table inputs vendored in `tools/data/store/` (mirror of `$STORE` paths); refresh it when a mirrored
   file is regenerated (`tools/data/README.md`). After any figure change diff the legend against the committed PDF.
 - Geopotential is plotted in m2/s2, never as height (`.claude/rules/plot-units.md`).

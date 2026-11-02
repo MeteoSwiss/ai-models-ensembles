@@ -32,7 +32,7 @@ CSCS access then.
 | Code, docs, vendored figure inputs, technical agent memory | github.com/MeteoSwiss/ai-models-ensembles (`main`) | public |
 | Verification package | github.com/swiss-ai/SwissClim_Evaluations, branch `research`, pinned commit `9d3a7fd` | public |
 | Paper LaTeX (Overleaf mirror) | github.com/sadamov/ai-models-ensembles (`main`) | private: ask the author or a co-author |
-| Forecasts, evaluations, analysis caches, container images | Clariden `/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles` (~86 TB) | Unix group `s83` |
+| Forecasts, evaluations, analysis caches, container images | Clariden `/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles` (92 TB) | Unix group `s83` |
 | IFS-ENS reference and perturbed analyses | Clariden `/capstor/store/cscs/swissai/ab016/IFS/` | group `ab016` |
 | Private handover note (journal process, reviewer-question material; also `HANDOVER.md` in the paper repo) + local-only agent memory | Clariden `/capstor/store/cscs/swissai/ab016/sadamov/ai-models-ensembles/` (`HANDOVER.md`, `agent-memory-local-2026-11-02/`) | group `ab016` |
 | Host venv, conda tools | Clariden `/capstor/store/cscs/mch/s83/sadamov/{venvs/ai-models-ensembles,miniforge3}` | group `s83` |
@@ -69,8 +69,8 @@ For the revision (details in [EXPERIMENTS.md](EXPERIMENTS.md#known-open-issues-f
 Housekeeping, optional ([data/LARGE_DATASETS.md](data/LARGE_DATASETS.md) lists every dataset of 1 TB or more
 with owner and verdict; the copy on Clariden, `$STORE/LARGE_DATASETS.md`, also covers the author's other projects):
 
-- The a122 originals of the IFS zarrs (~23 TB) duplicate the verified ab016 copies.
-- Superseded runs that could be deleted to free ~6.5 TB once nobody needs them: `baselines/{aurora,aifs,sfno}_p6c`
+- The a122 originals of the IFS zarrs (24 TB) duplicate the verified ab016 copies.
+- Superseded runs that could be deleted to free ~6.8 TB once nobody needs them: `baselines/{aurora,aifs,sfno}_p6c`
   (pre-fix seeding), the four `*_SMOKE` dirs, `baselines/aifs_ic_only_truncated_2026-08-28`, `_archived/`,
   `scratch/`. Never delete anything with status `paper` in [data/STORE_INVENTORY.md](data/STORE_INVENTORY.md).
 - Two code-level guards are missing (fewer-than-4-inits eval trap, silent CDS fallback in

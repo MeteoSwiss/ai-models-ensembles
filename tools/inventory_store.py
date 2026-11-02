@@ -6,16 +6,16 @@ evaluation products next to it, and joins the hand-written descriptions in
 docs/data/catalog.csv. Experiments missing from the catalog are flagged, so a new run
 cannot go undocumented silently.
 
-    python tools/inventory_store.py                    # facts only (minutes)
-    python tools/inventory_store.py --sizes sizes.tsv  # + sizes from a `du -s --block-size=1M` TSV
-    python tools/inventory_store.py --du               # + run du itself (slow: ~85 TB)
-    python tools/inventory_store.py --publish          # + copy the docs into the store
-    python tools/inventory_store.py --sizes s.tsv --external ext.tsv   # + table of >= 1 TB datasets
+    python tools/inventory_store.py                  # facts only (~1 min)
+    python tools/inventory_store.py --dust           # + sizes and the >= 1 TB table (~1 min for 92 TB)
+    python tools/inventory_store.py --dust --publish # + copy the docs into the store
 
 Writes docs/data/STORE_INVENTORY.md and docs/data/store_inventory.json, and with sizes also
 docs/data/LARGE_DATASETS.md: every dataset of 1 TB or more with location, owner, status and a
-clear-up verdict (inside and outside the store; --external is a TSV '<MB>\t<user:group>\t<abs path>'
-from du for the inputs that live elsewhere). With --publish also
+clear-up verdict, inside the store and outside it (EXTERNAL inputs, OWNER_ROOTS). Sizes are disk
+usage from `dust` (https://github.com/bootandy/dust, on PATH), in decimal units. Without dust, give
+--sizes '<MB>\t<path rel. to store>' and --external '<MB>\t<user:group>\t<abs path>' TSVs
+(MB = 10^6 bytes). With --publish also
 $STORE/README.md (= docs/DATA.md), $STORE/STORE_INVENTORY.md, $STORE/catalog.csv and a README.md
 with the matching inventory rows in every top-level store directory, so the data documents itself
 for anyone browsing the file system.
@@ -98,6 +98,14 @@ VERDICT = {
     "cache (do not delete)": "keep: only copy, days to rebuild",
 }
 LARGE_MB = 1_000_000
+# The store owner's other data, listed in the full (store) version of the large-dataset table.
+OWNER_ROOTS = [
+    "/capstor/store/cscs/swissai/ab016/sadamov",
+    "/capstor/store/cscs/swissai/a122/sadamov",
+    "/capstor/store/cscs/mch/s83/sadamov",
+    "/capstor/store/mch/msopr/sadamov",
+]
+OTHER_MB = 100_000  # the owner's non-project data is listed from 100 GB (full version only)
 
 OTHER_ROOTS = ["analysis", "diagnostics", "e2s_cache_backup", "earth2studio_cache"]
 LOG_ROOTS = ["ablation_logs", "baseline_logs", "baseline_eval_logs", "logs", "model_test_logs"]
@@ -177,20 +185,56 @@ def _products(exp_dir: Path) -> list[str]:
     return names
 
 
-def _load_sizes(path: Path | None, run_du: bool, keys: list[str]) -> dict[str, int]:
+def _dust(path: Path | str, depth: int) -> dict[str, int]:
+    """Disk usage in bytes of path and its descendants down to depth, keyed by absolute path."""
+    out = subprocess.run(
+        ["dust", "-j", "-d", str(depth), "-o", "b", str(path)], capture_output=True, text=True
+    )
+    sizes: dict[str, int] = {}
+
+    def walk(node: dict) -> None:
+        sizes[node["name"]] = node["size"]
+        for child in node.get("children", []):
+            walk(child)
+
+    if out.stdout.strip():
+        walk(json.loads(out.stdout))
+    return sizes
+
+
+def _load_sizes(path: Path | None, use_dust: bool) -> dict[str, int]:
+    """Sizes in MB (10^6 bytes) keyed by path relative to the store."""
     sizes: dict[str, int] = {}
     if path:
         for line in path.read_text().splitlines():
             mb, rel = line.split("\t", 1)
             sizes[rel.rstrip("/")] = int(mb)
-    if run_du:
-        for k in keys:
-            out = subprocess.run(
-                ["du", "-s", "--block-size=1M", str(STORE / k)], capture_output=True, text=True
-            )
-            if out.stdout:
-                sizes[k] = int(out.stdout.split()[0])
+    if use_dust:
+        for full, nbytes in _dust(STORE, 2).items():
+            if full != str(STORE):
+                sizes[str(Path(full).relative_to(STORE))] = nbytes // 1_000_000
     return sizes
+
+
+def _load_external(path: Path | None, use_dust: bool) -> dict[str, tuple[int, str]]:
+    """{abs path: (MB, 'user:group')} for EXTERNAL inputs and the children of OWNER_ROOTS."""
+    ext: dict[str, tuple[int, str]] = {}
+    if path:
+        for line in path.read_text().splitlines():
+            parts = line.split("\t")
+            if len(parts) == 3 and parts[0].isdigit():
+                ext[parts[2]] = (int(parts[0]), parts[1])
+    if use_dust:
+        for p in EXTERNAL:
+            if Path(p).exists():
+                ext[p] = (_dust(p, 0).get(p, 0) // 1_000_000, _owner(Path(p)))
+        for root in OWNER_ROOTS:
+            if not Path(root).is_dir():
+                continue
+            for full, nbytes in _dust(root, 1).items():
+                if full != root and not full.startswith(str(STORE)):
+                    ext[full] = (nbytes // 1_000_000, _owner(Path(full)))
+    return ext
 
 
 def _size(sizes: dict[str, int], key: str) -> str:
@@ -223,8 +267,8 @@ def main() -> None:
     ap = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
-    ap.add_argument("--sizes", type=Path, help="TSV '<MB>\\t<path rel. to store>' from du")
-    ap.add_argument("--du", action="store_true", help="run du on every experiment (slow)")
+    ap.add_argument("--dust", action="store_true", help="measure sizes with dust (~1 min)")
+    ap.add_argument("--sizes", type=Path, help="TSV '<MB>\\t<path rel. to store>' instead of dust")
     ap.add_argument("--publish", action="store_true", help="copy the docs into the store")
     ap.add_argument(
         "--external",
@@ -249,8 +293,7 @@ def main() -> None:
                 experiments[key] = {"zarrs": 0, "inits": [], "sample": None}
 
     catalog = _catalog()
-    top = [k for k in FORECAST_ROOTS + OTHER_ROOTS + LOG_ROOTS if (STORE / k).exists()]
-    sizes = _load_sizes(args.sizes, args.du, sorted(experiments) + top)
+    sizes = _load_sizes(args.sizes, args.dust)
 
     records = []
     for key in sorted(experiments):
@@ -309,7 +352,8 @@ def main() -> None:
         + "\n"
     )
     _write_markdown(records, others, logs, stamp, sizes)
-    large = _large_tables(sizes, catalog, args.external, stamp) if sizes else None
+    external = _load_external(args.external, args.dust)
+    large = _large_tables(sizes, catalog, external, stamp) if sizes else None
     if large:
         (DOCS / "LARGE_DATASETS.md").write_text(large[0])
     if args.publish:
@@ -341,15 +385,11 @@ def _large_tables(sizes, catalog, external, stamp) -> tuple[str, str]:
             )
     other = []
     if external:
-        ext = {}
-        for line in external.read_text().splitlines():
-            parts = line.split("\t")
-            if len(parts) == 3 and parts[0].isdigit():
-                ext[parts[2]] = (int(parts[0]), parts[1])
+        ext = external
         for path, (mb, owner) in ext.items():
             if path in EXTERNAL:
                 rows.append((mb, path, owner, *EXTERNAL[path]))
-            elif mb >= LARGE_MB and (
+            elif mb >= OTHER_MB and (
                 f"/{store_user}/" in path or owner.startswith(store_user + ":")
             ):
                 twin = ext.get(path.replace("/a122/", "/ab016/"))
@@ -407,11 +447,14 @@ def _large_tables(sizes, catalog, external, stamp) -> tuple[str, str]:
     if other:
         full += [
             "",
-            f"## Other directories of 1 TB or more owned by `{store_user}` (other projects)",
+            f"## Other directories of 100 GB or more owned by `{store_user}` (other projects)",
             "",
-            "Not part of this project (mostly the neural-LAM paper; its handover note is "
-            "`/capstor/store/cscs/swissai/ab016/sadamov/HANDOVER.md`). Listed so the owner's data can be cleared "
-            "in one go.",
+            "Not part of this project: the neural-LAM paper (handover note "
+            "`/capstor/store/cscs/swissai/ab016/sadamov/HANDOVER.md`) in the swissai trees, earlier MeteoSwiss "
+            "work (ICON, pollen, aldernet, gwen, FourCastNet) in `/capstor/store/mch/msopr`. Listed so the "
+            "owner's data can be cleared in one go. Searched 2026-11-02 on every Clariden mount "
+            "(`/capstor/store/{cscs,mch}`, `/iopsstor`, `/ritom`); file systems only Balfrin/Linard mount "
+            "were not checked.",
             "",
             "| size (TB) | path | owner | note |",
             "|---|---|---|---|",

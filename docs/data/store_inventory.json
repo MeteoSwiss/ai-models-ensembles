@@ -1,5 +1,5 @@
 {
- "generated": "2026-11-02 11:33 UTC",
+ "generated": "2026-11-02 12:43 UTC",
  "store": "/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles",
  "experiments": [
   {
@@ -37,7 +37,7 @@
     ]
    },
    "products": [],
-   "size": "9 GB",
+   "size": "10 GB",
    "catalog": {
     "key": "_archived",
     "status": "archive",
@@ -6315,7 +6315,7 @@
     ]
    },
    "products": [],
-   "size": "3.2 TB",
+   "size": "3.3 TB",
    "catalog": {
     "key": "baselines/aifs_all_s010",
     "status": "paper",
@@ -6373,7 +6373,7 @@
    "products": [
     "eval/{deterministic}"
    ],
-   "size": "317 GB",
+   "size": "332 GB",
    "catalog": {
     "key": "baselines/aifs_det",
     "status": "talk only",
@@ -6429,7 +6429,7 @@
     ]
    },
    "products": [],
-   "size": "3.2 TB",
+   "size": "3.3 TB",
    "catalog": {
     "key": "baselines/aifs_ic_only",
     "status": "paper",
@@ -6457,16 +6457,15 @@
     ],
     "dims": {
      "ensemble": 10,
-     "level": 2,
      "init_time": 1,
      "lead_time": 61,
      "latitude": 721,
-     "longitude": 1440
+     "longitude": 1440,
+     "level": 2
     },
     "dtype": "float32",
     "dim_order": [
      "ensemble",
-     "level",
      "init_time",
      "lead_time",
      "latitude",
@@ -6474,7 +6473,7 @@
     ]
    },
    "products": [],
-   "size": "45 GB",
+   "size": "47 GB",
    "catalog": {
     "key": "baselines/aifs_ic_only_truncated_2026-08-28",
     "status": "failed run",
@@ -6533,7 +6532,7 @@
     "eval/{deterministic,energy_spectra,fss,maps,multivariate,probabilistic,ssim,wd_kde}",
     "spatial_mean_ssr"
    ],
-   "size": "2.1 TB",
+   "size": "2.2 TB",
    "catalog": {
     "key": "baselines/aifs_p6c",
     "status": "superseded",
@@ -6592,7 +6591,7 @@
     "eval/{probabilistic}",
     "spatial_mean_ssr"
    ],
-   "size": "2.1 TB",
+   "size": "2.2 TB",
    "catalog": {
     "key": "baselines/aifs_p6c_reseed",
     "status": "paper",
@@ -6653,7 +6652,7 @@
     "per_pixel_ssr",
     "spatial_mean_ssr"
    ],
-   "size": "3.2 TB",
+   "size": "3.3 TB",
    "catalog": {
     "key": "baselines/aifs_perturbed",
     "status": "paper",
@@ -6713,7 +6712,7 @@
     "per_pixel_ssr",
     "spatial_mean_ssr"
    ],
-   "size": "2.1 TB",
+   "size": "2.3 TB",
    "catalog": {
     "key": "baselines/aifs_perturbed_ic",
     "status": "paper",
@@ -6769,7 +6768,7 @@
     ]
    },
    "products": [],
-   "size": "436 MB",
+   "size": "457 MB",
    "catalog": {
     "key": "baselines/aifs_perturbed_ic_SMOKE",
     "status": "smoke test",
@@ -6830,7 +6829,7 @@
     "eval_milton/{multivariate}",
     "spatial_mean_ssr"
    ],
-   "size": "3.2 TB",
+   "size": "3.4 TB",
    "catalog": {
     "key": "baselines/aifsens",
     "status": "paper",
@@ -6891,7 +6890,7 @@
     "eval_milton/{multivariate}",
     "spatial_mean_ssr"
    ],
-   "size": "3.2 TB",
+   "size": "3.4 TB",
    "catalog": {
     "key": "baselines/atlas",
     "status": "paper",
@@ -6908,7 +6907,7 @@
    "products": [
     "eval/{deterministic,energy_spectra,fss,maps,multivariate,probabilistic,ssim,wd_kde}"
    ],
-   "size": "22 GB",
+   "size": "23 GB",
    "catalog": {
     "key": "baselines/atmllm",
     "status": "external, unused",
@@ -6964,7 +6963,7 @@
     ]
    },
    "products": [],
-   "size": "3.2 TB",
+   "size": "3.3 TB",
    "catalog": {
     "key": "baselines/aurora_enc_s044",
     "status": "paper",
@@ -7026,7 +7025,7 @@
     "per_pixel_ssr",
     "spatial_mean_ssr"
    ],
-   "size": "3.2 TB",
+   "size": "3.4 TB",
    "catalog": {
     "key": "baselines/aurora_encoder",
     "status": "paper",
@@ -7086,7 +7085,7 @@
     "per_pixel_ssr",
     "spatial_mean_ssr"
    ],
-   "size": "2.2 TB",
+   "size": "2.3 TB",
    "catalog": {
     "key": "baselines/aurora_encoder_ic",
     "status": "paper",
@@ -7142,7 +7141,7 @@
     ]
    },
    "products": [],
-   "size": "437 MB",
+   "size": "457 MB",
    "catalog": {
     "key": "baselines/aurora_encoder_ic_SMOKE",
     "status": "smoke test",
@@ -7198,7 +7197,7 @@
     ]
    },
    "products": [],
-   "size": "3.2 TB",
+   "size": "3.3 TB",
    "catalog": {
     "key": "baselines/aurora_ic_only",
     "status": "paper",
@@ -7257,7 +7256,7 @@
     "eval/{deterministic,energy_spectra,fss,maps,multivariate,probabilistic,ssim,wd_kde}",
     "spatial_mean_ssr"
    ],
-   "size": "2.2 TB",
+   "size": "2.3 TB",
    "catalog": {
     "key": "baselines/aurora_p6c",
     "status": "superseded",
@@ -7316,7 +7315,7 @@
     "eval/{probabilistic}",
     "spatial_mean_ssr"
    ],
-   "size": "2.1 TB",
+   "size": "2.2 TB",
    "catalog": {
     "key": "baselines/aurora_p6c_reseed",
     "status": "paper",
@@ -7334,7 +7333,7 @@
     "energy_variogram_score",
     "spatial_mean_ssr"
    ],
-   "size": "1 MB",
+   "size": "0 MB",
    "catalog": {
     "key": "baselines/esfm",
     "status": "external, dropped",
@@ -7395,7 +7394,7 @@
     "eval_milton/{multivariate}",
     "spatial_mean_ssr"
    ],
-   "size": "3.2 TB",
+   "size": "3.4 TB",
    "catalog": {
     "key": "baselines/fcn3",
     "status": "paper",
@@ -7457,7 +7456,7 @@
     "per_pixel_ssr",
     "spatial_mean_ssr"
    ],
-   "size": "3.2 TB",
+   "size": "3.4 TB",
    "catalog": {
     "key": "baselines/graphcast_all",
     "status": "paper",
@@ -7517,7 +7516,7 @@
     "per_pixel_ssr",
     "spatial_mean_ssr"
    ],
-   "size": "2.2 TB",
+   "size": "2.3 TB",
    "catalog": {
     "key": "baselines/graphcast_all_ic",
     "status": "paper",
@@ -7573,7 +7572,7 @@
     ]
    },
    "products": [],
-   "size": "437 MB",
+   "size": "457 MB",
    "catalog": {
     "key": "baselines/graphcast_all_ic_SMOKE",
     "status": "smoke test",
@@ -7629,7 +7628,7 @@
     ]
    },
    "products": [],
-   "size": "3.2 TB",
+   "size": "3.3 TB",
    "catalog": {
     "key": "baselines/graphcast_g2m",
     "status": "paper",
@@ -7685,7 +7684,7 @@
     ]
    },
    "products": [],
-   "size": "3.2 TB",
+   "size": "3.3 TB",
    "catalog": {
     "key": "baselines/graphcast_ic_only",
     "status": "paper",
@@ -7741,7 +7740,7 @@
     ]
    },
    "products": [],
-   "size": "3.2 TB",
+   "size": "3.3 TB",
    "catalog": {
     "key": "baselines/graphcast_m2g",
     "status": "paper",
@@ -7800,7 +7799,7 @@
     "eval/{probabilistic}",
     "spatial_mean_ssr"
    ],
-   "size": "2.1 TB",
+   "size": "2.2 TB",
    "catalog": {
     "key": "baselines/graphcast_p6c_reseed",
     "status": "talk only",
@@ -7819,7 +7818,7 @@
     "eval_milton/{multivariate}",
     "spatial_mean_ssr"
    ],
-   "size": "22 GB",
+   "size": "23 GB",
    "catalog": {
     "key": "baselines/ifs_ens",
     "status": "paper",
@@ -7875,7 +7874,7 @@
     ]
    },
    "products": [],
-   "size": "3.2 TB",
+   "size": "3.3 TB",
    "catalog": {
     "key": "baselines/sfno_enc_s035",
     "status": "paper",
@@ -7931,7 +7930,7 @@
     ]
    },
    "products": [],
-   "size": "3.2 TB",
+   "size": "3.3 TB",
    "catalog": {
     "key": "baselines/sfno_enc_s054",
     "status": "paper",
@@ -7987,7 +7986,7 @@
     ]
    },
    "products": [],
-   "size": "3.2 TB",
+   "size": "3.3 TB",
    "catalog": {
     "key": "baselines/sfno_ic_only",
     "status": "paper",
@@ -8049,7 +8048,7 @@
     "per_pixel_ssr",
     "spatial_mean_ssr"
    ],
-   "size": "3.2 TB",
+   "size": "3.4 TB",
    "catalog": {
     "key": "baselines/sfno_modes10",
     "status": "paper",
@@ -8109,7 +8108,7 @@
     "per_pixel_ssr",
     "spatial_mean_ssr"
    ],
-   "size": "2.2 TB",
+   "size": "2.3 TB",
    "catalog": {
     "key": "baselines/sfno_modes10_ic",
     "status": "paper",
@@ -8165,7 +8164,7 @@
     ]
    },
    "products": [],
-   "size": "436 MB",
+   "size": "456 MB",
    "catalog": {
     "key": "baselines/sfno_modes10_ic_SMOKE",
     "status": "smoke test",
@@ -8223,7 +8222,7 @@
    "products": [
     "spatial_mean_ssr"
    ],
-   "size": "2.1 TB",
+   "size": "2.2 TB",
    "catalog": {
     "key": "baselines/sfno_p6c",
     "status": "superseded",
@@ -8282,7 +8281,7 @@
     "eval/{probabilistic}",
     "spatial_mean_ssr"
    ],
-   "size": "2.1 TB",
+   "size": "2.2 TB",
    "catalog": {
     "key": "baselines/sfno_p6c_reseed",
     "status": "paper",
@@ -8338,7 +8337,7 @@
     ]
    },
    "products": [],
-   "size": "95 GB",
+   "size": "99 GB",
    "catalog": {
     "key": "baselines_m50/aifs_perturbed",
     "status": "diagnostic",
@@ -8394,7 +8393,7 @@
     ]
    },
    "products": [],
-   "size": "95 GB",
+   "size": "100 GB",
    "catalog": {
     "key": "baselines_m50/aifsens",
     "status": "diagnostic",
@@ -8450,7 +8449,7 @@
     ]
    },
    "products": [],
-   "size": "96 GB",
+   "size": "100 GB",
    "catalog": {
     "key": "baselines_m50/atlas",
     "status": "diagnostic",
@@ -8506,7 +8505,7 @@
     ]
    },
    "products": [],
-   "size": "95 GB",
+   "size": "100 GB",
    "catalog": {
     "key": "baselines_m50/aurora_encoder",
     "status": "diagnostic",
@@ -8562,7 +8561,7 @@
     ]
    },
    "products": [],
-   "size": "96 GB",
+   "size": "100 GB",
    "catalog": {
     "key": "baselines_m50/fcn3",
     "status": "diagnostic",
@@ -8618,7 +8617,7 @@
     ]
    },
    "products": [],
-   "size": "95 GB",
+   "size": "100 GB",
    "catalog": {
     "key": "baselines_m50/graphcast_all",
     "status": "diagnostic",
@@ -8674,7 +8673,7 @@
     ]
    },
    "products": [],
-   "size": "95 GB",
+   "size": "100 GB",
    "catalog": {
     "key": "baselines_m50/sfno_modes10",
     "status": "diagnostic",
@@ -8731,7 +8730,7 @@
     ]
    },
    "products": [],
-   "size": "579 MB",
+   "size": "606 MB",
    "catalog": {
     "key": "scratch",
     "status": "debug",
@@ -8789,7 +8788,7 @@
     ]
    },
    "products": [],
-   "size": "579 MB",
+   "size": "606 MB",
    "catalog": {
     "key": "scratch",
     "status": "debug",
@@ -8812,7 +8811,7 @@
   {
    "key": "analysis/ic_decomp_12ch.csv",
    "files": 1,
-   "size": "1 MB",
+   "size": "0 MB",
    "catalog": {
     "key": "analysis/ic_decomp_12ch.csv",
     "status": "paper",
@@ -8831,8 +8830,8 @@
   },
   {
    "key": "analysis/milton_case_study",
-   "files": 434,
-   "size": "3 MB",
+   "files": 4922,
+   "size": "58 MB",
    "catalog": {
     "key": "analysis/milton_case_study",
     "status": "paper",
@@ -8842,7 +8841,7 @@
   {
    "key": "analysis/milton_wind_frames",
    "files": 6,
-   "size": "143 MB",
+   "size": "149 MB",
    "catalog": {
     "key": "analysis/milton_wind_frames",
     "status": "talk only",
@@ -8852,7 +8851,7 @@
   {
    "key": "analysis/milton_z500_plume",
    "files": 25,
-   "size": "367 MB",
+   "size": "384 MB",
    "catalog": {
     "key": "analysis/milton_z500_plume",
     "status": "talk only",
@@ -8862,7 +8861,7 @@
   {
    "key": "analysis/per_init_crps_ifsens.csv",
    "files": 1,
-   "size": "1 MB",
+   "size": "0 MB",
    "catalog": {
     "key": "analysis/per_init_crps_ifsens.csv",
     "status": "paper",
@@ -8881,8 +8880,8 @@
   },
   {
    "key": "analysis/rank_histograms",
-   "files": 6,
-   "size": "",
+   "files": 8,
+   "size": "0 MB",
    "catalog": {
     "key": "analysis/rank_histograms",
     "status": "paper",
@@ -8892,7 +8891,7 @@
   {
    "key": "analysis/spread_error_all.csv",
    "files": 1,
-   "size": "3 MB",
+   "size": "2 MB",
    "catalog": {
     "key": "analysis/spread_error_all.csv",
     "status": "paper",
@@ -8902,7 +8901,7 @@
   {
    "key": "analysis/spread_error_binned.csv",
    "files": 1,
-   "size": "3 MB",
+   "size": "2 MB",
    "catalog": {
     "key": "analysis/spread_error_binned.csv",
     "status": "paper",
@@ -8912,7 +8911,7 @@
   {
    "key": "analysis/spread_error_ifsens.csv",
    "files": 1,
-   "size": "1 MB",
+   "size": "0 MB",
    "catalog": {
     "key": "analysis/spread_error_ifsens.csv",
     "status": "paper",
@@ -8921,8 +8920,8 @@
   },
   {
    "key": "analysis/table_metrics_fixedscale",
-   "files": 19,
-   "size": "",
+   "files": 37,
+   "size": "0 MB",
    "catalog": {
     "key": "analysis/table_metrics_fixedscale",
     "status": "paper",
@@ -8932,7 +8931,7 @@
   {
    "key": "analysis/table_metrics_ic_decomp",
    "files": 96,
-   "size": "1 MB",
+   "size": "0 MB",
    "catalog": {
     "key": "analysis/table_metrics_ic_decomp",
     "status": "paper",
@@ -8942,7 +8941,7 @@
   {
    "key": "diagnostics/sfno_phase6_ssr",
    "files": 15,
-   "size": "1 MB",
+   "size": "0 MB",
    "catalog": {
     "key": "diagnostics/sfno_phase6_ssr",
     "status": "paper",
@@ -8952,7 +8951,7 @@
   {
    "key": "e2s_cache_backup/README_DO_NOT_DELETE.md",
    "files": 1,
-   "size": "1 MB",
+   "size": "0 MB",
    "catalog": {
     "key": "e2s_cache_backup/README_DO_NOT_DELETE.md",
     "status": "cache",
@@ -8962,7 +8961,7 @@
   {
    "key": "e2s_cache_backup/aifs-ens-1.0",
    "files": 7,
-   "size": "915 MB",
+   "size": "959 MB",
    "catalog": {
     "key": "e2s_cache_backup/aifs-ens-1.0",
     "status": "cache",
@@ -8972,7 +8971,7 @@
   {
    "key": "e2s_cache_backup/aifs-single-1.1",
    "files": 3,
-   "size": "964 MB",
+   "size": "1 GB",
    "catalog": {
     "key": "e2s_cache_backup/aifs-single-1.1",
     "status": "cache",
@@ -8982,7 +8981,7 @@
   {
    "key": "e2s_cache_backup/aifs-single-1.1_interpolation_matrix",
    "files": 2,
-   "size": "8 MB",
+   "size": "7 MB",
    "catalog": {
     "key": "e2s_cache_backup/aifs-single-1.1_interpolation_matrix",
     "status": "cache",
@@ -9002,7 +9001,7 @@
   {
    "key": "e2s_cache_backup/cds",
    "files": 5393,
-   "size": "44 GB",
+   "size": "46 GB",
    "catalog": {
     "key": "e2s_cache_backup/cds",
     "status": "cache (do not delete)",
@@ -9012,7 +9011,7 @@
   {
    "key": "e2s_cache_backup/ifs-opendata",
    "files": 4,
-   "size": "3 MB",
+   "size": "2 MB",
    "catalog": {
     "key": "e2s_cache_backup/ifs-opendata",
     "status": "cache",
@@ -9045,7 +9044,7 @@
   },
   {
    "key": "logs",
-   "files": 75
+   "files": 76
   },
   {
    "key": "model_test_logs",
