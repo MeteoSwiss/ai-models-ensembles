@@ -1,0 +1,82 @@
+key,status,description
+baselines/aifsens,paper,"AIFS-ENS 1.0 (ECMWF, trained probabilistic). 112 production inits (days 2-8 of Jan/Apr/Jul/Oct 2023+2024, 00/12 UTC), 10 members, 0-360 h. ICs from CDS. Headline 8-way baseline."
+baselines/atlas,paper,"Atlas (NVIDIA, trained probabilistic, stochastic interpolant). 112 production inits (days 2-8 of Jan/Apr/Jul/Oct 2023+2024, 00/12 UTC), 10 members, 0-360 h, ICs from ARCO-ERA5. Headline baseline."
+baselines/fcn3,paper,"FourCastNet 3 (NVIDIA, trained probabilistic). 112 production inits (days 2-8 of Jan/Apr/Jul/Oct 2023+2024, 00/12 UTC), 10 members, 0-360 h, ICs from ARCO-ERA5. Headline baseline."
+baselines/ifs_ens,paper,"IFS-ENS reference: eval outputs only. Forecasts are read from the WB2-derived IFS-ENS zarr (/capstor/store/cscs/swissai/ab016/IFS/ifs_ens.zarr), 10 stratified members 0,5,...,45. ~20% whole-slab NaN gaps (msl ~30%)."
+baselines/aurora_encoder,paper,"SPW Aurora: encoder layer group, sigma=0.025 (Phase 2b pick). 112 production inits (days 2-8 of Jan/Apr/Jul/Oct 2023+2024, 00/12 UTC), 10 members, 0-360 h, ARCO ICs. Headline baseline."
+baselines/graphcast_all,paper,"SPW GraphCast (operational): all layers, sigma=0.01 (Phase 1 pick). 112 production inits (days 2-8 of Jan/Apr/Jul/Oct 2023+2024, 00/12 UTC), 10 members, 0-360 h, ARCO ICs. Headline baseline."
+baselines/sfno_modes10,paper,"SPW SFNO: coarse spherical-harmonic modes l<10 only, sigma=0.25 (Phase 3 pick). 112 production inits (days 2-8 of Jan/Apr/Jul/Oct 2023+2024, 00/12 UTC), 10 members, 0-360 h, ARCO ICs. Headline baseline."
+baselines/aifs_perturbed,paper,"SPW AIFS (single 1.1): decoder layer group, sigma=0.0275 (Phase 2 pick). 112 production inits (days 2-8 of Jan/Apr/Jul/Oct 2023+2024, 00/12 UTC), 10 members, 0-360 h, CDS ICs. Headline baseline."
+baselines/aurora_encoder_ic,paper,"Phase 5 weight+IC arm: SPW encoder@0.025 plus IFS-ENS perturbed analyses as per-member ICs (ifs_analysis_perturbed_ic.zarr). 112 production inits (days 2-8 of Jan/Apr/Jul/Oct 2023+2024, 00/12 UTC), 10 members, 0-240 h. IC decomposition table and Milton."
+baselines/aurora_encoder_ic_SMOKE,smoke test,"1-init, 2-member, 24 h smoke test of the weight+IC wiring (2026-06-09). Safe to ignore."
+baselines/graphcast_all_ic,paper,"Phase 5 weight+IC arm: SPW all@0.01 plus IFS-ENS perturbed analyses as per-member ICs (ifs_analysis_perturbed_ic.zarr). 112 production inits (days 2-8 of Jan/Apr/Jul/Oct 2023+2024, 00/12 UTC), 10 members, 0-240 h. IC decomposition table and Milton."
+baselines/graphcast_all_ic_SMOKE,smoke test,"1-init, 2-member, 24 h smoke test of the weight+IC wiring (2026-06-09). Safe to ignore."
+baselines/sfno_modes10_ic,paper,"Phase 5 weight+IC arm: SPW modes10@0.25 plus IFS-ENS perturbed analyses as per-member ICs (ifs_analysis_perturbed_ic.zarr). 112 production inits (days 2-8 of Jan/Apr/Jul/Oct 2023+2024, 00/12 UTC), 10 members, 0-240 h. IC decomposition table and Milton."
+baselines/sfno_modes10_ic_SMOKE,smoke test,"1-init, 2-member, 24 h smoke test of the weight+IC wiring (2026-06-09). Safe to ignore."
+baselines/aifs_perturbed_ic,paper,"Phase 5 weight+IC arm: SPW decoder@0.0275 plus IFS-ENS perturbed analyses as per-member ICs (ifs_analysis_perturbed_ic.zarr). 112 production inits (days 2-8 of Jan/Apr/Jul/Oct 2023+2024, 00/12 UTC), 10 members, 0-240 h. IC decomposition table and Milton."
+baselines/aifs_perturbed_ic_SMOKE,smoke test,"1-init, 2-member, 24 h smoke test of the weight+IC wiring (2026-06-09). Safe to ignore."
+baselines/aurora_ic_only,paper,"IC-only arm: IFS-ENS perturbed analyses as ICs, weight noise off. 112 production inits (days 2-8 of Jan/Apr/Jul/Oct 2023+2024, 00/12 UTC), 10 members, 0-360 h. Separates IC from weight spread (Tab. ic_decomp)."
+baselines/graphcast_ic_only,paper,"IC-only arm: IFS-ENS perturbed analyses as ICs, weight noise off. 112 production inits (days 2-8 of Jan/Apr/Jul/Oct 2023+2024, 00/12 UTC), 10 members, 0-360 h. Separates IC from weight spread (Tab. ic_decomp)."
+baselines/sfno_ic_only,paper,"IC-only arm: IFS-ENS perturbed analyses as ICs, weight noise off. 112 production inits (days 2-8 of Jan/Apr/Jul/Oct 2023+2024, 00/12 UTC), 10 members, 0-360 h. Separates IC from weight spread (Tab. ic_decomp)."
+baselines/aifs_ic_only,paper,"IC-only arm: IFS-ENS perturbed analyses as ICs, weight noise off. 112 production inits (days 2-8 of Jan/Apr/Jul/Oct 2023+2024, 00/12 UTC), 10 members, 0-360 h. Separates IC from weight spread (Tab. ic_decomp)."
+baselines/aifs_ic_only_truncated_2026-08-28,failed run,Single init of aifs_ic_only written truncated during the 2026-08-28 capstor incident (plus its leftover _e2s_work member zarrs). Re-run into aifs_ic_only; kept as evidence. Not used.
+baselines/aurora_enc_s044,paper,"Rival (runner-up ablation cell) Aurora encoder sigma=0.044176 on the held-out production grid. 112 production inits (days 2-8 of Jan/Apr/Jul/Oct 2023+2024, 00/12 UTC), 10 members, 0-360 h. Tab. rival_validation."
+baselines/graphcast_m2g,paper,"Rival GraphCast m2g sigma=0.029665. 112 production inits (days 2-8 of Jan/Apr/Jul/Oct 2023+2024, 00/12 UTC), 10 members. Tab. rival_validation."
+baselines/graphcast_g2m,paper,"Rival GraphCast g2m sigma=0.014 (the argmin-CRPSS ablation cell). 112 production inits (days 2-8 of Jan/Apr/Jul/Oct 2023+2024, 00/12 UTC), 10 members. Tab. rival_validation."
+baselines/sfno_enc_s054,paper,"Rival SFNO encoder sigma=0.053852. 112 production inits (days 2-8 of Jan/Apr/Jul/Oct 2023+2024, 00/12 UTC), 10 members. Tab. rival_validation."
+baselines/sfno_enc_s035,paper,"Rival SFNO encoder sigma=0.035. 112 production inits (days 2-8 of Jan/Apr/Jul/Oct 2023+2024, 00/12 UTC), 10 members. Tab. rival_validation."
+baselines/aifs_all_s010,paper,"Rival AIFS all layers sigma=0.01 (Phase 1 cell). 112 production inits (days 2-8 of Jan/Apr/Jul/Oct 2023+2024, 00/12 UTC), 10 members. Tab. rival_validation."
+baselines/aurora_p6c,superseded,"Phase 6c weight-noise refresh every 20 steps, Aurora encoder@0.025, 112 inits, 0-240 h. Generated with the old additive per-step seeding bug (fixed 2026-07-10). Superseded by aurora_p6c_reseed."
+baselines/aifs_p6c,superseded,"Phase 6c refresh-every-20, AIFS decoder@0.0275, old buggy seeding. Superseded by aifs_p6c_reseed."
+baselines/sfno_p6c,superseded,"Phase 6c refresh-every-20, SFNO modes10 sigma=0.35, old buggy seeding. Superseded by sfno_p6c_reseed."
+baselines/aurora_p6c_reseed,paper,"Phase 6c refresh-every-20 with the corrected _mix_seed seeding, Aurora encoder@0.025, 112 inits, 0-240 h. Fig. refresh_frozen_vs_refresh_ssr."
+baselines/aifs_p6c_reseed,paper,"Phase 6c refresh-every-20, corrected seeding, AIFS decoder@0.0275, 112 inits. Fig. refresh_frozen_vs_refresh_ssr."
+baselines/sfno_p6c_reseed,paper,"Phase 6c refresh-every-20, corrected seeding, SFNO modes10 sigma=0.35, 112 inits. Fig. refresh_frozen_vs_refresh_ssr."
+baselines/graphcast_p6c_reseed,talk only,"GraphCast weight refresh every 20 steps, all@0.01, corrected seeding, 112 inits (2026-10-07). Talk/revision material, not in the submitted paper: 240 h spatial-mean SSR 3.20 -> 2.97."
+baselines/aifs_det,talk only,"Unperturbed deterministic AIFS (sigma=0, 1 member), 112 inits, 0-360 h. Grey line in figures/talk/headline_crpss_vs_lead_8way_aifs_det (single-member CRPS = MAE)."
+baselines/atmllm,"external, unused",SwissClim eval of AtmLLM forecasts produced and stored by a colleague outside this store (path in eval_main_config.yaml). Not in the paper.
+baselines/esfm,"external, dropped","ESFM (Ozdemir et al. 2026) intermediate checkpoint: ES/VS and spatial-mean SSR only; forecasts live outside this store. Briefly an 8th baseline, removed (CRPSS@240 h -0.127, not fully trained)."
+baselines/intercomparison,paper,SwissClim intercomparison across the production baselines; probabilistic/temporal_metrics_combined.csv is the source of the headline CRPSS figure and tables.
+baselines_m50/aifs_perturbed,diagnostic,"50-member single-init run (2023-10-05 00 UTC, 0-240 h) for the member-distribution (Gaussianity) diagnostics, 2026-10-16. Not in the paper; figures/ens_anom/*_m50*."
+baselines_m50/aifsens,diagnostic,"50-member single-init run (2023-10-05 00 UTC, 0-240 h) for the member-distribution (Gaussianity) diagnostics, 2026-10-16. Not in the paper; figures/ens_anom/*_m50*."
+baselines_m50/atlas,diagnostic,"50-member single-init run (2023-10-05 00 UTC, 0-240 h) for the member-distribution (Gaussianity) diagnostics, 2026-10-16. Not in the paper; figures/ens_anom/*_m50*."
+baselines_m50/aurora_encoder,diagnostic,"50-member single-init run (2023-10-05 00 UTC, 0-240 h) for the member-distribution (Gaussianity) diagnostics, 2026-10-16. Not in the paper; figures/ens_anom/*_m50*."
+baselines_m50/fcn3,diagnostic,"50-member single-init run (2023-10-05 00 UTC, 0-240 h) for the member-distribution (Gaussianity) diagnostics, 2026-10-16. Not in the paper; figures/ens_anom/*_m50*."
+baselines_m50/graphcast_all,diagnostic,"50-member single-init run (2023-10-05 00 UTC, 0-240 h) for the member-distribution (Gaussianity) diagnostics, 2026-10-16. Not in the paper; figures/ens_anom/*_m50*."
+baselines_m50/sfno_modes10,diagnostic,"50-member single-init run (2023-10-05 00 UTC, 0-240 h) for the member-distribution (Gaussianity) diagnostics, 2026-10-16. Not in the paper; figures/ens_anom/*_m50*."
+ablation/phase1,paper,"Phase 1 magnitude sweep: multiplicative noise on all weights, sigma in {0, 0.001, 0.003, 0.01, 0.03, 0.1} (AIFS: 0, 0.003, 0.01, 0.03). 4 ablation inits (2023-05-15, 2023-08-15, 2024-02-15, 2024-11-15 00 UTC), 10 members, 0-240 h. Run tag mag_<sigma>_layer_all."
+ablation/phase2,paper,"Phase 2 layer-group sweep: one architectural group at sigma_full*sqrt(N_total/N_group) (Aurora backbone/encoder/decoder, GraphCast g2m/m2g/m2m, SFNO encoder/processor/decoder, AIFS encoder/processor/decoder). 4 ablation inits (2023-05-15, 2023-08-15, 2024-02-15, 2024-11-15 00 UTC), 10 members, 0-240 h. Run tag mag_<sigma>_layer_<group>."
+ablation/phase2b,paper,"Phase 2b fine sigma refinement on the top two Phase 2 groups per model (Aurora, GraphCast, SFNO). 4 ablation inits (2023-05-15, 2023-08-15, 2024-02-15, 2024-11-15 00 UTC), 10 members, 0-240 h."
+ablation/phase2c,superseded,Eval outputs left from before the phase2c -> phase2b directory rename. No forecasts.
+ablation/phase3,paper,"Phase 3 coarse-scale-only perturbation: SFNO spectral modes l<10 (mag_<sigma>_modes10[_refresh*|_fresh|_skip1]), Aurora U-Net bottleneck (layer_unet_bottom), GraphCast activation noise on coarse mesh nodes (gcsigma_<s>_gcnodes42[_frozen]). Also holds the SFNO refresh/fresh (Phase 6) variants. 4 ablation inits (2023-05-15, 2023-08-15, 2024-02-15, 2024-11-15 00 UTC), 10 members, 0-240 h."
+ablation/phase3b,paper,"Phase 3b alternative coarse cut-offs: SFNO modes20, Aurora enc_012, GraphCast gcnodes162/642. 4 ablation inits (2023-05-15, 2023-08-15, 2024-02-15, 2024-11-15 00 UTC), 10 members, 0-240 h."
+ablation/phase6_family,paper,Phase 6 (noise refreshed during the rollout) intercomparison outputs for SFNO and GraphCast; forecasts are in ablation/phase3.
+ablation/phase6_family_v2,paper,"Phase 6 refresh-every-20 probes for Aurora (sigma 0.025, 0.035) and AIFS (0.0275, 0.0385) on the 4 ablation inits; layout <model>/<run>/<init>/forecast.zarr."
+ablation/phase6_smoke,smoke test,Empty smoke-test directories for the Phase 6 fresh hooks (2026-06-10). Safe to ignore.
+ablation/allphases,paper,"Cross-phase SwissClim intercomparisons per model (source of the calibration-basis table, Tab. calibration)."
+ablation_seed43,paper,Second-seed robustness check: the four production picks rerun with seed 43 on the 4 ablation inits (paper: winner margins move by at most 0.006). Layout <model>/<init>/<run_tag>/forecast.zarr.
+_archived,archive,"Failed or truncated early runs kept for the record (AIFS Phase 1 sigma=0.003 truncated zarr + failed eval config, a partial GraphCast gcsigma eval). Not used."
+scratch,debug,SFNO fresh-hook debug zarrs (2026-06). Not used; safe to delete after the handover if space is needed.
+analysis/ens_anom_gaussianity,diagnostic,"Member-anomaly NPZ caches for the Gaussianity diagnostics (tools/compute_ens_anomalies.py, tools/compute_point_ensemble.py); 551 MB per model. figures/ens_anom/."
+analysis/ic_decomp_12ch.csv,paper,Per-channel IC vs weight spread decomposition (tools/ic_weight_decomposition.py); condensed into tools/data/ic_decomp_4bb.csv.
+analysis/ifs_ens_spatial_ssr_audit,paper,Audit of IFS-ENS spatial-mean SSR on the WB2 NaN slabs (2026-10-07).
+analysis/milton_case_study,paper,"Milton TC tracks: IBTrACS netCDF + per-(baseline, init) TempestExtremes tracks rebuilt 2026-10-07 for Fig. F1. The master/verification CSVs for F2/F5/F9 were scratch-purged; see docs/REPRODUCING.md."
+analysis/milton_wind_frames,talk only,Extracted Milton-box 10 m wind/MSL netCDFs for the talk animation (tools/milton/plot_wind_frames.py stage 1).
+analysis/milton_z500_plume,talk only,Extracted z500 landfall-box series for figures/slides/milton_z500_plume_* (tools/milton/plot_z500_plume.py).
+analysis/per_init_crps_ifsens.csv,paper,Per-init CRPS of IFS-ENS (tools/compute_per_init_crps.py); block bootstrap and common-sample checks.
+analysis/per_init_crps_production_v2.csv,paper,Per-init CRPS of all production baselines (tools/compute_per_init_crps.py); input of the rival-validation table and the bootstrap CIs.
+analysis/spread_error_all.csv,paper,spread_error_binned.csv + spread_error_ifsens.csv concatenated; the only input of Fig. spread_error (tools/plot_spread_error.py).
+analysis/spread_error_binned.csv,paper,Binned spread-error pairs of the 7 non-IFS production baselines (default output of tools/spread_error_binned.py via tools/submit_spread_error.sh).
+analysis/spread_error_ifsens.csv,paper,Same binning for IFS-ENS (run separately because of its NaN slabs).
+analysis/table_metrics_ic_decomp,paper,ES/VS/SIGK of the IC-decomposition arms (tools/submit_esvs_sigk_ic_decomp.sh).
+analysis/table_metrics_fixedscale,paper,Fixed-scale (1990-2019 climatological channel scale) ES/VS/SIGK per baseline and lead (tools/submit_table_metrics_fixedscale.sh). Input of Tab. C1 and the calibration table.
+analysis/rank_histograms,paper,Rank (Talagrand) histogram NPZs at 240 h (tools/submit_rank_histograms.sh). Input of Fig. rank_histograms_240h.
+diagnostics/sfno_phase6_ssr,paper,Spatial-mean SSR CSVs of the SFNO Phase 3/6 frozen/fresh/refresh variants (sigma_N <= 1.93 refresh clause).
+e2s_cache_backup/README_DO_NOT_DELETE.md,cache,Explains the CDS cache below.
+e2s_cache_backup/cds,cache (do not delete),"Persistent earth2studio CDS GRIB cache (~5400 files, 43 GB) for all AIFS/AIFS-ENS ICs. Rebuilding needs a CDS key and 24-48 h of throttled downloads."
+e2s_cache_backup/aifs-ens-1.0,cache,AIFS-ENS 1.0 checkpoint package from hf://ecmwf/aifs-ens-1.0.
+e2s_cache_backup/aifs-single-1.1,cache,AIFS single 1.1 checkpoint package from hf://ecmwf/aifs-single-1.1.
+e2s_cache_backup/aifs-single-1.1_interpolation_matrix,cache,AIFS grid interpolation matrix (earth2studio download).
+e2s_cache_backup/aifs-single-1.1_inverse_interpolation_matrix,cache,AIFS inverse interpolation matrix (earth2studio download).
+e2s_cache_backup/ifs-opendata,cache,Small ECMWF open-data cache used by AIFS.
+earth2studio_cache/sfno,cache,SFNO checkpoint package (ngc://models/nvidia/modulus/sfno_73ch_small@0.1.0) used for the weight audit.

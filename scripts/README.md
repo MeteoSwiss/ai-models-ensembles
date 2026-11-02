@@ -1,151 +1,84 @@
-# Workflow Execution Scripts
+# scripts/
 
-Slurm submitters that wrap `python -m ai_models_ensembles.cli infer` /
-`verify` / `intercompare` and run them inside the per-model containers under
-[../containers/](../containers/). Everything is configured by editing the
-constants at the top of each script - there is no shared `config.sh`.
+Slurm submitters for inference and SwissClim verification. They wrap `python -m ai_models_ensembles.cli`
+(`infer`, `verify`, `intercompare`) and run it inside the per-model containers ([../containers/](../containers/)).
+Each script is configured by the constants at its top plus a few environment variables; there is no shared
+config file. Paths default to the CSCS locations and are overridable (`AIENS_STORE`, `AIENS_SCRATCH`,
+`AIENS_PY`, `AIENS_WB2_*`, `AIENS_IFS_ENS`), the Slurm account with `AIENS_ACCOUNT` (default `ab016`).
+Cluster usage and failure modes: [../docs/HPC.md](../docs/HPC.md). Output layout: [../docs/DATA.md](../docs/DATA.md).
 
-Each script sets `STORE` and the interpreter to a CSCS default that can be
-overridden with `AIENS_STORE` / `AIENS_PY` (see "Running the analysis off
-the CSCS box" in the [main README](../README.md)); `$STORE` on Clariden
-login nodes points at the wrong project, hence the explicit default.
-
-## submit_all_inference.sh
-
-Probabilistic baseline inference for the IFS ENS eval period:
-
-- 3 models: `fcn3`, `atlas`, `aifsens`
-- 8 weeks (Jan/Apr/Jul/Oct 2023 + 2024), 14 init times each
-- 10 members, 360 h lead, levels 500/850
-- One sbatch job per (model, week); 4 GPUs in parallel inside the job.
+## submit_all_inference.sh - production grid
 
 ```bash
-bash scripts/submit_all_inference.sh                  # all 3 models, all 8 weeks
-bash scripts/submit_all_inference.sh fcn3 atlas       # subset of models
-CHAIN=1 bash scripts/submit_all_inference.sh aifsens  # chain via afterany (CDS throttling)
-AFTER_JOB=2119857 bash scripts/submit_all_inference.sh fcn3
-WEEKS=2023-01-02,2024-07-02 bash scripts/submit_all_inference.sh
+bash scripts/submit_all_inference.sh                          # the 7 headline experiments
+bash scripts/submit_all_inference.sh aurora_encoder sfno_modes10
+PER_INIT=1 bash scripts/submit_all_inference.sh sfno_modes10  # one sbatch per init (SIGSEGV-safe)
+CHAIN=1 bash scripts/submit_all_inference.sh aifsens          # sequential (CDS throttling)
+WEEKS=2023-01-02,2024-07-02 bash scripts/submit_all_inference.sh fcn3
+DRY_RUN=1 bash scripts/submit_all_inference.sh atlas          # print, do not submit
 ```
 
-Output: `$STORE/baselines/<model_id>/<YYYYMMDD_HHMM>/forecast.zarr`. Existing
-zarrs are skipped automatically.
+- Grid: 8 weeks (`WEEK_STARTS`: Jan/Apr/Jul/Oct 2023 + 2024) x 14 inits = 112 inits, 10 members, 360 h,
+  levels 500/850. One sbatch per (experiment, week) runs the 14 inits with 4 GPU workers; existing
+  `forecast.zarr` are skipped.
+- Experiments (`EXTRA_FLAGS`, `DATA_SRC`, `MODEL_IDS`, `MEMBERS`): the headline set `fcn3 atlas aifsens
+  sfno_modes10 aurora_encoder graphcast_all aifs_perturbed`; the IC-only arms `*_ic_only` (`--ic-zarr` with the
+  IFS-ENS perturbed analyses); the rivals `aurora_enc_s044 graphcast_m2g graphcast_g2m sfno_enc_s054
+  sfno_enc_s035 aifs_all_s010`; `aifs_det` (unperturbed, 1 member). Any of them can be named on the command line.
+- AIFS / AIFS-ENS use `cds` and the persistent cache `$STORE/e2s_cache_backup`; the CDS credentials
+  (`~/.cdsapirc`, `~/.ecmwfapirc`) are mounted into the container.
+- Output: `$STORE/baselines/<experiment>/<YYYYMMDD_HHMM>/forecast.zarr`, logs and the generated job scripts in
+  `$STORE/baseline_logs/`.
 
-## submit_ablation.sh
+Related: `submit_ic_backfill.sh` (fills the IC-augmented `*_ic` runs, weight + IFS-ENS perturbed ICs) and
+`../tools/submit_p6c_reseed.sh` (Phase 6c refresh runs). `submit_seed_robustness.sh` reruns the four
+production picks with seed 43 on the ablation grid (`$STORE/ablation_seed43/`).
 
-Weight-perturbation ablation across 3 deterministic models (`aurora`,
-`graphcast_operational`, `sfno`), reproducible from constants in the script.
-
-Phases:
-
-- `phase1`: magnitude sweep (5 magnitudes x 3 models x 4 init times = 60 runs).
-- `phase2`: layer-group sweep at each model's best Phase 1 magnitude.
-- `phase2b`: fine magnitude refinement on each model's best layer group.
+## submit_ablation.sh - ablation grid
 
 ```bash
-bash scripts/submit_ablation.sh phase1               # all models
-bash scripts/submit_ablation.sh phase1 aurora        # one model
-bash scripts/submit_ablation.sh phase2
-bash scripts/submit_ablation.sh all                  # phase1 + phase2 + phase2b
+bash scripts/submit_ablation.sh {phase1|phase1_unperturbed|phase2|phase2b|phase3|phase3b|all} [model]
 ```
 
-Output: `$STORE/ablation/<phase>/<model_id>/<init_tag>/<run_tag>/forecast.zarr`.
+4 inits (2023-05-15, 2023-08-15, 2024-02-15, 2024-11-15), 10 members, 240 h, models `aurora`,
+`graphcast_operational`, `sfno`, `aifs`. Phase 2 sigmas are `0.01 * sqrt(N_total / N_group)` with the tensor
+counts hardcoded from the checkpoint dumps. Output:
+`$STORE/ablation/<phase>/<model_id>/<YYYYMMDD>/<run_tag>/forecast.zarr` (run-tag conventions in
+[../docs/DATA.md](../docs/DATA.md#5-experiment-names-and-run-tags)), logs in `$STORE/ablation_logs/`.
 
-## evaluate_ablation.sh
-
-SwissClim Evaluations driver for the ablation outputs. Generates a per-run
-YAML and submits one sbatch per (model, run). After per-run eval, an
-`intercompare` mode runs cross-run comparisons.
+## evaluate_baselines.sh - SwissClim on the production grid
 
 ```bash
-bash scripts/evaluate_ablation.sh phase1                       # eval all Phase 1 runs
-bash scripts/evaluate_ablation.sh phase1 aurora                # per-model
-bash scripts/evaluate_ablation.sh intercompare phase1          # cross-run plots
-bash scripts/evaluate_ablation.sh intercompare phase1 aurora
+bash scripts/evaluate_baselines.sh all <experiment>           # 8 sbatch, one per module, 800 GB / 12 h each
+bash scripts/evaluate_baselines.sh gen-configs <experiment>   # only write the YAMLs
+bash scripts/evaluate_baselines.sh intercompare               # cross-experiment intercomparison
 ```
 
-Eval modules: `maps, wd_kde, energy_spectra, multivariate, probabilistic,
-deterministic, ssim, fss`.
+Always name the experiment: `all` without one submits every module for every experiment in `MODELS`
+(100+ jobs). Modules: `maps, wd_kde, energy_spectra, multivariate, probabilistic, deterministic, ssim, fss`.
+Lead 0-360 h, 6-hourly stride, IFS-ENS restricted to the stratified members 0,5,...,45. Output:
+`$STORE/baselines/<experiment>/eval/<module>/` with the config next to it (`eval_<module>_only_config.yaml`);
+intercomparison in `$STORE/baselines/intercomparison/`.
 
-Output: `$STORE/ablation/<phase>/<model_id>/eval/<run_tag>/...` and
-`.../intercomparison/...`.
-
-## submit_ic_backfill.sh / submit_seed_robustness.sh
-
-`submit_ic_backfill.sh` fills missing pressure levels in the IFS-ENS
-perturbed-IC store; `submit_seed_robustness.sh` reruns the production picks
-under alternate seeds for the seed-sensitivity check.
-
-## `$STORE` output tree
-
-```text
-$STORE/
-  baselines/
-    {fcn3,atlas,aifsens,ifs_ens}/                  trained-probabilistic + physical
-    {aurora_encoder,graphcast_all,sfno_modes10,aifs_perturbed}/   post-hoc weight perturbation
-      <YYYYMMDD_HHMM>/forecast.zarr
-    <id>/eval/...                                  per-baseline SwissClim modules
-    intercomparison/                               cross-model plots + temporal_metrics_combined.csv
-  ablation/
-    <phase>/<model_id>/                            phase in {phase1,phase2,phase2b,phase3,phase3b}
-      <init_tag>/<run_tag>/forecast.zarr
-      eval/<run_tag>/{maps,wd_kde,energy_spectra,multivariate,deterministic,probabilistic,ssim,fss}/
-      intercomparison/
-    allphases/<model_id>/intercomparison/          cross-phase ablation summary
-```
-
-`forecast.zarr` uses the SwissClim chunk/shard layout; a store written with
-the wrong chunking reads slowly in eval - reshard with
-[../tools/submit_reshard.sh](../tools/submit_reshard.sh).
-
-## Typical sequence
+## evaluate_ablation.sh - SwissClim on the ablation grid
 
 ```bash
-# 1. Build containers once (or after Dockerfile changes)
-bash containers/submit_build.sh all
-
-# 2. Ablation inference (Phase 1)
-bash scripts/submit_ablation.sh phase1
-
-# 3. Ablation eval after Phase 1 inference completes
-bash scripts/evaluate_ablation.sh phase1
-bash scripts/evaluate_ablation.sh intercompare phase1
-
-# 4. Probabilistic baselines (independent of ablation)
-bash scripts/submit_all_inference.sh
-
-# 5. Pick best magnitudes and run Phase 2 / 2b
-bash scripts/submit_ablation.sh phase2
-bash scripts/submit_ablation.sh phase2b
+bash scripts/evaluate_ablation.sh <phase> [model]              # one sbatch per (model, run)
+bash scripts/evaluate_ablation.sh intercompare <phase> [model] # per-phase comparison
+bash scripts/evaluate_ablation.sh allphases_intercompare [model]
 ```
 
-## Troubleshooting
+Builds each run's YAML by globbing the forecasts at submission time: make sure all 4 inits exist first (see
+HPC.md). Output: `$STORE/ablation/<phase>/<model_id>/eval/<run_tag>/<module>/` and `.../intercomparison/`;
+cross-phase in `$STORE/ablation/allphases/<model_id>/intercomparison/`.
 
-- **Job won't start**: check `sinfo` and your Slurm account access.
-- **Container launch fails**: confirm `$STORE/<model>.sqsh` exists; rebuild
-  with `bash containers/submit_build.sh <model>`. Builds must go to a compute
-  node - the login nodes cannot build.
-- **`import earth2studio` fails on the host**: expected; it lives only in the
-  containers. Run inside `$STORE/<model>.sqsh`.
-- **CDS throttling on `aifsens`**: rerun with `CHAIN=1` (sequential per-week
-  via `--dependency=afterany`).
-- **AIFS inference ~2 h/init instead of ~8 min**: cold CDS GRIB cache. ARCO
-  cannot substitute for AIFS (no land-surface fields); `submit_all_inference.sh`
-  mounts the persistent cache `$STORE/e2s_cache_backup` for `cds` runs.
-- **`SIGSEGV (-11)` from every GPU worker at startup**: transient GH200/UCX
-  race; failed members relaunch automatically, raise `E2S_ROUND_RETRIES`.
-- **`blosc decompression: 0` reproducibly on one init**: a truncated write
-  poisoned the fsspec cache. `find $E2S_CACHE_DIR/arco -maxdepth 1 -type f -size -1k`
-  and delete the zero-length entries.
-- **Jobs hang in "preparing data + model" 45-90 min then `Errno 19` /
-  `transport endpoint shutdown`**: degraded capstor mount, not the code.
-  `time ls -d $STORE/baselines/<run>/*/forecast.zarr` (healthy is sub-second);
-  do not resubmit into it.
-- **Pre-fix zarrs read slowly in eval**: chunking changed; reshard with
-  [../tools/submit_reshard.sh](../tools/submit_reshard.sh).
-- **`envsubst: command not found`**: install `gettext-base`.
+## Typical order
 
-## See also
-
-- [../README.md](../README.md) - top-level overview
-- [../tools/README.md](../tools/README.md) - host venv + inspection tools
-- [../containers/](../containers/) - per-model Dockerfiles and build helpers
+```bash
+bash containers/submit_build.sh all                  # once
+bash scripts/submit_ablation.sh phase1               # then evaluate, intercompare, pick, next phase
+bash scripts/evaluate_ablation.sh phase1 && bash scripts/evaluate_ablation.sh intercompare phase1
+bash scripts/submit_all_inference.sh                 # production grid with the picks
+bash scripts/evaluate_baselines.sh all <experiment>  # per experiment
+bash scripts/evaluate_baselines.sh intercompare
+```
