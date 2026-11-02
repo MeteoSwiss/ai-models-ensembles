@@ -30,3 +30,7 @@ mode 700 and is deleted with the account. Everyone else builds a venv from `env/
 - Cross-paper overview (status, code versions, checkpoints, data, reproduction per paper) merged into the
   MeteoSwiss Confluence page of the PhD; its source is the local-only `scripts/confluence.md` (in
   `.git/info/exclude`). A first version in the thesis repo and on the store was removed again the same day.
+- Only this repo has a shared `.claude/`. The local-only Claude notes of neural-lam-dev (CLAUDE.md, memory),
+  building_neural_lam_models_rev2 and SwissClim_Evaluations (auto-memory) were copied to
+  `agent-memory-other-repos/` in `handover-private/` and in `/capstor/store/cscs/swissai/ab016/sadamov/`.
+  The thesis notes stay private (personal, archived in `sadamov/clariden-archive`).
