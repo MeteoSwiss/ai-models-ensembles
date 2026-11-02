@@ -70,19 +70,6 @@ EXTERNAL = {
         "unused",
         "IFS control analyses; prepared for an IC experiment, not read by any current script",
     ),
-    "/capstor/store/cscs/swissai/a122/IFS/ifs_ens.zarr": (
-        "duplicate",
-        "original of the ab016 copy (frozen a122 tree), identical (file list, sizes, sampled checksums; "
-        "2026-11-02); read by every run before 2026-11-02. Others may still use this path",
-    ),
-    "/capstor/store/cscs/swissai/a122/IFS/ifs_analysis_perturbed_ic.zarr": (
-        "duplicate",
-        "original of the ab016 copy, identical; others may still use this path",
-    ),
-    "/capstor/store/cscs/swissai/a122/IFS/ifs_control.zarr": (
-        "duplicate",
-        "original of the ab016 copy, identical",
-    ),
 }
 VERDICT = {
     "paper": "keep: data of the paper",
@@ -104,6 +91,8 @@ OWNER_ROOTS = [
     "/capstor/store/cscs/swissai/a122/sadamov",
     "/capstor/store/cscs/mch/s83/sadamov",
     "/capstor/store/mch/msopr/sadamov",
+    "/capstor/store/cscs/swissai/ab016/COSMO",
+    "/capstor/store/cscs/swissai/a01/sadamov",
 ]
 OTHER_MB = 100_000  # the owner's non-project data is listed from 100 GB (full version only)
 

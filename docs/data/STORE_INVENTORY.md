@@ -1,6 +1,6 @@
 # Store inventory (generated)
 
-Generated 2026-11-02 12:43 UTC by `python tools/inventory_store.py` from `/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles`.
+Generated 2026-11-02 13:05 UTC by `python tools/inventory_store.py` from `/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles`.
 Do not edit by hand: change [catalog.csv](catalog.csv) (descriptions) and rerun. Narrative documentation of every dataset: [../DATA.md](../DATA.md).
 
 Columns: `zarrs` = number of `forecast.zarr` stores; `inits` = distinct init dates; `schema` = members x leads (first..last h, step) and grid of one representative store; `products` = evaluation outputs stored next to the forecasts.
@@ -151,7 +151,7 @@ Total size: 319 GB
 
 ## baselines/
 
-Total size: 82.0 TB
+Total size: 75.3 TB
 
 | experiment | status | description | zarrs | inits | schema | size | products |
 |---|---|---|---|---|---|---|---|
@@ -159,7 +159,6 @@ Total size: 82.0 TB
 | `aifs_det` | talk only | Unperturbed deterministic AIFS (sigma=0, 1 member), 112 inits, 0-360 h. Grey line in figures/talk/headline_crpss_vs_lead_8way_aifs_det (single-member CRPS = MAE). | 112 | 112 20230102_0000..20241008_1200 | 1 mem x 0..360 h/6 h, 9 vars, lev 500,850 | 332 GB | eval/{deterministic} |
 | `aifs_ic_only` | paper | IC-only arm: IFS-ENS perturbed analyses as ICs, weight noise off. 112 production inits (days 2-8 of Jan/Apr/Jul/Oct 2023+2024, 00/12 UTC), 10 members, 0-360 h. Separates IC from weight spread (Tab. ic_decomp). | 112 | 112 20230102_0000..20241008_1200 | 10 mem x 0..360 h/6 h, 9 vars, lev 500,850 | 3.3 TB |  |
 | `aifs_ic_only_truncated_2026-08-28` | failed run | Single init of aifs_ic_only written truncated during the 2026-08-28 capstor incident (plus its leftover _e2s_work member zarrs). Re-run into aifs_ic_only; kept as evidence. Not used. | 1 | 1 20230704_0000..20230704_0000 | 10 mem x 0..0 h/0 h, 7 vars | 47 GB |  |
-| `aifs_p6c` | superseded | Phase 6c refresh-every-20, AIFS decoder@0.0275, old buggy seeding. Superseded by aifs_p6c_reseed. | 112 | 112 20230102_0000..20241008_1200 | 10 mem x 0..240 h/6 h, 9 vars, lev 500,850 | 2.2 TB | eval/{deterministic,energy_spectra,fss,maps,multivariate,probabilistic,ssim,wd_kde}<br>spatial_mean_ssr |
 | `aifs_p6c_reseed` | paper | Phase 6c refresh-every-20, corrected seeding, AIFS decoder@0.0275, 112 inits. Fig. refresh_frozen_vs_refresh_ssr. | 112 | 112 20230102_0000..20241008_1200 | 10 mem x 0..240 h/6 h, 9 vars, lev 500,850 | 2.2 TB | eval/{probabilistic}<br>spatial_mean_ssr |
 | `aifs_perturbed` | paper | SPW AIFS (single 1.1): decoder layer group, sigma=0.0275 (Phase 2 pick). 112 production inits (days 2-8 of Jan/Apr/Jul/Oct 2023+2024, 00/12 UTC), 10 members, 0-360 h, CDS ICs. Headline baseline. | 112 | 112 20230102_0000..20241008_1200 | 10 mem x 0..360 h/6 h, 9 vars, lev 500,850 | 3.3 TB | eval/{deterministic,energy_spectra,energy_spectra_member0_pre_2026-09-17,fss,maps,multivariate,probabilistic,ssim,wd_kde}<br>eval_milton/{multivariate}<br>per_pixel_ssr<br>spatial_mean_ssr |
 | `aifs_perturbed_ic` | paper | Phase 5 weight+IC arm: SPW decoder@0.0275 plus IFS-ENS perturbed analyses as per-member ICs (ifs_analysis_perturbed_ic.zarr). 112 production inits (days 2-8 of Jan/Apr/Jul/Oct 2023+2024, 00/12 UTC), 10 members, 0-240 h. IC decomposition table and Milton. | 112 | 112 20230102_0000..20241008_1200 | 10 mem x 0..240 h/6 h, 9 vars, lev 500,850 | 2.3 TB | eval/{deterministic,energy_spectra,fss,maps,multivariate,probabilistic,ssim,wd_kde}<br>per_pixel_ssr<br>spatial_mean_ssr |
@@ -172,7 +171,6 @@ Total size: 82.0 TB
 | `aurora_encoder_ic` | paper | Phase 5 weight+IC arm: SPW encoder@0.025 plus IFS-ENS perturbed analyses as per-member ICs (ifs_analysis_perturbed_ic.zarr). 112 production inits (days 2-8 of Jan/Apr/Jul/Oct 2023+2024, 00/12 UTC), 10 members, 0-240 h. IC decomposition table and Milton. | 112 | 112 20230102_0000..20241008_1200 | 10 mem x 0..240 h/6 h, 9 vars, lev 500,850 | 2.3 TB | eval/{deterministic,energy_spectra,fss,maps,multivariate,probabilistic,ssim,wd_kde}<br>per_pixel_ssr<br>spatial_mean_ssr |
 | `aurora_encoder_ic_SMOKE` | smoke test | 1-init, 2-member, 24 h smoke test of the weight+IC wiring (2026-06-09). Safe to ignore. | 1 | 1 20241004_0000..20241004_0000 | 2 mem x 0..24 h/6 h, 9 vars, lev 500,850 | 457 MB |  |
 | `aurora_ic_only` | paper | IC-only arm: IFS-ENS perturbed analyses as ICs, weight noise off. 112 production inits (days 2-8 of Jan/Apr/Jul/Oct 2023+2024, 00/12 UTC), 10 members, 0-360 h. Separates IC from weight spread (Tab. ic_decomp). | 112 | 112 20230102_0000..20241008_1200 | 10 mem x 0..360 h/6 h, 9 vars, lev 500,850 | 3.3 TB |  |
-| `aurora_p6c` | superseded | Phase 6c weight-noise refresh every 20 steps, Aurora encoder@0.025, 112 inits, 0-240 h. Generated with the old additive per-step seeding bug (fixed 2026-07-10). Superseded by aurora_p6c_reseed. | 112 | 112 20230102_0000..20241008_1200 | 10 mem x 0..240 h/6 h, 9 vars, lev 500,850 | 2.3 TB | eval/{deterministic,energy_spectra,fss,maps,multivariate,probabilistic,ssim,wd_kde}<br>spatial_mean_ssr |
 | `aurora_p6c_reseed` | paper | Phase 6c refresh-every-20 with the corrected _mix_seed seeding, Aurora encoder@0.025, 112 inits, 0-240 h. Fig. refresh_frozen_vs_refresh_ssr. | 112 | 112 20230102_0000..20241008_1200 | 10 mem x 0..240 h/6 h, 9 vars, lev 500,850 | 2.2 TB | eval/{probabilistic}<br>spatial_mean_ssr |
 | `esfm` | external, dropped | ESFM (Ozdemir et al. 2026) intermediate checkpoint: ES/VS and spatial-mean SSR only; forecasts live outside this store. Briefly an 8th baseline, removed (CRPSS@240 h -0.127, not fully trained). | 0 | 0  |  | 0 MB | energy_variogram_score<br>spatial_mean_ssr |
 | `fcn3` | paper | FourCastNet 3 (NVIDIA, trained probabilistic). 112 production inits (days 2-8 of Jan/Apr/Jul/Oct 2023+2024, 00/12 UTC), 10 members, 0-360 h, ICs from ARCO-ERA5. Headline baseline. | 112 | 112 20230102_0000..20241008_1200 | 10 mem x 0..360 h/6 h, 9 vars, lev 500,850 | 3.4 TB | energy_variogram_score<br>eval/{deterministic,energy_spectra,energy_spectra_member0_pre_2026-09-17,ets,fss,maps,multivariate,probabilistic,ssim,wd_kde}<br>eval_milton/{multivariate}<br>spatial_mean_ssr |
@@ -190,7 +188,6 @@ Total size: 82.0 TB
 | `sfno_modes10` | paper | SPW SFNO: coarse spherical-harmonic modes l<10 only, sigma=0.25 (Phase 3 pick). 112 production inits (days 2-8 of Jan/Apr/Jul/Oct 2023+2024, 00/12 UTC), 10 members, 0-360 h, ARCO ICs. Headline baseline. | 112 | 112 20230102_0000..20241008_1200 | 10 mem x 0..360 h/6 h, 9 vars, lev 500,850 | 3.4 TB | energy_variogram_score<br>eval/{deterministic,energy_spectra,energy_spectra_member0_pre_2026-09-17,ets,fss,maps,multivariate,probabilistic,ssim,wd_kde}<br>eval_milton/{multivariate}<br>per_pixel_ssr<br>spatial_mean_ssr |
 | `sfno_modes10_ic` | paper | Phase 5 weight+IC arm: SPW modes10@0.25 plus IFS-ENS perturbed analyses as per-member ICs (ifs_analysis_perturbed_ic.zarr). 112 production inits (days 2-8 of Jan/Apr/Jul/Oct 2023+2024, 00/12 UTC), 10 members, 0-240 h. IC decomposition table and Milton. | 112 | 112 20230102_0000..20241008_1200 | 10 mem x 0..240 h/6 h, 9 vars, lev 500,850 | 2.3 TB | eval/{deterministic,energy_spectra,fss,maps,multivariate,probabilistic,ssim,wd_kde}<br>per_pixel_ssr<br>spatial_mean_ssr |
 | `sfno_modes10_ic_SMOKE` | smoke test | 1-init, 2-member, 24 h smoke test of the weight+IC wiring (2026-06-09). Safe to ignore. | 1 | 1 20241004_0000..20241004_0000 | 2 mem x 0..24 h/6 h, 9 vars, lev 500,850 | 456 MB |  |
-| `sfno_p6c` | superseded | Phase 6c refresh-every-20, SFNO modes10 sigma=0.35, old buggy seeding. Superseded by sfno_p6c_reseed. | 112 | 112 20230102_0000..20241008_1200 | 10 mem x 0..240 h/6 h, 9 vars, lev 500,850 | 2.2 TB | spatial_mean_ssr |
 | `sfno_p6c_reseed` | paper | Phase 6c refresh-every-20, corrected seeding, SFNO modes10 sigma=0.35, 112 inits. Fig. refresh_frozen_vs_refresh_ssr. | 112 | 112 20230102_0000..20241008_1200 | 10 mem x 0..240 h/6 h, 9 vars, lev 500,850 | 2.2 TB | eval/{probabilistic}<br>spatial_mean_ssr |
 
 ## baselines_m50/
@@ -232,7 +229,7 @@ Total size: 1 GB
 | `analysis/spread_error_all.csv` | 1 | 2 MB | spread_error_binned.csv + spread_error_ifsens.csv concatenated; the only input of Fig. spread_error (tools/plot_spread_error.py). |
 | `analysis/spread_error_binned.csv` | 1 | 2 MB | Binned spread-error pairs of the 7 non-IFS production baselines (default output of tools/spread_error_binned.py via tools/submit_spread_error.sh). |
 | `analysis/spread_error_ifsens.csv` | 1 | 0 MB | Same binning for IFS-ENS (run separately because of its NaN slabs). |
-| `analysis/table_metrics_fixedscale` | 37 | 0 MB | Fixed-scale (1990-2019 climatological channel scale) ES/VS/SIGK per baseline and lead (tools/submit_table_metrics_fixedscale.sh). Input of Tab. C1 and the calibration table. |
+| `analysis/table_metrics_fixedscale` | 45 | 0 MB | Fixed-scale (1990-2019 climatological channel scale) ES/VS/SIGK per baseline and lead (tools/submit_table_metrics_fixedscale.sh). Input of Tab. C1 and the calibration table. |
 | `analysis/table_metrics_ic_decomp` | 96 | 0 MB | ES/VS/SIGK of the IC-decomposition arms (tools/submit_esvs_sigk_ic_decomp.sh). |
 | `diagnostics/sfno_phase6_ssr` | 15 | 0 MB | Spatial-mean SSR CSVs of the SFNO Phase 3/6 frozen/fresh/refresh variants (sigma_N <= 1.93 refresh clause). |
 | `e2s_cache_backup/README_DO_NOT_DELETE.md` | 1 | 0 MB | Explains the CDS cache below. |
@@ -250,7 +247,7 @@ Total size: 1 GB
 |---|---|
 | `ablation_logs` | 2507 |
 | `baseline_logs` | 2067 |
-| `baseline_eval_logs` | 623 |
+| `baseline_eval_logs` | 624 |
 | `logs` | 76 |
 | `model_test_logs` | 19 |
 

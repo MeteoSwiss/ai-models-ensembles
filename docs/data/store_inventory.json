@@ -1,5 +1,5 @@
 {
- "generated": "2026-11-02 12:43 UTC",
+ "generated": "2026-11-02 13:05 UTC",
  "store": "/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles",
  "experiments": [
   {
@@ -6481,65 +6481,6 @@
    }
   },
   {
-   "key": "baselines/aifs_p6c",
-   "path": "/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles/baselines/aifs_p6c",
-   "forecast_zarrs": 112,
-   "n_inits": 112,
-   "init_range": [
-    "20230102_0000",
-    "20241008_1200"
-   ],
-   "schema": {
-    "variables": [
-     "10m_u_component_of_wind",
-     "10m_v_component_of_wind",
-     "2m_temperature",
-     "geopotential",
-     "mean_sea_level_pressure",
-     "specific_humidity",
-     "temperature",
-     "u_component_of_wind",
-     "v_component_of_wind"
-    ],
-    "dims": {
-     "ensemble": 10,
-     "init_time": 1,
-     "lead_time": 41,
-     "latitude": 721,
-     "longitude": 1440,
-     "level": 2
-    },
-    "lead_hours": [
-     0,
-     240,
-     6
-    ],
-    "levels": [
-     500,
-     850
-    ],
-    "grid": "721x1440 lat 90.00..-90.00",
-    "dtype": "float32",
-    "dim_order": [
-     "ensemble",
-     "init_time",
-     "lead_time",
-     "latitude",
-     "longitude"
-    ]
-   },
-   "products": [
-    "eval/{deterministic,energy_spectra,fss,maps,multivariate,probabilistic,ssim,wd_kde}",
-    "spatial_mean_ssr"
-   ],
-   "size": "2.2 TB",
-   "catalog": {
-    "key": "baselines/aifs_p6c",
-    "status": "superseded",
-    "description": "Phase 6c refresh-every-20, AIFS decoder@0.0275, old buggy seeding. Superseded by aifs_p6c_reseed."
-   }
-  },
-  {
    "key": "baselines/aifs_p6c_reseed",
    "path": "/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles/baselines/aifs_p6c_reseed",
    "forecast_zarrs": 112,
@@ -7202,65 +7143,6 @@
     "key": "baselines/aurora_ic_only",
     "status": "paper",
     "description": "IC-only arm: IFS-ENS perturbed analyses as ICs, weight noise off. 112 production inits (days 2-8 of Jan/Apr/Jul/Oct 2023+2024, 00/12 UTC), 10 members, 0-360 h. Separates IC from weight spread (Tab. ic_decomp)."
-   }
-  },
-  {
-   "key": "baselines/aurora_p6c",
-   "path": "/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles/baselines/aurora_p6c",
-   "forecast_zarrs": 112,
-   "n_inits": 112,
-   "init_range": [
-    "20230102_0000",
-    "20241008_1200"
-   ],
-   "schema": {
-    "variables": [
-     "10m_u_component_of_wind",
-     "10m_v_component_of_wind",
-     "2m_temperature",
-     "geopotential",
-     "mean_sea_level_pressure",
-     "specific_humidity",
-     "temperature",
-     "u_component_of_wind",
-     "v_component_of_wind"
-    ],
-    "dims": {
-     "ensemble": 10,
-     "init_time": 1,
-     "lead_time": 41,
-     "latitude": 720,
-     "longitude": 1440,
-     "level": 2
-    },
-    "lead_hours": [
-     0,
-     240,
-     6
-    ],
-    "levels": [
-     500,
-     850
-    ],
-    "grid": "720x1440 lat 90.00..-89.75",
-    "dtype": "float32",
-    "dim_order": [
-     "ensemble",
-     "init_time",
-     "lead_time",
-     "latitude",
-     "longitude"
-    ]
-   },
-   "products": [
-    "eval/{deterministic,energy_spectra,fss,maps,multivariate,probabilistic,ssim,wd_kde}",
-    "spatial_mean_ssr"
-   ],
-   "size": "2.3 TB",
-   "catalog": {
-    "key": "baselines/aurora_p6c",
-    "status": "superseded",
-    "description": "Phase 6c weight-noise refresh every 20 steps, Aurora encoder@0.025, 112 inits, 0-240 h. Generated with the old additive per-step seeding bug (fixed 2026-07-10). Superseded by aurora_p6c_reseed."
    }
   },
   {
@@ -8172,64 +8054,6 @@
    }
   },
   {
-   "key": "baselines/sfno_p6c",
-   "path": "/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles/baselines/sfno_p6c",
-   "forecast_zarrs": 112,
-   "n_inits": 112,
-   "init_range": [
-    "20230102_0000",
-    "20241008_1200"
-   ],
-   "schema": {
-    "variables": [
-     "10m_u_component_of_wind",
-     "10m_v_component_of_wind",
-     "2m_temperature",
-     "geopotential",
-     "mean_sea_level_pressure",
-     "specific_humidity",
-     "temperature",
-     "u_component_of_wind",
-     "v_component_of_wind"
-    ],
-    "dims": {
-     "ensemble": 10,
-     "init_time": 1,
-     "lead_time": 41,
-     "latitude": 721,
-     "longitude": 1440,
-     "level": 2
-    },
-    "lead_hours": [
-     0,
-     240,
-     6
-    ],
-    "levels": [
-     500,
-     850
-    ],
-    "grid": "721x1440 lat 90.00..-90.00",
-    "dtype": "float32",
-    "dim_order": [
-     "ensemble",
-     "init_time",
-     "lead_time",
-     "latitude",
-     "longitude"
-    ]
-   },
-   "products": [
-    "spatial_mean_ssr"
-   ],
-   "size": "2.2 TB",
-   "catalog": {
-    "key": "baselines/sfno_p6c",
-    "status": "superseded",
-    "description": "Phase 6c refresh-every-20, SFNO modes10 sigma=0.35, old buggy seeding. Superseded by sfno_p6c_reseed."
-   }
-  },
-  {
    "key": "baselines/sfno_p6c_reseed",
    "path": "/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles/baselines/sfno_p6c_reseed",
    "forecast_zarrs": 112,
@@ -8920,7 +8744,7 @@
   },
   {
    "key": "analysis/table_metrics_fixedscale",
-   "files": 37,
+   "files": 45,
    "size": "0 MB",
    "catalog": {
     "key": "analysis/table_metrics_fixedscale",
@@ -9040,7 +8864,7 @@
   },
   {
    "key": "baseline_eval_logs",
-   "files": 623
+   "files": 624
   },
   {
    "key": "logs",

@@ -61,3 +61,16 @@ dataset documented, every environment pinned, most figures/tables rebuildable of
 - `docs/data/LARGE_DATASETS.md` (`inventory_store.py --dust`): 31.0 TB deletable, mostly the a122 IFS duplicates
   (24.3 TB) and the pre-fix `*_p6c` runs (6.7 TB); sizes now from dust (decimal, 2.5 min for everything; the
   first du-based version mixed MiB and decimal and read ~5% low); the Clariden copy also lists the a122 duplicates of the neural-LAM data.
+
+## Clean-up (owner-authorised, 2026-11-02 14:00, job 3834442, 3 min)
+Deleted after re-verifying each duplicate against the kept copy (file list + sizes; tarballs exact byte size):
+- a122 IFS originals `ifs_ens.zarr`, `ifs_analysis_perturbed_ic.zarr`, `ifs_control.zarr` (24.3 TB; ab016 copies kept)
+- superseded `baselines/{aurora,aifs,sfno}_p6c` (6.7 TB; `_p6c_reseed` complete, 112/112 inits each)
+- `a122/COSMO/cosmo_ml_data.zarr` + its truncated interior tarball (11.7 TB; ab016/COSMO identical, kept)
+- `a01/sadamov/cosmo_ml_data.zarr` (10.2 TB, old zarr-v2 layout; identical values on 8 random slices vs ab016)
+- a122/sadamov neural-LAM duplicates: `lam_model_forecasts`, `neural_lam_preprod.tar.gz`,
+  `lam_model_forecasts.tar.gz`, both `cosmo_e_forecast*.tar.gz` (5.9 TB)
+Total ~59 TB. Only reference to a deleted path in any local repo was thesis
+`defense/figures/cosmo_model_levels.py` (a01 zarr), repointed to ab016/COSMO (left uncommitted in the thesis repo).
+Script and list: handoff_staging/cleanup_delete.sh, delete_list.txt (local); log
+`$STORE/baseline_eval_logs/aiens_cleanup_3834442.log`. Remaining: docs/data/LARGE_DATASETS.md.
