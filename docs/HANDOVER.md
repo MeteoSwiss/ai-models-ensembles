@@ -85,10 +85,11 @@ For the revision (details in [EXPERIMENTS.md](EXPERIMENTS.md#known-open-issues-f
 Housekeeping, optional ([data/LARGE_DATASETS.md](data/LARGE_DATASETS.md) lists every dataset of 1 TB or more
 with owner and verdict; the copy on Clariden, `$STORE/LARGE_DATASETS.md`, also covers the author's other projects):
 
-- The a122 originals of the IFS zarrs (24 TB) duplicate the verified ab016 copies.
-- Superseded runs that could be deleted to free ~6.8 TB once nobody needs them: `baselines/{aurora,aifs,sfno}_p6c`
-  (pre-fix seeding), the four `*_SMOKE` dirs, `baselines/aifs_ic_only_truncated_2026-08-28`, `_archived/`,
-  `scratch/`. Never delete anything with status `paper` in [data/STORE_INVENTORY.md](data/STORE_INVENTORY.md).
+- Deleted on 2026-11-02 after verifying the kept copies: the a122 originals of the IFS zarrs, the pre-fix
+  `baselines/{aurora,aifs,sfno}_p6c` runs, and the a122/a01 duplicates of the COSMO and neural-LAM data.
+- Superseded runs that could still be deleted (~60 GB) once nobody needs them: the four `*_SMOKE` dirs,
+  `baselines/aifs_ic_only_truncated_2026-08-28`, `_archived/`, `scratch/`. Never delete anything with status
+  `paper` in [data/STORE_INVENTORY.md](data/STORE_INVENTORY.md).
 - Two code-level guards are missing (fewer-than-4-inits eval trap, silent CDS fallback in
   `MergedDataSource`).
 
