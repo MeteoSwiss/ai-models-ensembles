@@ -10,8 +10,12 @@ cannot go undocumented silently.
     python tools/inventory_store.py --sizes sizes.tsv  # + sizes from a `du -s --block-size=1M` TSV
     python tools/inventory_store.py --du               # + run du itself (slow: ~85 TB)
     python tools/inventory_store.py --publish          # + copy the docs into the store
+    python tools/inventory_store.py --sizes s.tsv --external ext.tsv   # + table of >= 1 TB datasets
 
-Writes docs/data/STORE_INVENTORY.md and docs/data/store_inventory.json. With --publish also
+Writes docs/data/STORE_INVENTORY.md and docs/data/store_inventory.json, and with sizes also
+docs/data/LARGE_DATASETS.md: every dataset of 1 TB or more with location, owner, status and a
+clear-up verdict (inside and outside the store; --external is a TSV '<MB>\t<user:group>\t<abs path>'
+from du for the inputs that live elsewhere). With --publish also
 $STORE/README.md (= docs/DATA.md), $STORE/STORE_INVENTORY.md, $STORE/catalog.csv and a README.md
 with the matching inventory rows in every top-level store directory, so the data documents itself
 for anyone browsing the file system.
@@ -52,6 +56,49 @@ PRODUCT_DIRS = {
     "intercomparison": "cross-run intercomparison",
     "_e2s_work": "leftover merge workspace of an interrupted run",
 }
+# Project inputs outside the store: status (catalog vocabulary) and description.
+EXTERNAL = {
+    "/capstor/store/cscs/swissai/ab016/IFS/ifs_ens.zarr": (
+        "paper",
+        "IFS-ENS reference forecasts (WB2 archive, 50 members, 10 used); code default since 2026-11-02",
+    ),
+    "/capstor/store/cscs/swissai/ab016/IFS/ifs_analysis_perturbed_ic.zarr": (
+        "paper",
+        "IFS-ENS perturbed analyses, per-member ICs of the Phase 5 (_ic, _ic_only) runs",
+    ),
+    "/capstor/store/cscs/swissai/ab016/IFS/ifs_control.zarr": (
+        "unused",
+        "IFS control analyses; prepared for an IC experiment, not read by any current script",
+    ),
+    "/capstor/store/cscs/swissai/a122/IFS/ifs_ens.zarr": (
+        "duplicate",
+        "original of the ab016 copy (frozen a122 tree), identical (file list, sizes, sampled checksums; "
+        "2026-11-02); read by every run before 2026-11-02. Others may still use this path",
+    ),
+    "/capstor/store/cscs/swissai/a122/IFS/ifs_analysis_perturbed_ic.zarr": (
+        "duplicate",
+        "original of the ab016 copy, identical; others may still use this path",
+    ),
+    "/capstor/store/cscs/swissai/a122/IFS/ifs_control.zarr": (
+        "duplicate",
+        "original of the ab016 copy, identical",
+    ),
+}
+VERDICT = {
+    "paper": "keep: data of the paper",
+    "talk only": "optional: talk material, not in the paper",
+    "diagnostic": "optional: post-submission diagnostic",
+    "unused": "optional: not read by any script",
+    "superseded": "delete: superseded",
+    "failed run": "delete: failed run",
+    "smoke test": "delete: smoke test",
+    "archive": "delete: kept only for the record",
+    "debug": "delete: debug output",
+    "duplicate": "delete: duplicate of a verified copy",
+    "cache (do not delete)": "keep: only copy, days to rebuild",
+}
+LARGE_MB = 1_000_000
+
 OTHER_ROOTS = ["analysis", "diagnostics", "e2s_cache_backup", "earth2studio_cache"]
 LOG_ROOTS = ["ablation_logs", "baseline_logs", "baseline_eval_logs", "logs", "model_test_logs"]
 
@@ -179,6 +226,11 @@ def main() -> None:
     ap.add_argument("--sizes", type=Path, help="TSV '<MB>\\t<path rel. to store>' from du")
     ap.add_argument("--du", action="store_true", help="run du on every experiment (slow)")
     ap.add_argument("--publish", action="store_true", help="copy the docs into the store")
+    ap.add_argument(
+        "--external",
+        type=Path,
+        help="TSV '<MB>\\t<user:group>\\t<abs path>' for data outside the store",
+    )
     args = ap.parse_args()
 
     experiments: dict[str, dict] = {}
@@ -257,8 +309,118 @@ def main() -> None:
         + "\n"
     )
     _write_markdown(records, others, logs, stamp, sizes)
+    large = _large_tables(sizes, catalog, args.external, stamp) if sizes else None
+    if large:
+        (DOCS / "LARGE_DATASETS.md").write_text(large[0])
     if args.publish:
         _publish(stamp)
+        if large:
+            (STORE / "LARGE_DATASETS.md").write_text(large[1])
+
+
+def _owner(path: Path) -> str:
+    out = subprocess.run(["stat", "-c", "%U:%G", str(path)], capture_output=True, text=True)
+    return out.stdout.strip() or "?"
+
+
+def _large_tables(sizes, catalog, external, stamp) -> tuple[str, str]:
+    """(public, full) Markdown of every >= 1 TB dataset; public hides other people's user names."""
+    store_user = _owner(STORE).split(":")[0]
+    rows = []  # (MB, path, owner, status, description)
+    for key, mb in sizes.items():
+        if mb >= LARGE_MB and "/" in key and (STORE / key).exists():
+            entry = _lookup(catalog, key)
+            rows.append(
+                (
+                    mb,
+                    str(STORE / key),
+                    _owner(STORE / key),
+                    entry.get("status", "?"),
+                    entry.get("description", ""),
+                )
+            )
+    other = []
+    if external:
+        ext = {}
+        for line in external.read_text().splitlines():
+            parts = line.split("\t")
+            if len(parts) == 3 and parts[0].isdigit():
+                ext[parts[2]] = (int(parts[0]), parts[1])
+        for path, (mb, owner) in ext.items():
+            if path in EXTERNAL:
+                rows.append((mb, path, owner, *EXTERNAL[path]))
+            elif mb >= LARGE_MB and (
+                f"/{store_user}/" in path or owner.startswith(store_user + ":")
+            ):
+                twin = ext.get(path.replace("/a122/", "/ab016/"))
+                dup = "/a122/" in path and twin and abs(twin[0] - mb) <= 0.01 * mb
+                other.append(
+                    (mb, path, owner, "duplicate of the ab016 copy (a122 is frozen)" if dup else "")
+                )
+    rows.sort(key=lambda r: -r[0])
+
+    def fmt(mb):
+        return f"{mb / 1e6:.1f}"
+
+    def table(public: bool) -> list[str]:
+        out = [
+            "| size (TB) | path | owner | status | verdict | what |",
+            "|---|---|---|---|---|---|",
+        ]
+        for mb, path, owner, status, desc in rows:
+            user, _, group = owner.partition(":")
+            shown = owner if (not public or user == store_user) else f"another `{group}` member"
+            verdict = VERDICT.get(status, "check")
+            short = desc.split(". ")[0].rstrip(".").replace("|", "/")
+            out.append(f"| {fmt(mb)} | `{path}` | {shown} | {status} | {verdict} | {short} |")
+        return out
+
+    totals: dict[str, float] = {}
+    for mb, *_rest, status, _desc in rows:
+        k = VERDICT.get(status, "check").split(":")[0]
+        totals[k] = totals.get(k, 0) + mb
+    summary = ", ".join(f"{k} {fmt(v)} TB" for k, v in sorted(totals.items()))
+    head = [
+        "# Datasets of 1 TB or more",
+        "",
+        f"Generated {stamp} by `python tools/inventory_store.py --sizes ... --external ...` (sizes from `du`, "
+        "disk usage). Status and descriptions come from [catalog.csv](catalog.csv) and `EXTERNAL` in the "
+        "script; details per dataset in [STORE_INVENTORY.md](STORE_INVENTORY.md) and [../DATA.md](../DATA.md).",
+        "",
+        "Verdicts: `keep` = needed to reproduce the paper (or the only copy of something expensive); "
+        "`optional` = not in the paper, delete once nobody needs it for the revision or talks; `delete` = "
+        "safe to remove (superseded, failed, duplicate). Nothing has been deleted. The files stay owned by "
+        "the original account after it is closed: deleting needs the owner, or CSCS / the project PI.",
+        "",
+        "The paper's data statement does not promise any forecast output (they are regenerable from public "
+        "inputs and the code), so `keep` means: keep while the review runs, because reviewers may ask for new "
+        "evaluations, which then take hours instead of days of GPU time. After acceptance the `keep` rows can go "
+        "too; regenerating one 112-init production experiment costs about 15-30 GH200 node-hours of inference "
+        "(warm caches) plus up to 8 x 12 h of evaluation (docs/REPRODUCING.md). Exception: the IFS-ENS perturbed analyses came from ECMWF MARS and need MARS "
+        "access to rebuild.",
+        "",
+        f"Total by verdict: {summary}.",
+        "",
+    ]
+    public = head + table(True)
+    full = head + table(False)
+    if other:
+        full += [
+            "",
+            f"## Other directories of 1 TB or more owned by `{store_user}` (other projects)",
+            "",
+            "Not part of this project (mostly the neural-LAM paper; its handover note is "
+            "`/capstor/store/cscs/swissai/ab016/sadamov/HANDOVER.md`). Listed so the owner's data can be cleared "
+            "in one go.",
+            "",
+            "| size (TB) | path | owner | note |",
+            "|---|---|---|---|",
+            *[
+                f"| {fmt(mb)} | `{path}` | {owner} | {note} |"
+                for mb, path, owner, note in sorted(other, key=lambda r: -r[0])
+            ],
+        ]
+    return "\n".join(public) + "\n", "\n".join(full) + "\n"
 
 
 def _publish(stamp: str) -> None:

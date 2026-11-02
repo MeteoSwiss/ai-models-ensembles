@@ -3,6 +3,8 @@
 Every dataset this project produced or consumed: where it is, who can read it, what is inside,
 how it was made, and how to remake it. The machine-generated per-experiment listing (counts, schema,
 sizes, evaluation products) is [data/STORE_INVENTORY.md](data/STORE_INVENTORY.md); this page explains it.
+Everything of 1 TB or more, with owner and a keep/optional/delete verdict for clearing space:
+[data/LARGE_DATASETS.md](data/LARGE_DATASETS.md).
 Experiment design (what each run tests) is in [EXPERIMENTS.md](EXPERIMENTS.md).
 
 Snapshot: 2026-11-02. A copy of this page is placed as `README.md` at the root of the store

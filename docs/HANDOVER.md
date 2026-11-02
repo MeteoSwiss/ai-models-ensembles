@@ -65,8 +65,10 @@ For the revision (details in [EXPERIMENTS.md](EXPERIMENTS.md#known-open-issues-f
 - The paper link in the top-level README still needs the arXiv/DOI URL; Zenodo DOIs for code and data after
   acceptance.
 
-Housekeeping, optional:
+Housekeeping, optional ([data/LARGE_DATASETS.md](data/LARGE_DATASETS.md) lists every dataset of 1 TB or more
+with owner and verdict; the copy on Clariden, `$STORE/LARGE_DATASETS.md`, also covers the author's other projects):
 
+- The a122 originals of the IFS zarrs (~23 TB) duplicate the verified ab016 copies.
 - Superseded runs that could be deleted to free ~6.5 TB once nobody needs them: `baselines/{aurora,aifs,sfno}_p6c`
   (pre-fix seeding), the four `*_SMOKE` dirs, `baselines/aifs_ic_only_truncated_2026-08-28`, `_archived/`,
   `scratch/`. Never delete anything with status `paper` in [data/STORE_INVENTORY.md](data/STORE_INVENTORY.md).

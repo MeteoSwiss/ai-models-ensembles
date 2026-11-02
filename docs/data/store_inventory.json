@@ -1,5 +1,5 @@
 {
- "generated": "2026-11-02 11:19 UTC",
+ "generated": "2026-11-02 11:33 UTC",
  "store": "/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles",
  "experiments": [
   {
@@ -6457,15 +6457,16 @@
     ],
     "dims": {
      "ensemble": 10,
+     "level": 2,
      "init_time": 1,
      "lead_time": 61,
      "latitude": 721,
-     "longitude": 1440,
-     "level": 2
+     "longitude": 1440
     },
     "dtype": "float32",
     "dim_order": [
      "ensemble",
+     "level",
      "init_time",
      "lead_time",
      "latitude",
@@ -8830,7 +8831,7 @@
   },
   {
    "key": "analysis/milton_case_study",
-   "files": 254,
+   "files": 434,
    "size": "3 MB",
    "catalog": {
     "key": "analysis/milton_case_study",
@@ -8880,7 +8881,7 @@
   },
   {
    "key": "analysis/rank_histograms",
-   "files": 4,
+   "files": 6,
    "size": "",
    "catalog": {
     "key": "analysis/rank_histograms",
@@ -8920,7 +8921,7 @@
   },
   {
    "key": "analysis/table_metrics_fixedscale",
-   "files": 17,
+   "files": 19,
    "size": "",
    "catalog": {
     "key": "analysis/table_metrics_fixedscale",
@@ -9040,7 +9041,7 @@
   },
   {
    "key": "baseline_eval_logs",
-   "files": 622
+   "files": 623
   },
   {
    "key": "logs",

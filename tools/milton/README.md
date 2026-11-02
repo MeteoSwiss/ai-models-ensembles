@@ -19,6 +19,11 @@ deleted the 2026-09 tracks).
 
 ## Pipeline
 
+All steps in one node job: `sbatch --account=${AIENS_ACCOUNT:-ab016} tools/milton/submit_milton_rebuild.sh`
+(224 pairs, `PAR=20` at a time, then ERA5 control, tables, F1-F5 and F9; `SKIP_FIGS=1` stops after the tables).
+Prefer it to the array of `submit_milton_tracker.sh`: nodes are allocated exclusively, so the array pays a full
+node for every 2-4 min task (~11 node-hours vs ~1).
+
 | Step | Script | Output (under `BASE`) |
 |---|---|---|
 | 1. track one (baseline, init), 10 members | `track_one_init.py <baseline> <YYYYMMDD_HHMM>`, normally via `submit_milton_tracker.sh [weight|ic_only|phase5]` (Slurm array, ~5 min per task) | `tracks/<baseline>/<init>/milton_tracks.csv` + raw detect/stitch files |

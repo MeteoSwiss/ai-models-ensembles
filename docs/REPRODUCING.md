@@ -125,9 +125,15 @@ ES/VS/SIGK columns of Tab. C1 and the calibration table. Both jobs were rerun wi
 
 ## 5. Milton F2 / F5 / F9 and the summary table (HPC recipe)
 
-The per-init tracks behind these were on scratch and are gone; only the 12 F1 tracks were rebuilt
-(2026-10-07, into `$STORE/analysis/milton_case_study/`). To rebuild everything, run with
-`AIENS_SCRATCH=$STORE/analysis` so the tracks land on the store:
+One command rebuilds everything on a single node (all 224 (baseline, init) pairs 20 at a time, ERA5 control,
+tables, summary CSV, F1-F5 and F9; about one node-hour):
+
+```bash
+sbatch --account=${AIENS_ACCOUNT:-ab016} tools/milton/submit_milton_rebuild.sh
+```
+
+It writes to `$STORE/analysis/milton_case_study/` and reuses finished members, so a rerun only does what is
+missing. The steps it runs, for doing them by hand (with `AIENS_SCRATCH=$STORE/analysis`):
 
 1. `source tools/milton/env.sh` (TempestExtremes, udunits, the host venv).
 2. Track the arms: `bash tools/milton/submit_milton_tracker.sh weight`, `... ic_only`, `... phase5`
