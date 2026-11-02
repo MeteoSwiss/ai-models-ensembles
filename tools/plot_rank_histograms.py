@@ -25,9 +25,9 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from model_colors import color_for  # noqa: E402
 
-from _env import FIGURES, SCRATCH  # noqa: E402
+from _env import ANALYSIS, FIGURES  # noqa: E402
 
-INDIR = SCRATCH
+INDIR = ANALYSIS / "rank_histograms"
 OUT = str(FIGURES / "rank_histograms_240h")
 
 # Column-grouped: post-hoc perturbation (this work) left, trained-probabilistic

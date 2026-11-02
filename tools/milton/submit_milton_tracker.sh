@@ -43,7 +43,7 @@ mkdir -p "$STORE/ablation_logs"
 
 sbatch --parsable \
     --job-name="milton_track_${ARM}" \
-    --partition=normal --account=ab016 \
+    --partition=normal --account="${AIENS_ACCOUNT:-ab016}" \
     --nodes=1 --ntasks=1 --cpus-per-task=8 --mem=200G \
     --time=01:00:00 \
     --array=1-${N}%10 \

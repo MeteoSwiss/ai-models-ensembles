@@ -35,7 +35,7 @@ STORE=${AIENS_STORE:-/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles}
 A=$STORE/ablation
 WB2A=${AIENS_WB2_22:-/capstor/store/cscs/swissai/weatherbench/weatherbench2_2022_2023.zarr}
 WB2B=${AIENS_WB2_24:-/capstor/store/cscs/swissai/weatherbench/weatherbench2_2024_2025.zarr}
-OUT=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/ai-models-ensembles/scratch/table_metrics_fixedscale
+OUT=$STORE/analysis/table_metrics_fixedscale
 mkdir -p "$OUT"
 VARS="2m_temperature mean_sea_level_pressure geopotential temperature u_component_of_wind v_component_of_wind specific_humidity"
 

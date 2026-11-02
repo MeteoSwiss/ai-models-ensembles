@@ -1,4 +1,4 @@
-era5*
+/era5*
 199912250000
 201801010000
 ifs_ens.zarr
@@ -10,7 +10,9 @@ rechunk.py
 ai_models_ensembles.egg-info/
 .venv
 SwissClim_Evaluations/
-.claude/
+# Claude Code memory: technical notes are tracked (.claude/README.md); paper-process notes stay local
+.claude/**/paper/
+.claude/settings.local.json
 
 # Overleaf paper repo (separate remote sadamov/ai-models-ensembles)
 ai-models-ensembles-paper/
@@ -22,3 +24,6 @@ figures/experiments_tables_preview.pdf
 figures/experiments_tables_preview.synctex.gz
 
 handoff_staging/
+
+# Full-resolution talk video (76 MB); regenerate with tools/milton/plot_wind_frames.py. The 1920 px version is tracked.
+figures/talk/milton_wind_frames/milton_wind_particles.mp4

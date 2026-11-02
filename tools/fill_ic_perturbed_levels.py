@@ -59,7 +59,7 @@ def _parse_indices(spec: str, n_init: int) -> list[int]:
 def main() -> int:
     p = argparse.ArgumentParser()
     p.add_argument(
-        "--zarr", default="/capstor/store/cscs/swissai/a122/IFS/ifs_analysis_perturbed_ic.zarr"
+        "--zarr", default="/capstor/store/cscs/swissai/ab016/IFS/ifs_analysis_perturbed_ic.zarr"
     )
     p.add_argument(
         "--indices", required=True, help="init_time indices to fill, e.g. '0:56' or '0,1,2'"

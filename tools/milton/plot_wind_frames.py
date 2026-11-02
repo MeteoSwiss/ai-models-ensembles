@@ -14,11 +14,11 @@ sit just above the data (wind 99.9th pct 19-24 m/s, spread 99.9th pct 5-6 m/s); 
 axes are placed at absolute positions (no tight bbox), so the frames are pixel-aligned.
 
 Outputs, all in figures/talk/milton_wind_frames/:
-  milton_wind_f{lead:03d}.png + frames.json, milton_wind_f096.pdf  static frames
+  milton_wind_f{lead:03d}.{png,pdf} + frames.json  static frames (PDF: vector overlays, 300 dpi)
   milton_wind.gif  the stepped frames; each frame's palette holds every colour-map colour
                    it uses (<= 200) plus its most frequent other colours, no dithering,
                    so the shading keeps its exact colours
-  milton_wind_particles.mp4 (+ _poster.png)  the frames with wind particles advected
+  milton_wind_particles.mp4 (+ _poster.{png,pdf})  the frames with wind particles advected
                    by the member-1 / ensemble-mean 10 m wind on rows 1-2 (nullschool-
                    style fading trails, opacity scaled with speed, track and star kept
                    on top). Each lead holds for 1.2 s and particles move with the true
@@ -62,7 +62,7 @@ from _env import BASELINES, FIGURES, IFS_ENS, STORE, WB2_2024  # noqa: E402
 INIT = pd.Timestamp("2024-10-06T00:00")
 INIT_TAG = "20241006_0000"
 LEADS_H = np.arange(0, 121, 6)
-PDF_LEAD_H = 96
+POSTER_LEAD_H = 96
 IFS_STRATIFIED = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45]
 
 CACHE = STORE / "analysis" / "milton_wind_frames"
@@ -558,8 +558,9 @@ def write_particles(data, bases, overlays, boxes, path, web_path, poster):
         frame += (ov[..., :3] - frame) * ov[..., 3:]
         out = (frame * 255 + 0.5).astype(np.uint8)
         proc.stdin.write(out.tobytes())
-        if LEADS_H[k] == PDF_LEAD_H and s == STEPS_PER_LEAD // 2:
+        if LEADS_H[k] == POSTER_LEAD_H and s == STEPS_PER_LEAD // 2:
             Image.fromarray(out).save(poster)
+            Image.fromarray(out).save(poster.with_suffix(".pdf"), resolution=150)
             print(f"poster = video frame {n_frames}")
         n_frames += 1
     proc.stdin.close()
@@ -595,8 +596,7 @@ def main():
         fig.canvas.draw()
         rgb = np.asarray(fig.canvas.buffer_rgba())[..., :3].copy()
         Image.fromarray(rgb).save(OUT_DIR / f"{name}.png")
-        if lead == PDF_LEAD_H:
-            fig.savefig(OUT_DIR / f"{name}.pdf", dpi=300, facecolor="white")
+        fig.savefig(OUT_DIR / f"{name}.pdf", dpi=300, facecolor="white")
         if boxes is None:
             boxes = {}
             for (r, c), ax in axes.items():

@@ -12,7 +12,7 @@ cd "$(dirname "$0")/.."
 
 MODEL="${1:?Usage: submit_build.sh <model|all> [partition]}"
 PARTITION="${2:-debug}"
-ACCOUNT="${ACCOUNT:-a122}"
+ACCOUNT="${ACCOUNT:-${AIENS_ACCOUNT:-ab016}}"
 STORE="${AIENS_STORE:-/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles}"
 LOG_DIR="${LOG_DIR:-logs}"
 mkdir -p "$LOG_DIR"

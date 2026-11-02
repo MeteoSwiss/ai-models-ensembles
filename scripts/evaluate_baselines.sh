@@ -71,7 +71,7 @@ declare -A MODEL_KIND=(
     [aifs_det]=ai
 )
 
-IFS_ENS_ZARR="${AIENS_IFS_ENS:-/capstor/store/cscs/swissai/a122/IFS/ifs_ens.zarr}"
+IFS_ENS_ZARR="${AIENS_IFS_ENS:-/capstor/store/cscs/swissai/ab016/IFS/ifs_ens.zarr}"
 
 # Stratified 10-member subsample of IFS ENS (50 members total). Members are
 # generated with systematic perturbation spread across indices, so step-5
@@ -343,7 +343,7 @@ submit_main_eval() {
         "${dep_flag[@]}" \
         --job-name="$job_tag" \
         --partition="$PARTITION" \
-        --account=ab016 \
+        --account="${AIENS_ACCOUNT:-ab016}" \
         --nodes=1 \
         --ntasks=1 \
         --cpus-per-task=144 \
@@ -370,7 +370,7 @@ submit_etsfss_eval() {
         "${dep_flag[@]}" \
         --job-name="$job_tag" \
         --partition="$PARTITION" \
-        --account=ab016 \
+        --account="${AIENS_ACCOUNT:-ab016}" \
         --nodes=1 \
         --ntasks=1 \
         --cpus-per-task=144 \
@@ -435,7 +435,7 @@ _submit_module_sbatch() {
     sbatch --parsable \
         "${dep_flag[@]}" \
         --job-name="$job_tag" \
-        --partition="$PARTITION" --account=ab016 \
+        --partition="$PARTITION" --account="${AIENS_ACCOUNT:-ab016}" \
         --nodes=1 --ntasks=1 --requeue --cpus-per-task=144 --mem=800G --time="12:00:00" \
         --output="$LOG_DIR/${job_tag}_%j.out" \
         --error="$LOG_DIR/${job_tag}_%j.err" \
@@ -510,7 +510,7 @@ run_intercompare() {
         "${dep_flag[@]}" \
         --job-name="$job_tag" \
         --partition="$PARTITION" \
-        --account=ab016 \
+        --account="${AIENS_ACCOUNT:-ab016}" \
         --nodes=1 \
         --ntasks=1 \
         --cpus-per-task=16 \

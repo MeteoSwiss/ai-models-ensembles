@@ -252,7 +252,7 @@ submit_eval() {
         "${dep_flag[@]}" \
         --job-name="eval_${job_tag}" \
         --partition="$PARTITION" \
-        --account=ab016 \
+        --account="${AIENS_ACCOUNT:-ab016}" \
         --nodes=1 \
         --ntasks=1 \
         --cpus-per-task=16 \
@@ -403,7 +403,7 @@ _submit_intercompare_sbatch() {
         "${dep_flag[@]}" \
         --job-name="$job_tag" \
         --partition="$PARTITION" \
-        --account=ab016 \
+        --account="${AIENS_ACCOUNT:-ab016}" \
         --nodes=1 \
         --ntasks=1 \
         --cpus-per-task=16 \

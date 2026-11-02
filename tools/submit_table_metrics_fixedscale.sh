@@ -37,7 +37,7 @@ cd ${AIENS_REPO:-/users/sadamov/pyprojects/ai-models-ensembles}
 STORE=${AIENS_STORE:-/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles}
 WB2A=${AIENS_WB2_22:-/capstor/store/cscs/swissai/weatherbench/weatherbench2_2022_2023.zarr}
 WB2B=${AIENS_WB2_24:-/capstor/store/cscs/swissai/weatherbench/weatherbench2_2024_2025.zarr}
-OUT=${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/ai-models-ensembles/scratch/table_metrics_fixedscale
+OUT=$STORE/analysis/table_metrics_fixedscale
 SCALE=tools/data/channel_scale_1990_2019.json
 [[ -f "$SCALE" ]] || { echo "missing $SCALE"; exit 1; }
 mkdir -p "$OUT"

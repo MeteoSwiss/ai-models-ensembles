@@ -33,8 +33,7 @@ import math
 import os
 from pathlib import Path
 
-from _env import FIGURES, STORE
-from _env import SCRATCH as _SCRATCH_ROOT
+from _env import ANALYSIS, FIGURES, STORE
 
 BASE = STORE / "baselines"
 INTER = BASE / "intercomparison"
@@ -162,7 +161,7 @@ MVAR = {
 # hardcoded dicts above are the older per-init truth-std values and remain the
 # fallback; set ESVS_SCALE_TAG="" to force them.
 _SCALE_TAG = os.environ.get("ESVS_SCALE_TAG", "fixed")
-_FIXED_DIR = _SCRATCH_ROOT / "ai-models-ensembles/scratch/table_metrics_fixedscale"
+_FIXED_DIR = ANALYSIS / "table_metrics_fixedscale"
 _SCORE_KEY = {
     "ES": "energy_score_mvar",
     "VS": "variogram_score_p05",

@@ -95,7 +95,7 @@ fi
 #                1 member), scored as single-member CRPS = MAE on the headline
 #                CRPSS figure (talk variant, not the paper figure).
 MODELS="fcn3 atlas aifsens sfno_modes10 aurora_encoder graphcast_all aifs_perturbed"
-IC_ZARR="/capstor/store/cscs/swissai/a122/IFS/ifs_analysis_perturbed_ic.zarr"
+IC_ZARR="/capstor/store/cscs/swissai/ab016/IFS/ifs_analysis_perturbed_ic.zarr"
 IC_ONLY_MODELS="aurora_ic_only graphcast_ic_only sfno_ic_only aifs_ic_only"
 RIVAL_MODELS="aurora_enc_s044 graphcast_m2g graphcast_g2m sfno_enc_s054 sfno_enc_s035 aifs_all_s010"
 declare -A MODEL_IDS=(
@@ -285,7 +285,7 @@ for model in $REQUESTED; do
                         --begin="now+${delay}minutes" \
                         --job-name="$job_tag" \
                         --partition="$PARTITION" \
-                        --account=ab016 \
+                        --account="${AIENS_ACCOUNT:-ab016}" \
                         --nodes=1 --ntasks=1 --cpus-per-task=32 --mem=800G --gres=gpu:4 \
                         --time="$PER_INIT_TIME_LIMIT" \
                         --output="$LOG_DIR/${job_tag}_%j.out" \
@@ -380,7 +380,7 @@ SCRIPT
             "${dep_flag[@]}" \
             --job-name="$job_tag" \
             --partition="$PARTITION" \
-            --account=ab016 \
+            --account="${AIENS_ACCOUNT:-ab016}" \
             --nodes=1 \
             --ntasks=1 \
             --cpus-per-task=32 \

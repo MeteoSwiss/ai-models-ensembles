@@ -31,6 +31,9 @@ STORE = Path(
 SCRATCH = Path(os.environ.get("AIENS_SCRATCH", "/iopsstor/scratch/cscs/sadamov"))
 
 BASELINES = STORE / "baselines"
+# Durable intermediates (CSV/NPZ caches of the compute jobs). Lives on the store, not on
+# scratch: /iopsstor scratch is purged without notice and has already lost these twice.
+ANALYSIS = STORE / "analysis"
 INTERCOMP = BASELINES / "intercomparison"
 
 WB2_2022 = os.environ.get(
@@ -45,4 +48,4 @@ WB2_ORIGINAL = os.environ.get(
     "AIENS_WB2_ORIGINAL",
     "/capstor/store/cscs/swissai/weatherbench/weatherbench2_original",
 )
-IFS_ENS = os.environ.get("AIENS_IFS_ENS", "/capstor/store/cscs/swissai/a122/IFS/ifs_ens.zarr")
+IFS_ENS = os.environ.get("AIENS_IFS_ENS", "/capstor/store/cscs/swissai/ab016/IFS/ifs_ens.zarr")

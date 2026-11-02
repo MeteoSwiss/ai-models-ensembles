@@ -78,7 +78,7 @@ with open(dst, "w") as f:
     yaml.safe_dump(c, f, sort_keys=False)
 PYE
   tag="spectra_reeval_${phase}_${model}_${run}"
-  jid=$(sbatch --parsable --job-name="$tag" --partition="${PARTITION:-normal}" --account=ab016 \
+  jid=$(sbatch --parsable --job-name="$tag" --partition="${PARTITION:-normal}" --account="${AIENS_ACCOUNT:-ab016}" \
         --nodes=1 --ntasks=1 --exclusive --requeue --cpus-per-task=144 --mem=800G --time=04:00:00 \
         --output="$LOG_DIR/${tag}_%j.out" --error="$LOG_DIR/${tag}_%j.err" \
         --wrap="source ${SRC_DIR}/.venv/bin/activate && python -m swissclim_evaluations.cli --config '${dst_cfg}'")

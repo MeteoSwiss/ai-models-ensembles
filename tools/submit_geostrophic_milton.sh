@@ -63,7 +63,7 @@ declare -A MODEL_KIND=(
     [aifsens]=ai [fcn3]=ai [atlas]=ai [ifs_ens]=ref
 )
 
-IFS_ENS_ZARR="${AIENS_IFS_ENS:-/capstor/store/cscs/swissai/a122/IFS/ifs_ens.zarr}"
+IFS_ENS_ZARR="${AIENS_IFS_ENS:-/capstor/store/cscs/swissai/ab016/IFS/ifs_ens.zarr}"
 IFS_ENS_MEMBERS="[0, 5, 10, 15, 20, 25, 30, 35, 40, 45]"
 
 WB2_PATHS='[
@@ -247,7 +247,7 @@ echo "Submitting ${JOB_TAG} (8 baselines, Milton box, geostrophic-only) ..." >&2
 sbatch --parsable \
     --job-name="$JOB_TAG" \
     --partition="$PARTITION" \
-    --account=ab016 \
+    --account="${AIENS_ACCOUNT:-ab016}" \
     --nodes=1 \
     --ntasks=1 \
     --cpus-per-task=128 \

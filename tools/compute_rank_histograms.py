@@ -12,7 +12,7 @@ For each baseline and (variable, level) at lead 240h:
   * spatial-mean rank = rank of the cos-lat truth spatial mean among the M
     member spatial means, one per init.
 
-Output: $AIENS_SCRATCH/rank_hist_<baseline>.npz
+Output: $AIENS_STORE/analysis/rank_histograms/rank_hist_<baseline>.npz
   perpixel_counts (nvarlev, M+1), spatialmean_ranks (nvarlev, ninits), labels.
 
 Usage (CPU sbatch): python tools/compute_rank_histograms.py --baselines all
@@ -29,12 +29,13 @@ from pathlib import Path
 import numpy as np
 import xarray as xr
 
-from _env import IFS_ENS, SCRATCH, STORE, WB2_2022, WB2_2024
+from _env import ANALYSIS, IFS_ENS, STORE, WB2_2022, WB2_2024
 
 sys.stdout.reconfigure(line_buffering=True)
 
 TRUTH_SRC = {2023: WB2_2022, 2024: WB2_2024}
-OUTDIR = SCRATCH
+OUTDIR = ANALYSIS / "rank_histograms"
+OUTDIR.mkdir(parents=True, exist_ok=True)
 
 BASELINES = {
     "aurora_encoder": f"{STORE}/baselines/aurora_encoder",

@@ -8,7 +8,7 @@
 #   sbatch tools/submit_rank_histograms.sh all             # all 8 baselines
 #   sbatch tools/submit_rank_histograms.sh ifs_ens aifsens # a subset
 #
-# Output: ${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/rank_hist_<baseline>.npz
+# Output: ${AIENS_STORE:-/capstor/store/cscs/mch/s83/sadamov/ai-models-ensembles}/analysis/rank_histograms/rank_hist_<baseline>.npz
 #
 #SBATCH --account=ab016
 #SBATCH --partition=normal

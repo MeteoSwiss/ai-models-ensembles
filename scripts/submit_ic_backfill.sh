@@ -37,7 +37,7 @@ WORKDIR=/workspace/ai-models-ensembles
 LOG_DIR="$STORE/baseline_logs"
 HOST_PY=${AIENS_PY:-/capstor/store/cscs/mch/s83/sadamov/venvs/ai-models-ensembles/bin/python}
 
-IC_ZARR=/capstor/store/cscs/swissai/a122/IFS/ifs_analysis_perturbed_ic.zarr
+IC_ZARR=/capstor/store/cscs/swissai/ab016/IFS/ifs_analysis_perturbed_ic.zarr
 IC_DIR=$(dirname "$IC_ZARR")
 E2S_CACHE_DIR="${AIENS_SCRATCH:-/iopsstor/scratch/cscs/sadamov}/e2s_cache"
 
@@ -142,7 +142,7 @@ for run in $REQUESTED; do
             sbatch --parsable \
                 --begin="now+${delay}minutes" \
                 --job-name="$job_tag" \
-                --partition="$PARTITION" --account=ab016 \
+                --partition="$PARTITION" --account="${AIENS_ACCOUNT:-ab016}" \
                 --nodes=1 --ntasks=1 --cpus-per-task=32 --mem=800G --gres=gpu:4 \
                 --time="$TIME_LIMIT" \
                 --output="$LOG_DIR/${job_tag}_%j.out" \

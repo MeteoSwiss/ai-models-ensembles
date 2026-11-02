@@ -42,7 +42,7 @@ import math
 import os
 from pathlib import Path
 
-from _env import STORE
+from _env import ANALYSIS, STORE
 from _env import SCRATCH as _SCRATCH_ROOT
 
 ABL = STORE / "ablation"
@@ -51,7 +51,7 @@ SCRATCH = _SCRATCH_ROOT / "ai-models-ensembles/scratch/table_metrics"
 # advance, so the reported cells come from the fixed 1990-2019 climatological
 # rescore (tools/submit_table_metrics_fixedscale.sh). Set SCALE_TAG="" to fall
 # back to the older per-init truth-std CSVs.
-SCRATCH_FIXED = _SCRATCH_ROOT / "ai-models-ensembles/scratch/table_metrics_fixedscale"
+SCRATCH_FIXED = ANALYSIS / "table_metrics_fixedscale"
 SCALE_TAG = os.environ.get("ESVS_SCALE_TAG", "fixed")
 CRPS_CLIM = Path(__file__).resolve().parent / "data" / "crps_clim_eval_ablation_1990_2019.json"
 
