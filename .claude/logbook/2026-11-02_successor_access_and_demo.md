@@ -61,7 +61,7 @@ mode 700 and is deleted with the account. Everyone else builds a venv from `env/
   `storage_options={"token": "anon"}` makes gcsfs look for Google credentials, which hangs on compute
   nodes (the IFS sample reached 1% in 4 h; one init wrote no chunk in 10 min, CPU idle). Anonymous reads
   run at ~300 MB/s; the IFS sample (133 inits x 41 leads, 65k chunks of full global fields, ~880 GB read,
-  15 GB written) then took 26 min. Staged to `ab016/COSMO/cosmo_ifs_sample.zarr`; the Clariden runner and
+  15 GB written) then took 26 min (job 3840447). Staged to `ab016/COSMO/cosmo_ifs_sample.zarr`; the Clariden runner and
   notebook now evaluate with IFS boundaries as in Step 9. Full-study IFS (2019-08-30 to 2020-11-02) is
   still not on Clariden; the three missing steps for a full reproduction are now in the paper repo's
   `HANDOVER.md` and on the Confluence page.
@@ -82,3 +82,7 @@ mode 700 and is deleted with the account. Everyone else builds a venv from `env/
   boundaries with full-period ERA5 stats, train 2015-11-28..2019-09-30). With those stats (now shipped as
   `scripts/artifacts/cosmo_era5_train_stats.zarr` in neural-lam-dev, 698f368): bias -0.01/-0.14/-0.08/
   -0.05 K, RMSE 0.35/0.64/0.86/0.97 K. The interior stats were already right (cosmo_dataset_reference.md).
+  Test job 3840851 (full `cosmo_era5_config.yaml` datastore built from `era_subset.zarr`); runner verified from a
+  fresh WORKDIR at 698f368 (prep 3841004, eval 3841058), bit-identical. Clariden walkthrough is now
+  `docs/reproduce_paper_sample_clariden.md` + `figures/cosmo_sample_clariden_t2m.png` (c421c37). Scratch
+  workdirs `/iopsstor/scratch/cscs/sadamov/neural_lam_sample*` are throwaway.
