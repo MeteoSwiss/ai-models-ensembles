@@ -18,7 +18,7 @@ and `.claude/` (see `.claude/README.md`) hold the condensed conventions and the 
 
 ## Python / interpreters
 - Host venv (analysis, no torch/earth2studio): `/capstor/store/cscs/mch/s83/sadamov/venvs/ai-models-ensembles/bin/python`
-  (`.venv` symlink). Exact pins: `env/host-requirements.txt`. Elsewhere: `uv venv --python 3.11 && uv pip install
+  (`.venv` symlink). Exact pins: `env/host-requirements.txt`. Elsewhere: `uv venv --managed-python --python 3.11 && uv pip install
   -r env/host-requirements.txt && uv pip install -e . --no-deps`.
 - Never `uv pip install <new>` into the shared venv without adding it to pyproject.toml first (broke certifi once).
 - Never site a venv on `/iopsstor` scratch: the purge strips files but leaves dirs, imports then fail while

@@ -41,7 +41,7 @@ venv)
     sbatch --account="$ACCOUNT" --partition="$PARTITION" --time=00:45:00 --cpus-per-task=16 --mem=64G \
         --job-name=aiens_demo_venv --output="$DEMO_ROOT/logs/venv_%j.log" \
         --wrap="set -e; cd '$SRC_DIR'
-            uv venv --python 3.11 .venv
+            uv venv --managed-python --python 3.11 .venv
             uv pip install --python .venv/bin/python -r env/host-requirements.txt
             uv pip install --python .venv/bin/python -e . --no-deps
             .venv/bin/python -c 'import swissclim_evaluations, ai_models_ensembles; print(\"venv ok\")'"

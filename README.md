@@ -57,7 +57,7 @@ Two notebooks run a small ensemble end to end (GraphCast with the production per
 Regenerate a paper figure on any machine from the vendored data:
 
 ```bash
-uv venv --python 3.11 .venv && source .venv/bin/activate
+uv venv --managed-python --python 3.11 .venv && source .venv/bin/activate
 uv pip install -r env/host-requirements.txt && uv pip install -e . --no-deps
 export AIENS_STORE=$PWD/tools/data/store AIENS_SCRATCH=$PWD/tools/data/store/analysis
 python tools/plot_headline_crpss_vs_lead_8way.py         # -> figures/headline_crpss_vs_lead_8way.pdf

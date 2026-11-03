@@ -9,7 +9,7 @@ Explanation of all three environments: [docs/ENVIRONMENT.md](../docs/ENVIRONMENT
 | `conda-tools.yml` | TempestExtremes, udunits, netCDF, ffmpeg, tectonic as in the Clariden miniforge base |
 
 ```bash
-uv venv --python 3.11 .venv && source .venv/bin/activate
+uv venv --managed-python --python 3.11 .venv && source .venv/bin/activate
 uv pip install -r env/host-requirements.txt && uv pip install -e . --no-deps
 conda env create -f env/conda-tools.yml          # only for Milton tracking, animations, LaTeX
 ```

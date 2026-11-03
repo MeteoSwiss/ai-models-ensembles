@@ -16,7 +16,7 @@ Data locations: [DATA.md](DATA.md). Environment: [ENVIRONMENT.md](ENVIRONMENT.md
 
 ```bash
 git clone https://github.com/MeteoSwiss/ai-models-ensembles && cd ai-models-ensembles
-uv venv --python 3.11 .venv && source .venv/bin/activate
+uv venv --managed-python --python 3.11 .venv && source .venv/bin/activate
 uv pip install -r env/host-requirements.txt && uv pip install -e . --no-deps
 export AIENS_STORE=$PWD/tools/data/store AIENS_SCRATCH=$PWD/tools/data/store/analysis MPLBACKEND=Agg
 python tools/plot_headline_crpss_vs_lead_8way.py      # -> figures/headline_crpss_vs_lead_8way.pdf

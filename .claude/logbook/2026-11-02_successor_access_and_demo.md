@@ -86,3 +86,14 @@ mode 700 and is deleted with the account. Everyone else builds a venv from `env/
   fresh WORKDIR at 698f368 (prep 3841004, eval 3841058), bit-identical. Clariden walkthrough is now
   `docs/reproduce_paper_sample_clariden.md` + `figures/cosmo_sample_clariden_t2m.png` (c421c37). Scratch
   workdirs `/iopsstor/scratch/cscs/sadamov/neural_lam_sample*` are throwaway.
+
+## 2026-11-03 handover test by the successor (olifu, own account)
+- Neural-LAM Clariden page: reproduced (+24 h T_2M RMSE 0.969 vs 0.97 K documented; training skipped).
+- SPW quickstart (public ARCO data): reproduced (T2m CRPS 0.50398 vs 0.50396 K, all leads within 0.0003 K).
+- SPW Clariden demo (local WB2 zarr): blocked before inference because the Slurm job credentials did not yet
+  carry the newly granted `weatherbench` group (login shell and compute-node lookup did; job 3844909), most
+  likely propagation delay. Rerun later.
+- Install trap: `uv venv --python 3.11` takes Clariden's `/usr/bin/python3.11` (3.11.13, no `Python.h`) when
+  the user has no uv-managed 3.11, and the Cartopy build fails. The author never hit it because
+  `~/.local/bin/python3.11` links to a uv-managed 3.11.9. All instructions now use `--managed-python`
+  (verified from an empty uv cache and install dir: CPython 3.11.14 downloaded, full venv installs).

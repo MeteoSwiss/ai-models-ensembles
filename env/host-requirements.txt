@@ -1,7 +1,7 @@
 # Exact freeze of the host analysis venv used for every tools/*.py figure/table/compute script
 # (/capstor/store/cscs/mch/s83/sadamov/venvs/ai-models-ensembles, Python 3.11.9, aarch64 Clariden login/compute nodes).
 # Frozen 2026-11-02 with: uv pip freeze --python .venv/bin/python
-# Install:  uv venv --python 3.11 .venv && uv pip install -r env/host-requirements.txt && uv pip install -e . --no-deps
+# Install:  uv venv --managed-python --python 3.11 .venv && uv pip install -r env/host-requirements.txt && uv pip install -e . --no-deps
 # No torch / earth2studio / jax here: inference runs in the per-model containers (containers/locks/*.txt).
 # swissclim-evaluations is the SwissClim_Evaluations checkout (branch research, v0.2.0-72-g9d3a7fd), pinned to that commit.
 

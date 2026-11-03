@@ -23,10 +23,14 @@ from PyPI, while every run used earth2studio 0.15.0a0 from git.
 - Fresh install anywhere (Linux or macOS, x86_64 or aarch64):
 
   ```bash
-  uv venv --python 3.11 .venv && source .venv/bin/activate
+  uv venv --managed-python --python 3.11 .venv && source .venv/bin/activate
   uv pip install -r env/host-requirements.txt      # 229 exact pins, incl. SwissClim at a commit
   uv pip install -e . --no-deps                     # this package (CLI + helpers), no GPU deps
   ```
+
+  `--managed-python` makes uv use (and download) its own CPython. Without it uv takes a system Python
+  of the right version if there is one, and Clariden's `/usr/bin/python3.11` has no development
+  headers, so building Cartopy fails (found in the handover test on 2026-11-03).
 
   The lock resolves cleanly (`uv pip install --dry-run`, checked 2026-11-02).
 - Key versions: numpy 2.4.6, xarray 2026.4.0, zarr 3.1.6, dask 2026.3.0, pandas 2.3.3, scipy 1.17.1,
