@@ -1,0 +1,3 @@
+model,score,lead_hours,n_inits,n_members,value
+fcn3,energy_score_mvar,120,112,10,0.7052827644166759
+fcn3,variogram_score_p05,120,112,10,0.05082325618838825

@@ -74,3 +74,10 @@ Total ~59 TB. Only reference to a deleted path in any local repo was thesis
 `defense/figures/cosmo_model_levels.py` (a01 zarr), repointed to ab016/COSMO (left uncommitted in the thesis repo).
 Script and list: handoff_staging/cleanup_delete.sh, delete_list.txt (local); log
 `$STORE/baseline_eval_logs/aiens_cleanup_3834442.log`. Remaining: docs/data/LARGE_DATASETS.md.
+
+## Fixed-scale ES/VS/SIGK regenerated (job 3833541, 3 h 23 min)
+96 CSVs in `$STORE/analysis/table_metrics_fixedscale/` (no tracebacks; only an xarray FutureWarning). Tab. C1
+regenerates with every number identical (the 2-line hand-added 2026-09-18 provenance comment is not produced by
+the generator, so the committed file was kept); `assemble_calibration_table.py` output matches all 17 data rows
+of `calibration_basis_table.tex` verbatim. CSVs vendored (48 KB); both tables also rebuild off-HPC. All four
+purge-broken paper outputs (rank histograms, Tab. C1, calibration table, Milton F2/F5/F9 + summary) are restored.

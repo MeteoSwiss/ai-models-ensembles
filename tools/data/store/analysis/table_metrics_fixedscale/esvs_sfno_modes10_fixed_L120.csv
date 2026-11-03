@@ -1,0 +1,3 @@
+model,score,lead_hours,n_inits,n_members,value
+sfno_modes10,energy_score_mvar,120,112,10,0.8908394918605543
+sfno_modes10,variogram_score_p05,120,112,10,0.06894806963516333

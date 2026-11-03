@@ -1,0 +1,3 @@
+model,score,lead_hours,n_inits,n_members,value
+aifsens,energy_score_mvar,120,112,10,0.6496225495672104
+aifsens,variogram_score_p05,120,112,10,0.04517351109028649

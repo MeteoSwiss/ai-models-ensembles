@@ -3,7 +3,8 @@
 Three levels, from cheapest to complete:
 
 1. Any machine, minutes: regenerate the figures and tables from the 60 MB of inputs vendored in
-   `tools/data/`. Covers 17 of the 26 paper items plus the talk/diagnostic extras below.
+   `tools/data/`. Covers 21 of the 26 paper items (all but F3, F4 and F8, which read the forecast zarrs, and two
+   hand-written tables) plus most talk/diagnostic extras below.
 2. Clariden, hours: rerun the analysis jobs (`tools/submit_*.sh`) on the stored forecasts and evaluations in
    `$STORE`, then step 1. Needs `s83` access.
 3. Clariden, days: rerun inference (`scripts/submit_*`) and SwissClim evaluation from scratch. Needs the
@@ -41,8 +42,8 @@ the `CreationDate` stamp removed).
 | Fig. spectrogram delta z500 | `spectrogram_delta_z500_7way.pdf` | `python tools/plot_spectrogram_delta_2row.py` | yes | verified |
 | Fig. spread-error | `spread_error.pdf` | `python tools/plot_spread_error.py` | yes | verified |
 | Fig. rank histograms | `rank_histograms_240h.pdf` | `python tools/plot_rank_histograms.py` | yes | verified (inputs regenerated 2026-11-02, job 3833540) |
-| Tab. C1 production metrics | `table_c1_production_metrics.tex` | `python tools/assemble_production_metrics_table.py` | yes, after vendoring `analysis/table_metrics_fixedscale/` | inputs regenerated 2026-11-02 (job 3833541), see section 4 |
-| Tab. calibration basis | `calibration_basis_table.tex` | `python tools/assemble_calibration_table.py` (prints the body; pasted by hand) + `python tools/patch_calibration_lsd.py --write` (LSD cells) | yes, same | LSD patch verified; body as Tab. C1 |
+| Tab. C1 production metrics | `table_c1_production_metrics.tex` | `python tools/assemble_production_metrics_table.py` | yes | verified (inputs regenerated 2026-11-02, job 3833541; only a hand-added provenance comment is not regenerated) |
+| Tab. calibration basis | `calibration_basis_table.tex` | `python tools/assemble_calibration_table.py` (prints the body; pasted by hand) + `python tools/patch_calibration_lsd.py --write` (LSD cells) | yes | verified: all 17 generated rows match the committed table; LSD patch verified |
 | Tab. IC decomposition | `ic_decomp_table.tex` | `python tools/make_ic_decomp_table.py` | yes | verified |
 | Tab. rival validation | `rival_validation_table.tex` | `python tools/make_rival_validation_table.py` | yes | verified |
 | Figs. Milton F1, F2, F5 | `milton_F1_track_spaghetti.pdf`, `milton_F2_intensity_vs_lead.pdf`, `milton_F5_verification_vs_lead.pdf` | see note 2 | yes | verified (tracks rebuilt 2026-11-02, job 3833735) |
@@ -138,6 +139,10 @@ ES/VS/SIGK columns of Tab. C1 and the calibration table. Both jobs were rerun wi
 
 - `sbatch tools/submit_rank_histograms.sh all` -> `$STORE/analysis/rank_histograms/rank_hist_<baseline>.npz`
 - `sbatch tools/submit_table_metrics_fixedscale.sh` -> `$STORE/analysis/table_metrics_fixedscale/{esvs,sigk}_<label>_fixed_L{120,240}.csv`
+
+Results: job 3833540 (58 min) and 3833541 (3 h 23 min) completed; the rank-histogram PDF is byte-identical,
+Tab. C1 matches in every number and the calibration table in every generated row. Both outputs are vendored in
+`tools/data/store/analysis/`, so these items now rebuild off-HPC as well.
 
 ## 5. Milton case study on Clariden
 

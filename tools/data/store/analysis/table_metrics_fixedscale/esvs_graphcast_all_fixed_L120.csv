@@ -1,0 +1,3 @@
+model,score,lead_hours,n_inits,n_members,value
+graphcast_all,energy_score_mvar,120,112,10,0.7658840207993265
+graphcast_all,variogram_score_p05,120,112,10,0.05305960831104866

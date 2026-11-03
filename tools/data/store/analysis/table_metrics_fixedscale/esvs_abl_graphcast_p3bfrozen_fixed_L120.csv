@@ -1,0 +1,3 @@
+model,score,lead_hours,n_inits,n_members,value
+abl_graphcast_p3bfrozen,energy_score_mvar,120,4,10,1.0378066121734075
+abl_graphcast_p3bfrozen,variogram_score_p05,120,4,10,0.0690778656086574

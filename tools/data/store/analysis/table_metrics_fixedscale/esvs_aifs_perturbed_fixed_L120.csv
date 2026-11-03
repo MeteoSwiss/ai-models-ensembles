@@ -1,0 +1,3 @@
+model,score,lead_hours,n_inits,n_members,value
+aifs_perturbed,energy_score_mvar,120,112,10,0.6984347498825098
+aifs_perturbed,variogram_score_p05,120,112,10,0.049882354517605906

@@ -1,0 +1,3 @@
+model,score,lead_hours,n_inits,n_members,value
+abl_aurora_enc,energy_score_mvar,240,4,10,1.1739048624170398
+abl_aurora_enc,variogram_score_p05,240,4,10,0.09926456201355904
