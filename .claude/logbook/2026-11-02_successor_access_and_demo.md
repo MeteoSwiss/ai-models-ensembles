@@ -72,9 +72,13 @@ mode 700 and is deleted with the account. Everyone else builds a venv from `env/
   writer (open PR #289 drops `time` too).
 - GitHub's notebook renderer typesets `$...$` inside one line of a code cell as math
   (`"$SRCDIR/scripts/$f"` was torn apart): keep at most one `$` per line in notebook shell cells.
-- Generic neural-LAM notebook dropped (the sample guide stays the single source); the Clariden one lives
-  in `docs/notebooks/` with outputs. SPW notebooks committed with outputs (ad6ffbb).
+- Both neural-LAM notebooks dropped again: the guides stay generic and the single source, the Clariden
+  specifics are a short `docs/reproduce_paper_sample_clariden.md` next to the runner (the notebook was
+  770 KB of JSON for five commands and a figure). SPW notebooks committed with outputs (ad6ffbb).
 - Clariden sample with the published checkpoint (training stats, IFS boundaries, jobs 3840519/45/89):
   T_2M drifts cold domain-wide, mean bias -0.24/-1.54/-2.68/-3.68 K at +1/6/12/24 h (RMSE 0.45/1.80/2.97/
-  3.98 K), all four start times alike and the same with ERA5 boundaries (+24 h RMSE 3.78 K). Cause not
-  identified; candidates: sample-period boundary/forcing stats, lost training datastore vs sample config.
+  3.98 K), all four start times alike and the same with ERA5 boundaries (+24 h RMSE 3.78 K). Cause: the
+  boundary was normalised with ERA5 stats of the sample window (the paper normalises ERA5 and IFS
+  boundaries with full-period ERA5 stats, train 2015-11-28..2019-09-30). With those stats (now shipped as
+  `scripts/artifacts/cosmo_era5_train_stats.zarr` in neural-lam-dev, 698f368): bias -0.01/-0.14/-0.08/
+  -0.05 K, RMSE 0.35/0.64/0.86/0.97 K. The interior stats were already right (cosmo_dataset_reference.md).
