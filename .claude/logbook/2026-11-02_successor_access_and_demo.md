@@ -55,3 +55,26 @@ mode 700 and is deleted with the account. Everyone else builds a venv from `env/
   graphcast directly (only the Phase 3 module imports it).
 - SwissClim against the ARCO zarr over the network took > 2 h per module from Clariden; the notebook
   first copies the 5 scored valid times, 5 variables, 2 levels (150 MB) and evaluates against that.
+
+## 2026-11-03 follow-up (neural-LAM side, all in neural-lam-dev `research`)
+- WeatherBench 2 downloads from Clariden: `xr.open_zarr("gs://weatherbench2/...")` without
+  `storage_options={"token": "anon"}` makes gcsfs look for Google credentials, which hangs on compute
+  nodes (the IFS sample reached 1% in 4 h; one init wrote no chunk in 10 min, CPU idle). Anonymous reads
+  run at ~300 MB/s; the IFS sample (133 inits x 41 leads, 65k chunks of full global fields, ~880 GB read,
+  15 GB written) then took 26 min. Staged to `ab016/COSMO/cosmo_ifs_sample.zarr`; the Clariden runner and
+  notebook now evaluate with IFS boundaries as in Step 9. Full-study IFS (2019-08-30 to 2020-11-02) is
+  still not on Clariden; the three missing steps for a full reproduction are now in the paper repo's
+  `HANDOVER.md` and on the Confluence page.
+- neural-lam eval zarr: `time` (left by `swap_dims`, dim elapsed_forecast_duration only) was overwritten
+  by every append along start_time, so it held the last forecast's valid times. Same in the paper's
+  `ab016/sadamov/lam_model_forecasts` (README added there). The verification scripts drop it and use
+  start_time + lead, so no paper figure or table is affected. Writer fixed; mllam/neural-lam main has no
+  writer (open PR #289 drops `time` too).
+- GitHub's notebook renderer typesets `$...$` inside one line of a code cell as math
+  (`"$SRCDIR/scripts/$f"` was torn apart): keep at most one `$` per line in notebook shell cells.
+- Generic neural-LAM notebook dropped (the sample guide stays the single source); the Clariden one lives
+  in `docs/notebooks/` with outputs. SPW notebooks committed with outputs (ad6ffbb).
+- Clariden sample with the published checkpoint (training stats, IFS boundaries, jobs 3840519/45/89):
+  T_2M drifts cold domain-wide, mean bias -0.24/-1.54/-2.68/-3.68 K at +1/6/12/24 h (RMSE 0.45/1.80/2.97/
+  3.98 K), all four start times alike and the same with ERA5 boundaries (+24 h RMSE 3.78 K). Cause not
+  identified; candidates: sample-period boundary/forcing stats, lost training datastore vs sample config.
